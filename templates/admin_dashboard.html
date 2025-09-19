@@ -13,6 +13,36 @@
 <div id="cohorts" class="tab-content active">
     <h2>All Cohorts</h2>
     <div id="cohorts-list"></div>
+    <div id="cohort-manage" style="display:none; margin-top:1rem;" class="cohort-card">
+        <h3 id="manage-cohort-title">Manage Cohort</h3>
+        <div>
+            <h4>Students in Cohort</h4>
+            <div id="cohort-students"></div>
+        </div>
+        <div style="margin-top:1rem;">
+            <h4>Add Student</h4>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+                <select id="add-student-select" style="flex:1; padding:.6rem; border:1px solid #e9ecef; border-radius:6px;">
+                    <option value="">Select a student...</option>
+                </select>
+                <span class="muted">or</span>
+                <input id="add-student-email" type="email" placeholder="student@example.com" style="flex:1; padding:.6rem; border:1px solid #e9ecef; border-radius:6px;">
+                <button class="btn" id="add-student-btn">Add</button>
+            </div>
+        </div>
+    </div>
+    <div id="cohortLectures" style="display:none; margin-top:1rem;" class="cohort-card">
+        <h4>Lectures in Cohort</h4>
+        <div id="cohort-lectures-list"></div>
+    </div>
+    <input type="hidden" id="current-cohort-id" value="">
+    <input type="hidden" id="current-cohort-name" value="">
+    <input type="hidden" id="current-cohort-code" value="">
+    <input type="hidden" id="current-cohort-teacher" value="">
+    <input type="hidden" id="current-cohort-subject" value="">
+    <input type="hidden" id="current-cohort-created-at" value="">
+    <input type="hidden" id="current-cohort-student-count" value="">
+    <input type="hidden" id="current-cohort-description" value="">
 </div>
 
 <!-- Teachers Tab -->
@@ -269,7 +299,7 @@ async function loadCohorts() {
             return;
         }
         
-        container.innerHTML = data.cohorts.map(cohort => `
+                container.innerHTML = data.cohorts.map(cohort => `
             <div class="cohort-card">
                 <h3>${cohort.name}</h3>
                 <p>${cohort.description || 'No description'}</p>
@@ -277,7 +307,8 @@ async function loadCohorts() {
                 <p><strong>Teacher:</strong> ${cohort.teacher_name || 'Unassigned'}</p>
                 <p><strong>Students:</strong> ${cohort.student_count || 0}</p>
                 <div class="cohort-actions">
-                    <button class="btn" onclick="editCohort('${cohort.id}')">Edit</button>
+                            <button class="btn" onclick="manageCohort('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">Manage Students</button>
+                            <button class="btn" onclick="viewCohortLectures('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">View Lectures</button>
                     <button class="btn btn-danger" onclick="deleteCohort('${cohort.id}')">Delete</button>
                 </div>
             </div>
@@ -440,5 +471,123 @@ function showAlert(message, type) {
 
 // Load initial data
 loadCohorts();
+
+// Cohort Management UI
+async function manageCohort(cohortId, name){
+    document.getElementById('cohort-manage').style.display = 'block';
+    document.getElementById('manage-cohort-title').textContent = `Manage Cohort • ${name}`;
+    document.getElementById('current-cohort-id').value = cohortId;
+    await refreshCohortStudents();
+    const addBtn = document.getElementById('add-student-btn');
+    addBtn.onclick = addStudentToCohort;
+    await populateStudentSelect();
+}
+
+async function refreshCohortStudents(){
+    const cohortId = document.getElementById('current-cohort-id').value;
+    if(!cohortId) return;
+    try{
+        const res = await fetch(`/api/admin/cohort/${cohortId}/students`, { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('cohort-students');
+        if(!data.success){ container.innerHTML = '<p>Failed to load students</p>'; return; }
+        if(data.students.length === 0){ container.innerHTML = '<p>No students in this cohort yet.</p>'; return; }
+        container.innerHTML = data.students.map(s => `
+            <div class="user-card">
+                <h3>${s.name}</h3>
+                <p><strong>Email:</strong> ${s.email}</p>
+                <p><strong>Institution:</strong> ${s.institution}</p>
+                <div class="user-actions">
+                    <button class="btn btn-danger" onclick="removeStudent('${s.id}')">Remove</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e){
+        showAlert('Failed to load cohort students: ' + e.message, 'error');
+    }
+}
+
+async function addStudentToCohort(){
+    const cohortId = document.getElementById('current-cohort-id').value;
+    const select = document.getElementById('add-student-select');
+    const selectedId = select.value;
+    const email = document.getElementById('add-student-email').value.trim();
+    if(!selectedId && !email){ showAlert('Select a student or enter email', 'error'); return; }
+    try{
+        const res = await fetch(`/api/admin/cohort/${cohortId}/students`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(selectedId ? { student_id: selectedId } : { student_email: email })
+        });
+        const data = await res.json();
+        if(data.success){
+            showAlert('Student added to cohort', 'success');
+            document.getElementById('add-student-email').value = '';
+            select.value = '';
+            refreshCohortStudents();
+            loadCohorts();
+        } else {
+            showAlert(data.error || 'Failed to add student', 'error');
+        }
+    } catch(e){
+        showAlert('Failed to add student: ' + e.message, 'error');
+    }
+}
+
+async function populateStudentSelect(){
+    try{
+        const res = await fetch('/api/admin/students', { credentials: 'same-origin' });
+        const data = await res.json();
+        const select = document.getElementById('add-student-select');
+        if(!data.success){ select.innerHTML = '<option value="">Failed to load students</option>'; return; }
+        select.innerHTML = '<option value="">Select a student...</option>' + data.students.map(s => `<option value="${s.id}">${s.name} (${s.email})</option>`).join('');
+    } catch(e){
+        // ignore
+    }
+}
+
+async function removeStudent(studentId){
+    const cohortId = document.getElementById('current-cohort-id').value;
+    if(!confirm('Remove this student from the cohort?')) return;
+    try{
+        const res = await fetch(`/api/admin/cohort/${cohortId}/students/${studentId}`, { method: 'DELETE', credentials: 'same-origin' });
+        const data = await res.json();
+        if(data.success){
+            showAlert('Removed student from cohort', 'success');
+            refreshCohortStudents();
+            loadCohorts();
+        } else {
+            showAlert(data.error || 'Failed to remove student', 'error');
+        }
+    } catch (e){
+        showAlert('Failed to remove student: ' + e.message, 'error');
+    }
+}
+
+async function viewCohortLectures(cohortId, name){
+    document.getElementById('cohortLectures').style.display = 'block';
+    const container = document.getElementById('cohort-lectures-list');
+    container.innerHTML = '<p>Loading...</p>';
+    try{
+        const res = await fetch(`/api/student/cohort/${cohortId}/lectures`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if(!data.success){ container.innerHTML = '<p>Failed to load cohort lectures</p>'; return; }
+        if(data.lectures.length === 0){ container.innerHTML = '<p>No lectures in this cohort yet.</p>'; return; }
+        container.innerHTML = data.lectures.map(lecture => `
+            <div class="cohort-card">
+                <h3>${lecture.title}</h3>
+                <p>${lecture.description || 'No description'}</p>
+                <p><strong>Scheduled:</strong> ${new Date(lecture.scheduled_time).toLocaleString()}</p>
+                <p><strong>Teacher:</strong> ${lecture.teacher_name || 'Unknown'}</p>
+                <span class="status-badge ${lecture.session_active ? 'status-active' : 'status-scheduled'}">
+                    ${lecture.session_active ? 'Live Now' : 'Scheduled'}
+                </span>
+            </div>
+        `).join('');
+    } catch(e){
+        container.innerHTML = '<p>Failed to load cohort lectures</p>';
+    }
+}
 </script>
 {% endblock %}

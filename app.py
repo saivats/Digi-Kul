@@ -38,6 +38,13 @@ active_sessions = {}
 session_participants = {}
 online_users = {}
 
+def cleanup_session(session_id):
+    """Clean up session data when session ends"""
+    if session_id in active_sessions:
+        del active_sessions[session_id]
+    if session_id in session_participants:
+        del session_participants[session_id]
+
 # Ensure upload directories exist
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'audio'), exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'images'), exist_ok=True)
@@ -213,7 +220,7 @@ def login():
             user = DatabaseManager.get_student_by_email(email)
         elif user_type == 'admin':
             # Enforce single hardcoded admin
-            if email != 'Admin' or password != 'Admin@#1234':
+            if email != 'Admin@gmail.com' or password != 'Admin@#1234':
                 return jsonify({'error': 'Invalid admin credentials'}), 401
             # Success: set session without DB
             session.permanent = True
@@ -549,6 +556,17 @@ def get_available_lectures():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/session/by_lecture/<lecture_id>', methods=['GET'])
+@login_required
+def get_session_by_lecture(lecture_id):
+    """Return active session id for a given lecture if exists"""
+    try:
+        for sid, info in active_sessions.items():
+            if info.get('lecture_id') == lecture_id and info.get('status') == 'active':
+                return jsonify({'success': True, 'session_id': sid}), 200
+        return jsonify({'error': 'No active session for this lecture'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/api/student/lecture/<lecture_id>/materials', methods=['GET'])
 @student_required
 def get_lecture_materials(lecture_id):
@@ -584,6 +602,15 @@ def enroll_in_lecture():
         lecture = DatabaseManager.get_lecture_by_id(lecture_id)
         if not lecture:
             return jsonify({'error': 'Lecture not found'}), 404
+        
+        # Check if already enrolled
+        already_enrolled = DatabaseManager.is_student_enrolled(session['user_id'], lecture_id)
+        if already_enrolled:
+            return jsonify({
+                'success': True,
+                'message': 'Already enrolled in this lecture',
+                'already_enrolled': True
+            }), 200
         
         # Enroll student
         enrollment_id, response = DatabaseManager.enroll_student(
@@ -639,11 +666,7 @@ def join_session_page(session_id):
         return redirect(url_for('student_dashboard'))
     
     session_info = active_sessions[session_id]
-    return render_template('live_session_student.html',
-                         session_id=session_id,
-                         session_info=session_info,
-                         student_id=session.get('user_id'),
-                         student_name=session.get('user_name'))
+    return render_template('live_session.html')
 
 @app.route('/teacher/manage_session/<session_id>')
 @teacher_required
@@ -658,11 +681,7 @@ def manage_session_page(session_id):
         flash('Access denied.', 'error')
         return redirect(url_for('teacher_dashboard'))
     
-    return render_template('live_session_teacher.html',
-                         session_id=session_id,
-                         session_info=session_info,
-                         teacher_id=session.get('user_id'),
-                         teacher_name=session.get('user_name'))
+    return render_template('live_session.html')
 
 # File Download
 @app.route('/api/download/<material_id>')
@@ -758,6 +777,95 @@ if socketio:
             'participants_count': len(session_participants[session_id])
         })
 
+    @socketio.on('leave_session')
+    def handle_leave_session(data):
+        session_id = data.get('session_id')
+        user_id = data.get('user_id') or (session.get('user_id') if 'user_id' in session else None)
+        if not session_id or not user_id:
+            return
+        leave_room(session_id)
+        if session_id in session_participants and user_id in session_participants[session_id]:
+            del session_participants[session_id][user_id]
+            participants_count = len(session_participants[session_id])
+            emit('user_left', {
+                'user_id': user_id,
+                'participants_count': participants_count
+            }, room=session_id)
+            
+            # If no participants left, end the session
+            if participants_count == 0:
+                if session_id in active_sessions:
+                    active_sessions[session_id]['status'] = 'ended'
+                    emit('session_ended', {}, room=session_id)
+                    # Clean up after a delay
+                    threading.Timer(5.0, lambda: cleanup_session(session_id)).start()
+
+    @socketio.on('webrtc_offer')
+    def handle_webrtc_offer(data):
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        offer = data.get('offer')
+        from_user_id = data.get('from_user_id')
+        if not session_id or not target_user_id or session_id not in session_participants:
+            emit('error', {'message': 'Invalid signaling data'})
+            return
+        target = session_participants[session_id].get(target_user_id)
+        if not target:
+            emit('error', {'message': 'Target not found'})
+            return
+        emit('webrtc_offer', {
+            'from_user_id': from_user_id,
+            'offer': offer
+        }, room=target['socket_id'])
+
+    @socketio.on('webrtc_answer')
+    def handle_webrtc_answer(data):
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        answer = data.get('answer')
+        from_user_id = data.get('from_user_id')
+        if not session_id or not target_user_id or session_id not in session_participants:
+            emit('error', {'message': 'Invalid signaling data'})
+            return
+        target = session_participants[session_id].get(target_user_id)
+        if not target:
+            emit('error', {'message': 'Target not found'})
+            return
+        emit('webrtc_answer', {
+            'from_user_id': from_user_id,
+            'answer': answer
+        }, room=target['socket_id'])
+
+    @socketio.on('ice_candidate')
+    def handle_ice_candidate(data):
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        candidate = data.get('candidate')
+        from_user_id = data.get('from_user_id')
+        if not session_id or not target_user_id or session_id not in session_participants:
+            emit('error', {'message': 'Invalid signaling data'})
+            return
+        target = session_participants[session_id].get(target_user_id)
+        if not target:
+            emit('error', {'message': 'Target not found'})
+            return
+        emit('ice_candidate', {
+            'from_user_id': from_user_id,
+            'candidate': candidate
+        }, room=target['socket_id'])
+
+    @socketio.on('chat_message')
+    def handle_chat_message(data):
+        session_id = data.get('session_id')
+        if not session_id:
+            return
+        emit('chat_message', data, room=session_id)
+
+    @socketio.on('quality_report')
+    def handle_quality_report(data):
+        # In the future, persist or analyze quality reports
+        pass
+
 # Admin API Routes
 @app.route('/api/admin/cohorts', methods=['GET'])
 @admin_required
@@ -782,8 +890,9 @@ def create_cohort():
         if not all(key in data for key in ['name', 'subject', 'teacher_id']):
             return jsonify({'error': 'Missing required fields'}), 400
         
+        description = data.get('description', '')
         cohort_id, response = DatabaseManager.create_cohort(
-            data['name'], data['description'], data['subject'], data['teacher_id']
+            data['name'], description, data['subject'], data['teacher_id']
         )
         
         if cohort_id:
@@ -795,6 +904,47 @@ def create_cohort():
         else:
             return jsonify({'error': response}), 400
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/cohort/<cohort_id>/students', methods=['GET'])
+@admin_required
+def admin_get_cohort_students(cohort_id):
+    try:
+        students = DatabaseManager.get_cohort_students(cohort_id)
+        return jsonify({'success': True, 'students': students}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/cohort/<cohort_id>/students', methods=['POST'])
+@admin_required
+def admin_add_student_to_cohort(cohort_id):
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        student_email = data.get('student_email')
+        if not student_id and not student_email:
+            return jsonify({'error': 'student_id or student_email is required'}), 400
+        if not student_id and student_email:
+            student = DatabaseManager.get_student_by_email(student_email)
+            if not student:
+                return jsonify({'error': 'Student not found'}), 404
+            student_id = student['id']
+        success, msg = DatabaseManager.add_student_to_cohort(cohort_id, student_id)
+        if success:
+            return jsonify({'success': True, 'message': msg}), 200
+        return jsonify({'error': msg}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/cohort/<cohort_id>/students/<student_id>', methods=['DELETE'])
+@admin_required
+def admin_remove_student_from_cohort(cohort_id, student_id):
+    try:
+        success, msg = DatabaseManager.remove_student_from_cohort(cohort_id, student_id)
+        if success:
+            return jsonify({'success': True, 'message': msg}), 200
+        return jsonify({'error': msg}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -929,11 +1079,10 @@ def get_teacher_cohorts():
 
 @app.route('/api/teacher/cohort/<cohort_id>/lectures', methods=['POST'])
 @teacher_required
-def create_cohort_lecture():
+def create_cohort_lecture(cohort_id):
     """Create a lecture for a specific cohort"""
     try:
         data = request.get_json()
-        cohort_id = data.get('cohort_id')
         
         if not all(key in data for key in ['title', 'description', 'scheduled_time', 'duration']):
             return jsonify({'error': 'Missing required fields'}), 400

@@ -176,6 +176,46 @@ class DatabaseManager:
                 FOREIGN KEY (teacher_id) REFERENCES teachers (id)
             )
         ''')
+
+        # Cohorts table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cohorts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                subject TEXT NOT NULL,
+                teacher_id TEXT NOT NULL,
+                code TEXT UNIQUE NOT NULL,
+                created_at TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                FOREIGN KEY (teacher_id) REFERENCES teachers (id)
+            )
+        ''')
+
+        # Cohort-Students relation
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cohort_students (
+                id TEXT PRIMARY KEY,
+                cohort_id TEXT NOT NULL,
+                student_id TEXT NOT NULL,
+                joined_at TEXT NOT NULL,
+                UNIQUE(cohort_id, student_id),
+                FOREIGN KEY (cohort_id) REFERENCES cohorts (id),
+                FOREIGN KEY (student_id) REFERENCES students (id)
+            )
+        ''')
+
+        # Cohort-Lectures relation
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cohort_lectures (
+                id TEXT PRIMARY KEY,
+                cohort_id TEXT NOT NULL,
+                lecture_id TEXT NOT NULL,
+                UNIQUE(cohort_id, lecture_id),
+                FOREIGN KEY (cohort_id) REFERENCES cohorts (id),
+                FOREIGN KEY (lecture_id) REFERENCES lectures (id)
+            )
+        ''')
         
         conn.commit()
         conn.close()
@@ -270,6 +310,25 @@ class DatabaseManager:
         except Exception:
             return False
     
+    @staticmethod
+    def get_all_teachers() -> List[Dict]:
+        """Return all active teachers"""
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, name, email, institution, subject, created_at, last_login, is_active
+                FROM teachers
+                WHERE is_active = 1
+                ORDER BY created_at DESC
+            ''')
+            teachers = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return teachers
+        except Exception:
+            return []
+    
     # Student methods
     @staticmethod
     def create_student(name: str, email: str, institution: str, password_hash: str) -> Tuple[Optional[str], str]:
@@ -334,6 +393,25 @@ class DatabaseManager:
             
         except Exception:
             return None
+    
+    @staticmethod
+    def get_all_students() -> List[Dict]:
+        """Return all active students"""
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, name, email, institution, created_at, last_login, is_active
+                FROM students
+                WHERE is_active = 1
+                ORDER BY created_at DESC
+            ''')
+            students = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return students
+        except Exception:
+            return []
     
     # Lecture methods
     @staticmethod
@@ -766,3 +844,243 @@ class DatabaseManager:
             
         except Exception:
             return []
+
+    # Cohort methods
+    @staticmethod
+    def create_cohort(name: str, description: str, subject: str, teacher_id: str) -> Tuple[Optional[str], str]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cohort_id = str(uuid.uuid4())
+            created_at = datetime.now().isoformat()
+            code = cohort_id.split('-')[0]
+            cursor.execute('''
+                INSERT INTO cohorts (id, name, description, subject, teacher_id, code, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (cohort_id, name, description, subject, teacher_id, code, created_at))
+            conn.commit()
+            conn.close()
+            return cohort_id, "Cohort created successfully"
+        except Exception as e:
+            return None, str(e)
+
+    @staticmethod
+    def delete_cohort(cohort_id: str) -> Tuple[bool, str]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('UPDATE cohorts SET is_active = 0 WHERE id = ?', (cohort_id,))
+            # Note: keep relations; they become inactive via cohort inactive
+            conn.commit()
+            conn.close()
+            return True, "Cohort deleted"
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def get_all_cohorts() -> List[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT c.*, t.name AS teacher_name,
+                    (SELECT COUNT(*) FROM cohort_students cs WHERE cs.cohort_id = c.id) AS student_count
+                FROM cohorts c
+                JOIN teachers t ON c.teacher_id = t.id
+                WHERE c.is_active = 1 AND t.is_active = 1
+                ORDER BY c.created_at DESC
+            ''')
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    @staticmethod
+    def get_cohort_by_id(cohort_id: str) -> Optional[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM cohorts WHERE id = ? AND is_active = 1
+            ''', (cohort_id,))
+            row = cursor.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_teacher_cohorts(teacher_id: str) -> List[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT c.*, (SELECT COUNT(*) FROM cohort_students cs WHERE cs.cohort_id = c.id) AS student_count
+                FROM cohorts c
+                WHERE c.teacher_id = ? AND c.is_active = 1
+                ORDER BY c.created_at DESC
+            ''', (teacher_id,))
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    @staticmethod
+    def get_student_cohorts(student_id: str) -> List[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT c.*, t.name AS teacher_name
+                FROM cohorts c
+                JOIN cohort_students cs ON cs.cohort_id = c.id
+                JOIN teachers t ON c.teacher_id = t.id
+                WHERE cs.student_id = ? AND c.is_active = 1 AND t.is_active = 1
+                ORDER BY c.created_at DESC
+            ''', (student_id,))
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    @staticmethod
+    def join_cohort_by_code(student_id: str, cohort_code: str) -> Tuple[bool, str]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM cohorts WHERE code = ? AND is_active = 1', (cohort_code,))
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return False, 'Invalid cohort code'
+            cohort_id = row['id']
+            # Upsert membership
+            cursor.execute('SELECT id FROM cohort_students WHERE cohort_id = ? AND student_id = ?', (cohort_id, student_id))
+            if cursor.fetchone():
+                conn.close()
+                return True, 'Already in cohort'
+            cs_id = str(uuid.uuid4())
+            joined_at = datetime.now().isoformat()
+            cursor.execute('''
+                INSERT INTO cohort_students (id, cohort_id, student_id, joined_at)
+                VALUES (?, ?, ?, ?)
+            ''', (cs_id, cohort_id, student_id, joined_at))
+            conn.commit()
+            conn.close()
+            return True, 'Joined cohort'
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def is_student_in_cohort(student_id: str, cohort_id: str) -> bool:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT 1 FROM cohort_students WHERE cohort_id = ? AND student_id = ?', (cohort_id, student_id))
+            ok = cursor.fetchone() is not None
+            conn.close()
+            return ok
+        except Exception:
+            return False
+
+    @staticmethod
+    def create_lecture_for_cohort(cohort_id: str, teacher_id: str, title: str, description: str, scheduled_time: str, duration: int) -> Tuple[Optional[str], str]:
+        try:
+            # Create lecture
+            lecture_id, msg = DatabaseManager.create_lecture(teacher_id, title, description, scheduled_time, duration)
+            if not lecture_id:
+                return None, msg
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            link_id = str(uuid.uuid4())
+            cursor.execute('''
+                INSERT INTO cohort_lectures (id, cohort_id, lecture_id)
+                VALUES (?, ?, ?)
+            ''', (link_id, cohort_id, lecture_id))
+            conn.commit()
+            conn.close()
+            return lecture_id, 'Lecture created for cohort'
+        except Exception as e:
+            return None, str(e)
+
+    @staticmethod
+    def get_cohort_lectures(cohort_id: str) -> List[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT l.*, t.name AS teacher_name
+                FROM cohort_lectures cl
+                JOIN lectures l ON cl.lecture_id = l.id
+                JOIN teachers t ON l.teacher_id = t.id
+                WHERE cl.cohort_id = ? AND l.is_active = 1 AND t.is_active = 1
+                ORDER BY l.scheduled_time DESC
+            ''', (cohort_id,))
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    @staticmethod
+    def get_cohort_students(cohort_id: str) -> List[Dict]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT s.* FROM cohort_students cs
+                JOIN students s ON s.id = cs.student_id
+                WHERE cs.cohort_id = ?
+                ORDER BY cs.joined_at DESC
+            ''', (cohort_id,))
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    @staticmethod
+    def add_student_to_cohort(cohort_id: str, student_id: str) -> Tuple[bool, str]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM cohort_students WHERE cohort_id = ? AND student_id = ?', (cohort_id, student_id))
+            if cursor.fetchone():
+                conn.close()
+                return True, 'Already in cohort'
+            cs_id = str(uuid.uuid4())
+            joined_at = datetime.now().isoformat()
+            cursor.execute('INSERT INTO cohort_students (id, cohort_id, student_id, joined_at) VALUES (?, ?, ?, ?)', (cs_id, cohort_id, student_id, joined_at))
+            conn.commit()
+            conn.close()
+            return True, 'Student added to cohort'
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def remove_student_from_cohort(cohort_id: str, student_id: str) -> Tuple[bool, str]:
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM cohort_students WHERE cohort_id = ? AND student_id = ?', (cohort_id, student_id))
+            conn.commit()
+            conn.close()
+            return True, 'Removed from cohort'
+        except Exception as e:
+            return False, str(e)

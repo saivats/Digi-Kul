@@ -22,6 +22,9 @@
             color: white;
             padding: 1rem 2rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .header h1 {
@@ -284,8 +287,13 @@
 </head>
 <body>
     <div class="header">
-        <h1>👨‍🏫 Teacher Dashboard</h1>
-        <p>Hello, {{ user_name }} • {{ user_email }}</p>
+        <div>
+            <h1>👨‍🏫 Teacher Dashboard</h1>
+            <p>Hello, {{ user_name }} • {{ user_email }}</p>
+        </div>
+        <div>
+            <button class="btn" onclick="logout()">Logout</button>
+        </div>
     </div>
     
     <div class="container">
@@ -307,6 +315,29 @@
         <div id="cohorts" class="tab-content">
             <h2>My Cohorts</h2>
             <div id="cohorts-list"></div>
+            <div id="cohort-create-lecture" style="display:none; margin-top:1rem;" class="lecture-card">
+                <h3 id="cohort-create-title">Create Lecture for Cohort</h3>
+                <form id="cohort-lecture-form">
+                    <input type="hidden" id="cohort-create-id" value="">
+                    <div class="form-group">
+                        <label for="c_title">Lecture Title</label>
+                        <input type="text" id="c_title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="c_description">Description</label>
+                        <textarea id="c_description" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="c_scheduled_time">Scheduled Time</label>
+                        <input type="datetime-local" id="c_scheduled_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="c_duration">Duration (minutes)</label>
+                        <input type="number" id="c_duration" min="15" max="180" value="60" required>
+                    </div>
+                    <button type="submit" class="btn">Create Cohort Lecture</button>
+                </form>
+            </div>
         </div>
         
         <!-- Create Lecture Tab -->
@@ -697,6 +728,24 @@
                 alert.style.display = 'none';
             }, 5000);
         }
+
+        async function logout(){
+            try {
+                const res = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (data && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                window.location.href = '/';
+            }
+        }
         
         async function loadCohorts() {
             try {
@@ -722,7 +771,7 @@
                         <p><strong>Students:</strong> ${cohort.student_count || 0}</p>
                         <p><strong>Cohort Code:</strong> <code>${cohort.code}</code></p>
                         <div class="lecture-actions">
-                            <button class="btn" onclick="createCohortLecture('${cohort.id}')">Create Lecture</button>
+                            <button class="btn" onclick="openCohortLectureForm('${cohort.id}', '${cohort.name.replace(/'/g, "\\'")}')">Create Lecture</button>
                             <button class="btn btn-success" onclick="viewCohortStudents('${cohort.id}')">View Students</button>
                         </div>
                     </div>
@@ -732,9 +781,47 @@
             }
         }
         
-        function createCohortLecture(cohortId) {
-            showAlert('Cohort lecture creation coming soon!', 'success');
+        function openCohortLectureForm(cohortId, name) {
+            const box = document.getElementById('cohort-create-lecture');
+            document.getElementById('cohort-create-id').value = cohortId;
+            document.getElementById('cohort-create-title').textContent = `Create Lecture • ${name}`;
+            const t = new Date();
+            t.setHours(t.getHours() + 1);
+            document.getElementById('c_scheduled_time').value = t.toISOString().slice(0, 16);
+            box.style.display = 'block';
         }
+
+        document.getElementById('cohort-lecture-form').addEventListener('submit', async function(e){
+            e.preventDefault();
+            const cohortId = document.getElementById('cohort-create-id').value;
+            const payload = {
+                title: document.getElementById('c_title').value.trim(),
+                description: document.getElementById('c_description').value.trim(),
+                scheduled_time: document.getElementById('c_scheduled_time').value,
+                duration: parseInt(document.getElementById('c_duration').value, 10)
+            };
+            try{
+                const res = await fetch(`/api/teacher/cohort/${cohortId}/lectures`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.success){
+                    showAlert('Cohort lecture created!', 'success');
+                    this.reset();
+                    document.getElementById('cohort-create-lecture').style.display = 'none';
+                    // Switch to My Lectures so teacher can start it immediately
+                    switchTab('lectures');
+                    fetchLectures();
+                } else {
+                    showAlert(data.error || 'Failed to create cohort lecture', 'error');
+                }
+            } catch (error){
+                showAlert('Error creating cohort lecture: ' + error.message, 'error');
+            }
+        });
         
         function viewCohortStudents(cohortId) {
             showAlert('Student list view coming soon!', 'success');

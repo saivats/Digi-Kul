@@ -324,8 +324,19 @@ async function enroll(lectureId) {
         const data = await res.json();
         
         if (data.success) {
-            showAlert('Successfully enrolled in lecture!', 'success');
+            if (data.already_enrolled) {
+                showAlert('You are already enrolled in this lecture!', 'success');
+            } else {
+                showAlert('Successfully enrolled in lecture!', 'success');
+            }
             loadEnrolled();
+            // Reload current tab to update the UI
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab) {
+                const tabName = activeTab.textContent.includes('Cohorts') ? 'cohorts' : 
+                               activeTab.textContent.includes('Available') ? 'available' : 'enrolled';
+                switchTab(tabName);
+            }
         } else {
             showAlert(data.error || 'Enrollment failed', 'error');
         }
@@ -335,7 +346,17 @@ async function enroll(lectureId) {
 }
 
 async function joinLive(lectureId) {
-    showAlert('Live session joining feature coming soon!', 'success');
+    try {
+        const res = await fetch(`/api/session/by_lecture/${lectureId}`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success && data.session_id) {
+            window.location.href = `/student/join_session/${data.session_id}`;
+        } else {
+            showAlert(data.error || 'No active session yet', 'error');
+        }
+    } catch (error) {
+        showAlert('Unable to resolve live session: ' + error.message, 'error');
+    }
 }
 
 async function viewMaterials(lectureId) {
@@ -380,12 +401,27 @@ async function viewCohortLectures(cohortId) {
             return;
         }
         
-        // Switch to available tab and show these lectures
+        // Render in Available tab with just this cohort's lectures
         switchTab('available');
-        setTimeout(() => {
-            loadAvailable();
-        }, 100);
+        const container = document.getElementById('available-list');
+        container.innerHTML = data.lectures.map(lecture => `
+            <div class="lecture-card">
+                <span class="status-badge ${lecture.session_active ? 'status-active' : 'status-scheduled'}">
+                    ${lecture.session_active ? 'Live Now' : 'Scheduled'}
+                </span>
+                <h3>${lecture.title}</h3>
+                <p>${lecture.description || 'No description'}</p>
+                <p><strong>Teacher:</strong> ${lecture.teacher_name || 'Unknown'}</p>
+                <p><strong>Scheduled:</strong> ${new Date(lecture.scheduled_time).toLocaleString()}</p>
+                <div class="lecture-actions">
+                    <button class="btn" onclick="enroll('${lecture.id}')">Enroll</button>
+                    ${lecture.session_active ? `<button class="btn btn-success" onclick="joinLive('${lecture.id}')">🔴 Join Live</button>` : ''}
+                    <button class="btn btn-secondary" onclick="viewMaterials('${lecture.id}')">📁 Materials</button>
+                </div>
+            </div>
+        `).join('');
     } catch (error) {
+        console.error('Error loading cohort lectures:', error);
         showAlert('Error loading cohort lectures: ' + error.message, 'error');
     }
 }
