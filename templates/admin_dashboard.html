@@ -1,0 +1,444 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard • Digi Kul{% endblock %}
+{% block header_title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('cohorts')">🏫 Manage Cohorts</button>
+    <button class="tab" onclick="switchTab('teachers')">👨‍🏫 Teachers</button>
+    <button class="tab" onclick="switchTab('students')">👨‍🎓 Students</button>
+    <button class="tab" onclick="switchTab('create')">➕ Create Cohort</button>
+</div>
+
+<!-- Cohorts Tab -->
+<div id="cohorts" class="tab-content active">
+    <h2>All Cohorts</h2>
+    <div id="cohorts-list"></div>
+</div>
+
+<!-- Teachers Tab -->
+<div id="teachers" class="tab-content">
+    <h2>All Teachers</h2>
+    <div id="teachers-list"></div>
+</div>
+
+<!-- Students Tab -->
+<div id="students" class="tab-content">
+    <h2>All Students</h2>
+    <div id="students-list"></div>
+</div>
+
+<!-- Create Cohort Tab -->
+<div id="create" class="tab-content">
+    <h2>Create New Cohort</h2>
+    <form id="cohort-form">
+        <div class="form-group">
+            <label for="cohort-name">Cohort Name</label>
+            <input type="text" id="cohort-name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="cohort-description">Description</label>
+            <textarea id="cohort-description" name="description" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="cohort-subject">Subject</label>
+            <input type="text" id="cohort-subject" name="subject" required>
+        </div>
+        <div class="form-group">
+            <label for="cohort-teacher">Assign Teacher</label>
+            <select id="cohort-teacher" name="teacher_id" required>
+                <option value="">Select a teacher...</option>
+            </select>
+        </div>
+        <button type="submit" class="btn">Create Cohort</button>
+    </form>
+</div>
+
+<div id="alert" class="alert"></div>
+
+<style>
+.tabs {
+    display: flex;
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab {
+    flex: 1;
+    padding: 1rem;
+    background: #f8f9fa;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.tab.active {
+    background: #667eea;
+    color: white;
+}
+
+.tab-content {
+    display: none;
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-danger {
+    background: linear-gradient(45deg, #dc3545, #e83e8c);
+}
+
+.cohort-card, .user-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.cohort-card h3, .user-card h3 {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.cohort-card p, .user-card p {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.cohort-actions, .user-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        flex-direction: column;
+    }
+    
+    .cohort-actions, .user-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-right: 0;
+    }
+}
+</style>
+
+<script>
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName).classList.add('active');
+    
+    // Add active class to clicked tab
+    event.target.classList.add('active');
+    
+    // Load content based on tab
+    if (tabName === 'cohorts') {
+        loadCohorts();
+    } else if (tabName === 'teachers') {
+        loadTeachers();
+    } else if (tabName === 'students') {
+        loadStudents();
+    } else if (tabName === 'create') {
+        loadTeachersForSelect();
+    }
+}
+
+async function loadCohorts() {
+    try {
+        const res = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('cohorts-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load cohorts</p>';
+            return;
+        }
+        
+        if (data.cohorts.length === 0) {
+            container.innerHTML = '<p>No cohorts found. Create your first cohort!</p>';
+            return;
+        }
+        
+        container.innerHTML = data.cohorts.map(cohort => `
+            <div class="cohort-card">
+                <h3>${cohort.name}</h3>
+                <p>${cohort.description || 'No description'}</p>
+                <p><strong>Subject:</strong> ${cohort.subject}</p>
+                <p><strong>Teacher:</strong> ${cohort.teacher_name || 'Unassigned'}</p>
+                <p><strong>Students:</strong> ${cohort.student_count || 0}</p>
+                <div class="cohort-actions">
+                    <button class="btn" onclick="editCohort('${cohort.id}')">Edit</button>
+                    <button class="btn btn-danger" onclick="deleteCohort('${cohort.id}')">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load cohorts: ' + error.message, 'error');
+    }
+}
+
+async function loadTeachers() {
+    try {
+        const res = await fetch('/api/admin/teachers', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('teachers-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load teachers</p>';
+            return;
+        }
+        
+        if (data.teachers.length === 0) {
+            container.innerHTML = '<p>No teachers found.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.teachers.map(teacher => `
+            <div class="user-card">
+                <h3>${teacher.name}</h3>
+                <p><strong>Email:</strong> ${teacher.email}</p>
+                <p><strong>Institution:</strong> ${teacher.institution}</p>
+                <p><strong>Subject:</strong> ${teacher.subject}</p>
+                <p><strong>Cohorts:</strong> ${teacher.cohort_count || 0}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load teachers: ' + error.message, 'error');
+    }
+}
+
+async function loadStudents() {
+    try {
+        const res = await fetch('/api/admin/students', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('students-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load students</p>';
+            return;
+        }
+        
+        if (data.students.length === 0) {
+            container.innerHTML = '<p>No students found.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.students.map(student => `
+            <div class="user-card">
+                <h3>${student.name}</h3>
+                <p><strong>Email:</strong> ${student.email}</p>
+                <p><strong>Institution:</strong> ${student.institution}</p>
+                <p><strong>Cohorts:</strong> ${student.cohort_count || 0}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load students: ' + error.message, 'error');
+    }
+}
+
+async function loadTeachersForSelect() {
+    try {
+        const res = await fetch('/api/admin/teachers', { credentials: 'same-origin' });
+        const data = await res.json();
+        const select = document.getElementById('cohort-teacher');
+        
+        if (!data.success) {
+            select.innerHTML = '<option value="">Failed to load teachers</option>';
+            return;
+        }
+        
+        select.innerHTML = '<option value="">Select a teacher...</option>' +
+            data.teachers.map(teacher => 
+                `<option value="${teacher.id}">${teacher.name} (${teacher.subject})</option>`
+            ).join('');
+    } catch (error) {
+        showAlert('Failed to load teachers: ' + error.message, 'error');
+    }
+}
+
+document.getElementById('cohort-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const payload = {
+        name: document.getElementById('cohort-name').value.trim(),
+        description: document.getElementById('cohort-description').value.trim(),
+        subject: document.getElementById('cohort-subject').value.trim(),
+        teacher_id: document.getElementById('cohort-teacher').value
+    };
+    
+    try {
+        const res = await fetch('/api/admin/cohorts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showAlert('Cohort created successfully!', 'success');
+            this.reset();
+            switchTab('cohorts');
+            loadCohorts();
+        } else {
+            showAlert(data.error || 'Failed to create cohort', 'error');
+        }
+    } catch (error) {
+        showAlert('Error creating cohort: ' + error.message, 'error');
+    }
+});
+
+async function editCohort(cohortId) {
+    showAlert('Edit functionality coming soon!', 'success');
+}
+
+async function deleteCohort(cohortId) {
+    if (!confirm('Are you sure you want to delete this cohort?')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/admin/cohorts/${cohortId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showAlert('Cohort deleted successfully!', 'success');
+            loadCohorts();
+        } else {
+            showAlert(data.error || 'Failed to delete cohort', 'error');
+        }
+    } catch (error) {
+        showAlert('Error deleting cohort: ' + error.message, 'error');
+    }
+}
+
+function showAlert(message, type) {
+    const alert = document.getElementById('alert');
+    alert.textContent = message;
+    alert.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
+    alert.style.display = 'block';
+    
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 5000);
+}
+
+// Load initial data
+loadCohorts();
+</script>
+{% endblock %}

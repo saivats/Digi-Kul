@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard • Digi Kul{% endblock %}
+{% block header_title %}Student Dashboard{% endblock %}
+{% block content %}
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('cohorts')">🏫 My Cohorts</button>
+    <button class="tab" onclick="switchTab('available')">📚 Available Lectures</button>
+    <button class="tab" onclick="switchTab('enrolled')">📖 Enrolled Lectures</button>
+</div>
+
+<!-- Cohorts Tab -->
+<div id="cohorts" class="tab-content active">
+    <h2>My Cohorts</h2>
+    <div id="cohorts-list"></div>
+</div>
+
+<!-- Available Lectures Tab -->
+<div id="available" class="tab-content">
+    <h2>Available Lectures</h2>
+    <div id="available-list"></div>
+</div>
+
+<!-- Enrolled Lectures Tab -->
+<div id="enrolled" class="tab-content">
+    <h2>Your Enrollments</h2>
+    <div id="enrolled-list"></div>
+</div>
+
+<div id="alert" class="alert"></div>
+
+<style>
+.tabs {
+    display: flex;
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab {
+    flex: 1;
+    padding: 1rem;
+    background: #f8f9fa;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.tab.active {
+    background: #667eea;
+    color: white;
+}
+
+.tab-content {
+    display: none;
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.lecture-card, .cohort-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.lecture-card h3, .cohort-card h3 {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.lecture-card p, .cohort-card p {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.lecture-actions, .cohort-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success {
+    background: linear-gradient(45deg, #28a745, #20c997);
+}
+
+.btn-secondary {
+    background: linear-gradient(45deg, #6c757d, #adb5bd);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-scheduled {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        flex-direction: column;
+    }
+    
+    .lecture-actions, .cohort-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-right: 0;
+    }
+}
+</style>
+
+<script>
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName).classList.add('active');
+    
+    // Add active class to clicked tab
+    event.target.classList.add('active');
+    
+    // Load content based on tab
+    if (tabName === 'cohorts') {
+        loadCohorts();
+    } else if (tabName === 'available') {
+        loadAvailable();
+    } else if (tabName === 'enrolled') {
+        loadEnrolled();
+    }
+}
+
+async function loadCohorts() {
+    try {
+        const res = await fetch('/api/student/cohorts', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('cohorts-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load cohorts</p>';
+            return;
+        }
+        
+        if (data.cohorts.length === 0) {
+            container.innerHTML = `
+                <p>You are not part of any cohorts yet. Join a cohort to access lectures!</p>
+                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <h4>Join a Cohort</h4>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <input type="text" id="cohortCode" placeholder="Enter cohort code" style="flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                        <button class="btn" onclick="joinCohort()">Join</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = data.cohorts.map(cohort => `
+            <div class="cohort-card">
+                <h3>${cohort.name}</h3>
+                <p>${cohort.description || 'No description'}</p>
+                <p><strong>Subject:</strong> ${cohort.subject}</p>
+                <p><strong>Teacher:</strong> ${cohort.teacher_name}</p>
+                <div class="cohort-actions">
+                    <a href="#" onclick="viewCohortLectures('${cohort.id}'); return false;" class="btn">View Lectures</a>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load cohorts: ' + error.message, 'error');
+    }
+}
+
+async function loadAvailable() {
+    try {
+        const res = await fetch('/api/student/lectures/available', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('available-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load lectures</p>';
+            return;
+        }
+        
+        if (data.lectures.length === 0) {
+            container.innerHTML = '<p>No lectures available.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.lectures.map(lecture => `
+            <div class="lecture-card">
+                <span class="status-badge ${lecture.session_active ? 'status-active' : 'status-scheduled'}">
+                    ${lecture.session_active ? 'Live Now' : 'Scheduled'}
+                </span>
+                <h3>${lecture.title}</h3>
+                <p>${lecture.description || 'No description'}</p>
+                <p><strong>Teacher:</strong> ${lecture.teacher_name || 'Unknown'}</p>
+                <p><strong>Scheduled:</strong> ${new Date(lecture.scheduled_time).toLocaleString()}</p>
+                <div class="lecture-actions">
+                    <button class="btn" onclick="enroll('${lecture.id}')">Enroll</button>
+                    ${lecture.session_active ? `<button class="btn btn-success" onclick="joinLive('${lecture.id}')">🔴 Join Live</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load available lectures: ' + error.message, 'error');
+    }
+}
+
+async function loadEnrolled() {
+    try {
+        const res = await fetch('/api/student/enrolled_lectures', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('enrolled-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load enrolled lectures</p>';
+            return;
+        }
+        
+        if (data.lectures.length === 0) {
+            container.innerHTML = '<p>You are not enrolled in any lectures yet.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.lectures.map(lecture => `
+            <div class="lecture-card">
+                <span class="status-badge ${lecture.session_active ? 'status-active' : 'status-scheduled'}">
+                    ${lecture.session_active ? 'Live Now' : 'Scheduled'}
+                </span>
+                <h3>${lecture.title}</h3>
+                <p>${lecture.description || 'No description'}</p>
+                <p><strong>Teacher:</strong> ${lecture.teacher_name || 'Unknown'}</p>
+                <p><strong>Scheduled:</strong> ${new Date(lecture.scheduled_time).toLocaleString()}</p>
+                <div class="lecture-actions">
+                    ${lecture.session_active ? `<button class="btn btn-success" onclick="joinLive('${lecture.id}')">🔴 Join Live</button>` : ''}
+                    <button class="btn btn-secondary" onclick="viewMaterials('${lecture.id}')">📁 Materials</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showAlert('Failed to load enrolled lectures: ' + error.message, 'error');
+    }
+}
+
+async function enroll(lectureId) {
+    try {
+        const res = await fetch('/api/student/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ lecture_id: lectureId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showAlert('Successfully enrolled in lecture!', 'success');
+            loadEnrolled();
+        } else {
+            showAlert(data.error || 'Enrollment failed', 'error');
+        }
+    } catch (error) {
+        showAlert('Error enrolling: ' + error.message, 'error');
+    }
+}
+
+async function joinLive(lectureId) {
+    showAlert('Live session joining feature coming soon!', 'success');
+}
+
+async function viewMaterials(lectureId) {
+    try {
+        const res = await fetch(`/api/student/lecture/${lectureId}/materials`, { credentials: 'same-origin' });
+        const data = await res.json();
+        
+        if (!data.success) {
+            showAlert(data.error || 'Failed to load materials', 'error');
+            return;
+        }
+        
+        if (!data.materials || data.materials.length === 0) {
+            showAlert('No materials available for this lecture', 'success');
+            return;
+        }
+        
+        const materialsList = data.materials.map(m => `${m.title} (${m.file_type}) - ${(m.file_size / (1024 * 1024)).toFixed(2)} MB`).join('\n');
+        alert(`Available Materials:\n\n${materialsList}\n\nClick OK to download the first material.`);
+        
+        // Download first material
+        if (data.materials.length > 0) {
+            window.open(data.materials[0].download_url, '_blank');
+        }
+    } catch (error) {
+        showAlert('Error loading materials: ' + error.message, 'error');
+    }
+}
+
+async function viewCohortLectures(cohortId) {
+    try {
+        const res = await fetch(`/api/student/cohort/${cohortId}/lectures`, { credentials: 'same-origin' });
+        const data = await res.json();
+        
+        if (!data.success) {
+            showAlert(data.error || 'Failed to load cohort lectures', 'error');
+            return;
+        }
+        
+        if (!data.lectures || data.lectures.length === 0) {
+            showAlert('No lectures available in this cohort', 'success');
+            return;
+        }
+        
+        // Switch to available tab and show these lectures
+        switchTab('available');
+        setTimeout(() => {
+            loadAvailable();
+        }, 100);
+    } catch (error) {
+        showAlert('Error loading cohort lectures: ' + error.message, 'error');
+    }
+}
+
+async function joinCohort() {
+    const cohortCode = document.getElementById('cohortCode').value.trim();
+    if (!cohortCode) {
+        showAlert('Please enter a cohort code', 'error');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/student/cohorts/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ cohort_code: cohortCode })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showAlert('Successfully joined cohort!', 'success');
+            document.getElementById('cohortCode').value = '';
+            loadCohorts();
+        } else {
+            showAlert(data.error || 'Failed to join cohort', 'error');
+        }
+    } catch (error) {
+        showAlert('Error joining cohort: ' + error.message, 'error');
+    }
+}
+
+function showAlert(message, type) {
+    const alert = document.getElementById('alert');
+    alert.textContent = message;
+    alert.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
+    alert.style.display = 'block';
+    
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 5000);
+}
+
+// Load initial data
+loadCohorts();
+</script>
+{% endblock %}
+
+
+

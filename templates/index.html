@@ -1,3 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Welcome • Digi Kul{% endblock %}
+{% block content %}
+<section>
+  <h1>Welcome to Digi Kul</h1>
+  <p class="muted">A simple portal for teachers and students.</p>
+  {% if not session.get('user_id') %}
+    <div style="display:flex; gap: .5rem;">
+      <a href="/login" role="button">Login</a>
+      <a href="/register" role="button" class="secondary">Register</a>
+    </div>
+  {% else %}
+    {% if session.get('user_type') == 'teacher' %}
+      <a href="/teacher_dashboard" role="button">Go to Teacher Dashboard</a>
+    {% else %}
+      <a href="/student_dashboard" role="button">Go to Student Dashboard</a>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,8 +162,9 @@
         </div>
         
         <div>
-            <a href="/teacher" class="btn">👨‍🏫 Teacher Portal</a>
-            <a href="/student" class="btn btn-secondary">🎒 Student Portal</a>
+            <a href="/admin_login" class="btn">🛡️ Admin Login</a>
+            <a href="/login" class="btn">👨‍🏫 Teacher & Student Login</a>
+            <a href="/register" class="btn btn-secondary">📝 Register (Teachers/Students)</a>
         </div>
         
         <div id="status" class="status offline">
