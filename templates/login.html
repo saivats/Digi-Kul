@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Login • Digi Kul{% endblock %}
+{% block content %}
+<article>
+  <h2>{% if admin_mode %}Admin Login{% else %}Login{% endif %}</h2>
+  <form id="loginForm" onsubmit="login(event)">
+    <label>Email
+      <input type="email" name="email" id="email" placeholder="you@example.com" required />
+    </label>
+    <label>Password
+      <input type="password" name="password" id="password" required />
+    </label>
+    {% if admin_mode %}
+      <input type="hidden" id="user_type" value="admin" />
+    {% else %}
+      <label>User Type
+        <select id="user_type" required>
+          <option value="teacher">Teacher</option>
+          <option value="student">Student</option>
+        </select>
+      </label>
+    {% endif %}
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="muted">No account? <a href="/register">Register here</a>.</p>
+  <div id="loginError" class="flash error" style="display:none;"></div>
+</article>
+
+<script>
+async function login(e){
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const user_type = document.getElementById('user_type').value;
+  const errorBox = document.getElementById('loginError');
+  errorBox.style.display = 'none';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, password, user_type })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success){
+      errorBox.textContent = data.error || 'Login failed';
+      errorBox.style.display = 'block';
+      return;
+    }
+    window.location.href = data.redirect_url || '/';
+  } catch (err){
+    errorBox.textContent = 'Network error';
+    errorBox.style.display = 'block';
+  }
+}
+</script>
+{% endblock %}
+
+
+

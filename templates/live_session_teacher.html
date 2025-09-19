@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Manage Live Session • Digi Kul{% endblock %}
+{% block header_title %}Manage Live Session{% endblock %}
+{% block content %}
+<section>
+  <h2>{{ session_info.lecture_title }}</h2>
+  <p class="muted">Teacher: {{ session_info.teacher_name }} • Started: {{ session_info.started_at }}</p>
+
+  <div style="display:grid; grid-template-columns: 1fr; gap:1rem; margin-top:1rem;">
+    <div style="background:white; border:1px solid #e9ecef; border-radius:10px; padding:1rem;">
+      <h3>Participants</h3>
+      <ul id="participants" style="list-style:none; padding:0; margin-top:.5rem;"></ul>
+    </div>
+
+    <div style="background:white; border:1px solid #e9ecef; border-radius:10px; padding:1rem;">
+      <h3>Teacher Controls</h3>
+      <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
+        <button class="btn" id="refresh">Refresh Participants</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-TUu8mQb0z4p0e6C3y6k0bqkqk4V6q+f19b0mMZyY4m4zq7bQF9kqI9kzYqK2o1Qe" crossorigin="anonymous"></script>
+<script>
+  const sessionId = {{ session_id|tojson }};
+  let socket;
+
+  function renderParticipants(list){
+    const ul = document.getElementById('participants');
+    if(!list || list.length === 0){ ul.innerHTML = '<li class="muted">No participants yet</li>'; return; }
+    ul.innerHTML = list.map(p => `<li>• ${p.user_name} (${p.user_type})</li>`).join('');
+  }
+
+  function connect(){
+    socket = io('/', { withCredentials: true });
+
+    socket.on('connect', () => {
+      socket.emit('join_session', { session_id: sessionId });
+    });
+
+    socket.on('session_info', (data) => {
+      renderParticipants(data.participants || []);
+    });
+
+    socket.on('user_joined', () => {
+      socket.emit('join_session', { session_id: sessionId });
+    });
+  }
+
+  document.getElementById('refresh').addEventListener('click', () => {
+    socket && socket.emit('join_session', { session_id: sessionId });
+  });
+
+  connect();
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Register • Digi Kul{% endblock %}
+{% block content %}
+<article>
+  <h2>Register</h2>
+  <form id="registerForm" onsubmit="registerUser(event)">
+    <label>Account Type
+      <select id="reg_user_type" required>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+        <option value="admin">Admin</option>
+      </select>
+    </label>
+    <label>Name
+      <input type="text" id="name" required />
+    </label>
+    <label>Email
+      <input type="email" id="email" required />
+    </label>
+    <div id="institutionField">
+      <label>Institution
+        <input type="text" id="institution" />
+      </label>
+    </div>
+    <div id="teacherFields">
+      <label>Subject (Teachers)
+        <input type="text" id="subject" />
+      </label>
+    </div>
+    <label>Password
+      <input type="password" id="password" required />
+    </label>
+    <button type="submit">Create account</button>
+  </form>
+  <p class="muted">Already have an account? <a href="/login">Login</a>.</p>
+  <div id="regError" class="flash error" style="display:none;"></div>
+  <div id="regSuccess" class="flash success" style="display:none;"></div>
+</article>
+
+<script>
+const typeSelect = document.getElementById('reg_user_type');
+const teacherFields = document.getElementById('teacherFields');
+const institutionField = document.getElementById('institutionField');
+typeSelect.addEventListener('change', () => {
+  const userType = typeSelect.value;
+  teacherFields.style.display = userType === 'teacher' ? 'block' : 'none';
+  institutionField.style.display = userType === 'admin' ? 'none' : 'block';
+});
+
+async function registerUser(e){
+  e.preventDefault();
+  const user_type = document.getElementById('reg_user_type').value;
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const institution = document.getElementById('institution').value.trim();
+  const password = document.getElementById('password').value;
+  const subject = document.getElementById('subject').value.trim();
+
+  const errorBox = document.getElementById('regError');
+  const successBox = document.getElementById('regSuccess');
+  errorBox.style.display = 'none';
+  successBox.style.display = 'none';
+
+  try {
+    let endpoint, payload;
+    if (user_type === 'teacher') {
+      endpoint = '/api/register/teacher';
+      payload = { name, email, institution, subject, password };
+    } else if (user_type === 'student') {
+      endpoint = '/api/register/student';
+      payload = { name, email, institution, password };
+    } else if (user_type === 'admin') {
+      endpoint = '/api/register/admin';
+      payload = { name, email, password };
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success){
+      errorBox.textContent = data.error || 'Registration failed';
+      errorBox.style.display = 'block';
+      return;
+    }
+    successBox.textContent = 'Registration successful. You can now login.';
+    successBox.style.display = 'block';
+  } catch (err){
+    errorBox.textContent = 'Network error';
+    errorBox.style.display = 'block';
+  }
+}
+</script>
+{% endblock %}
+
+
+

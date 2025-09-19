@@ -459,7 +459,7 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         // Global variables
         let socket = null;
@@ -485,6 +485,10 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             sessionId = window.location.pathname.split('/').pop();
+            // Store the referrer for redirect after disconnect
+            if (!sessionStorage.getItem('liveSessionReferrer')) {
+                sessionStorage.setItem('liveSessionReferrer', document.referrer || '/student_dashboard');
+            }
             initializeSession();
             setupEventListeners();
             monitorConnectionQuality();
@@ -568,7 +572,9 @@
             socket.on('session_ended', () => {
                 showError('Session has ended');
                 setTimeout(() => {
-                    window.close();
+                    const referrer = sessionStorage.getItem('liveSessionReferrer');
+                    sessionStorage.removeItem('liveSessionReferrer');
+                    window.location.href = referrer || '/student_dashboard';
                 }, 3000);
             });
             
@@ -1091,7 +1097,10 @@
                     clearInterval(qualityMonitor);
                 }
                 
-                window.close();
+                // Redirect to previous page
+                const referrer = sessionStorage.getItem('liveSessionReferrer');
+                sessionStorage.removeItem('liveSessionReferrer');
+                window.location.href = referrer || '/student_dashboard';
             }
         }
         
