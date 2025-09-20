@@ -46,7 +46,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Teacher created successfully"
             else:
                 return None, "Failed to create teacher"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -109,7 +109,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Student created successfully"
             else:
                 return None, "Failed to create student"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -158,7 +158,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Lecture created successfully"
             else:
                 return None, "Failed to create lecture"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -220,7 +220,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Enrolled successfully"
             else:
                 return None, "Failed to enroll"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -291,7 +291,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Material added successfully"
             else:
                 return None, "Failed to add material"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -355,7 +355,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Quiz created successfully"
             else:
                 return None, "Failed to create quiz"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -384,7 +384,7 @@ class SupabaseDatabaseManager:
                 return result.data[0]['id'], "Response submitted successfully"
             else:
                 return None, "Failed to submit response"
-            
+                
         except Exception as e:
             return None, str(e)
     
@@ -422,7 +422,11 @@ class SupabaseDatabaseManager:
                 'submitted_at': datetime.now().isoformat()
             }
             
-            result = self.supabase.table('poll_responses').insert(response_data).execute()
+            # Use upsert to handle duplicate responses
+            result = self.supabase.table('poll_responses').upsert(
+                response_data, 
+                on_conflict='student_id,poll_id'
+            ).execute()
             
             if result.data:
                 return result.data[0]['id'], "Poll response submitted successfully"
@@ -432,266 +436,6 @@ class SupabaseDatabaseManager:
         except Exception as e:
             return None, str(e)
     
-    # Discussion methods
-    def add_discussion_message(self, lecture_id: str, user_id: str, message: str, user_type: str = 'student') -> Tuple[Optional[str], str]:
-        """Add message to discussion"""
-        try:
-            message_data = {
-                'lecture_id': lecture_id,
-                'user_id': user_id,
-                'user_type': user_type,
-                'message': message,
-                'created_at': datetime.now().isoformat()
-            }
-            
-            result = self.supabase.table('discussion_messages').insert(message_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Message added successfully"
-            else:
-                return None, "Failed to add message"
-            
-        except Exception as e:
-            return None, str(e)
-    
-    def get_discussion_messages(self, lecture_id: str) -> List[Dict]:
-        """Get discussion messages for lecture"""
-        try:
-            # This is a complex query that would need to be handled differently in Supabase
-            # For now, we'll get basic messages and handle user names in the application
-            result = self.supabase.table('discussion_messages').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=False).execute()
-            return result.data
-        except Exception:
-            return []
-
-    # Cohort methods
-    def create_cohort(self, name: str, description: str, subject: str, teacher_id: str) -> Tuple[Optional[str], str]:
-        """Create a new cohort"""
-        try:
-            cohort_data = {
-                'name': name,
-                'description': description,
-                'subject': subject,
-                'teacher_id': teacher_id,
-                'code': str(uuid.uuid4())[:8],  # Generate short code
-                'created_at': datetime.now().isoformat()
-            }
-            
-            result = self.supabase.table('cohorts').insert(cohort_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Cohort created successfully"
-            else:
-                return None, "Failed to create cohort"
-                
-        except Exception as e:
-            return None, str(e)
-
-    def delete_cohort(self, cohort_id: str) -> Tuple[bool, str]:
-        """Delete a cohort"""
-        try:
-            self.supabase.table('cohorts').update({'is_active': False}).eq('id', cohort_id).execute()
-            return True, "Cohort deleted"
-        except Exception as e:
-            return False, str(e)
-
-    def get_all_cohorts(self) -> List[Dict]:
-        """Get all cohorts"""
-        try:
-            result = self.supabase.table('cohorts').select(
-                '*, teachers!inner(name)'
-            ).eq('is_active', True).order('created_at', desc=True).execute()
-            
-            cohorts = []
-            for cohort in result.data:
-                teacher_data = cohort.get('teachers', {})
-                cohort['teacher_name'] = teacher_data.get('name')
-                del cohort['teachers']  # Remove nested data
-                cohorts.append(cohort)
-            
-            return cohorts
-        except Exception:
-            return []
-
-    def get_cohort_by_id(self, cohort_id: str) -> Optional[Dict]:
-        """Get cohort by ID"""
-        try:
-            result = self.supabase.table('cohorts').select('*').eq('id', cohort_id).eq('is_active', True).execute()
-            return result.data[0] if result.data else None
-        except Exception:
-            return None
-
-    def get_teacher_cohorts(self, teacher_id: str) -> List[Dict]:
-        """Get cohorts for a teacher"""
-        try:
-            result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).order('created_at', desc=True).execute()
-            return result.data
-        except Exception:
-            return []
-
-    def get_student_cohorts(self, student_id: str) -> List[Dict]:
-        """Get cohorts for a student"""
-        try:
-            result = self.supabase.table('cohort_students').select(
-                'cohorts(*, teachers!inner(name))'
-            ).eq('student_id', student_id).execute()
-            
-            cohorts = []
-            for cs in result.data:
-                cohort = cs['cohorts']
-                teacher_data = cohort.get('teachers', {})
-                cohort['teacher_name'] = teacher_data.get('name')
-                del cohort['teachers']  # Remove nested data
-                cohorts.append(cohort)
-            
-            return cohorts
-        except Exception:
-            return []
-
-    def join_cohort_by_code(self, student_id: str, cohort_code: str) -> Tuple[bool, str]:
-        """Join cohort by code"""
-        try:
-            # Find cohort by code
-            cohort_result = self.supabase.table('cohorts').select('id').eq('code', cohort_code).eq('is_active', True).execute()
-            if not cohort_result.data:
-                return False, 'Invalid cohort code'
-            
-            cohort_id = cohort_result.data[0]['id']
-            
-            # Check if already in cohort
-            existing = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
-            if existing.data:
-                return True, 'Already in cohort'
-            
-            # Add to cohort
-            cs_data = {
-                'cohort_id': cohort_id,
-                'student_id': student_id,
-                'joined_at': datetime.now().isoformat()
-            }
-            
-            self.supabase.table('cohort_students').insert(cs_data).execute()
-            return True, 'Joined cohort'
-            
-        except Exception as e:
-            return False, str(e)
-
-    def is_student_in_cohort(self, student_id: str, cohort_id: str) -> bool:
-        """Check if student is in cohort"""
-        try:
-            result = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
-            return len(result.data) > 0
-        except Exception:
-            return False
-
-    def create_lecture_for_cohort(self, cohort_id: str, teacher_id: str, title: str, description: str, scheduled_time: str, duration: int) -> Tuple[Optional[str], str]:
-        """Create lecture for cohort"""
-        try:
-            # Create lecture
-            lecture_id, msg = self.create_lecture(teacher_id, title, description, scheduled_time, duration)
-            if not lecture_id:
-                return None, msg
-            
-            # Link to cohort
-            cl_data = {
-                'cohort_id': cohort_id,
-                'lecture_id': lecture_id
-            }
-            
-            self.supabase.table('cohort_lectures').insert(cl_data).execute()
-            return lecture_id, 'Lecture created for cohort'
-            
-        except Exception as e:
-            return None, str(e)
-
-    def get_cohort_lectures(self, cohort_id: str) -> List[Dict]:
-        """Get lectures for a cohort"""
-        try:
-            result = self.supabase.table('cohort_lectures').select(
-                'lectures(*, teachers!inner(name))'
-            ).eq('cohort_id', cohort_id).execute()
-            
-            lectures = []
-            for cl in result.data:
-                lecture = cl['lectures']
-                teacher_data = lecture.get('teachers', {})
-                lecture['teacher_name'] = teacher_data.get('name')
-                del lecture['teachers']  # Remove nested data
-                lectures.append(lecture)
-            
-            return lectures
-        except Exception:
-            return []
-
-    def get_cohort_students(self, cohort_id: str) -> List[Dict]:
-        """Get students in a cohort"""
-        try:
-            result = self.supabase.table('cohort_students').select(
-                'students(*), joined_at'
-            ).eq('cohort_id', cohort_id).order('joined_at', desc=True).execute()
-            
-            students = []
-            for cs in result.data:
-                student = cs['students']
-                student['joined_at'] = cs['joined_at']
-                students.append(student)
-            
-            return students
-        except Exception:
-            return []
-
-    def add_student_to_cohort(self, cohort_id: str, student_id: str) -> Tuple[bool, str]:
-        """Add student to cohort"""
-        try:
-            # Check if already in cohort
-            existing = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
-            if existing.data:
-                return True, 'Already in cohort'
-            
-            cs_data = {
-                'cohort_id': cohort_id,
-                'student_id': student_id,
-                'joined_at': datetime.now().isoformat()
-            }
-            
-            self.supabase.table('cohort_students').insert(cs_data).execute()
-            return True, 'Student added to cohort'
-            
-        except Exception as e:
-            return False, str(e)
-
-    def remove_student_from_cohort(self, cohort_id: str, student_id: str) -> Tuple[bool, str]:
-        """Remove student from cohort"""
-        try:
-            self.supabase.table('cohort_students').delete().eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
-            return True, 'Removed from cohort'
-        except Exception as e:
-            return False, str(e)
-    
-    def get_cohort_polls(self, cohort_id: str) -> List[Dict]:
-        """Get all polls for a cohort"""
-        try:
-            # Get lectures in the cohort through cohort_lectures table
-            cohort_lectures_result = self.supabase.table('cohort_lectures').select('lecture_id').eq('cohort_id', cohort_id).execute()
-            lecture_ids = [cl['lecture_id'] for cl in cohort_lectures_result.data] if cohort_lectures_result.data else []
-            
-            if not lecture_ids:
-                return []
-            
-            # Get polls for these lectures
-            result = self.supabase.table('polls').select('*').in_('lecture_id', lecture_ids).order('created_at', desc=True).execute()
-            return result.data or []
-        except Exception:
-            return []
-    
-    def get_teacher_polls(self, teacher_id: str) -> List[Dict]:
-        """Get all polls created by a teacher"""
-        try:
-            result = self.supabase.table('polls').select('*').eq('teacher_id', teacher_id).order('created_at', desc=True).execute()
-            return result.data or []
-        except Exception:
-            return []
-
     def get_poll_results(self, poll_id: str) -> Optional[Dict]:
         """Get poll results with vote counts"""
         try:
@@ -727,7 +471,6 @@ class SupabaseDatabaseManager:
             return {
                 'poll_id': poll_id,
                 'question': poll['question'],
-                'options': poll['options'],  # Include options for voting
                 'total_votes': total_votes,
                 'results': results,
                 'created_at': poll['created_at']
@@ -735,6 +478,274 @@ class SupabaseDatabaseManager:
             
         except Exception as e:
             return None
+    
+    def get_lecture_polls(self, lecture_id: str) -> List[Dict]:
+        """Get all polls for a lecture"""
+        try:
+            result = self.supabase.table('polls').select('*').eq('lecture_id', lecture_id).order('created_at', desc=True).execute()
+            return result.data or []
+        except Exception:
+            return []
+    
+    def get_cohort_polls(self, cohort_id: str) -> List[Dict]:
+        """Get all polls for a cohort"""
+        try:
+            # Get lectures in the cohort through cohort_lectures table
+            cohort_lectures_result = self.supabase.table('cohort_lectures').select('lecture_id').eq('cohort_id', cohort_id).execute()
+            lecture_ids = [cl['lecture_id'] for cl in cohort_lectures_result.data] if cohort_lectures_result.data else []
+            
+            if not lecture_ids:
+                return []
+            
+            # Get polls for these lectures
+            result = self.supabase.table('polls').select('*').in_('lecture_id', lecture_ids).order('created_at', desc=True).execute()
+            return result.data or []
+        except Exception:
+            return []
+    
+    def get_teacher_polls(self, teacher_id: str) -> List[Dict]:
+        """Get all polls created by a teacher"""
+        try:
+            result = self.supabase.table('polls').select('*').eq('teacher_id', teacher_id).order('created_at', desc=True).execute()
+            return result.data or []
+        except Exception:
+            return []
+    
+    # Discussion methods
+    def add_discussion_message(self, lecture_id: str, user_id: str, message: str, user_type: str = 'student') -> Tuple[Optional[str], str]:
+        """Add message to discussion"""
+        try:
+            message_data = {
+                'lecture_id': lecture_id,
+                'user_id': user_id,
+                'user_type': user_type,
+                'message': message,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('discussion_messages').insert(message_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Message added successfully"
+            else:
+                return None, "Failed to add message"
+                
+        except Exception as e:
+            return None, str(e)
+    
+    def get_discussion_messages(self, lecture_id: str) -> List[Dict]:
+        """Get discussion messages for lecture"""
+        try:
+            # This is a complex query that would need to be handled differently in Supabase
+            # For now, we'll get basic messages and handle user names in the application
+            result = self.supabase.table('discussion_messages').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=False).execute()
+            return result.data
+        except Exception:
+            return []
+    
+    # Cohort methods
+    def create_cohort(self, name: str, description: str, subject: str, teacher_id: str) -> Tuple[Optional[str], str]:
+        """Create a new cohort"""
+        try:
+            cohort_data = {
+                'name': name,
+                'description': description,
+                'subject': subject,
+                'teacher_id': teacher_id,
+                'code': str(uuid.uuid4())[:8],  # Generate short code
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('cohorts').insert(cohort_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Cohort created successfully"
+            else:
+                return None, "Failed to create cohort"
+                
+        except Exception as e:
+            return None, str(e)
+    
+    def delete_cohort(self, cohort_id: str) -> Tuple[bool, str]:
+        """Delete a cohort"""
+        try:
+            self.supabase.table('cohorts').update({'is_active': False}).eq('id', cohort_id).execute()
+            return True, "Cohort deleted"
+        except Exception as e:
+            return False, str(e)
+    
+    def get_all_cohorts(self) -> List[Dict]:
+        """Get all cohorts"""
+        try:
+            result = self.supabase.table('cohorts').select(
+                '*, teachers!inner(name)'
+            ).eq('is_active', True).order('created_at', desc=True).execute()
+            
+            cohorts = []
+            for cohort in result.data:
+                teacher_data = cohort.get('teachers', {})
+                cohort['teacher_name'] = teacher_data.get('name')
+                del cohort['teachers']  # Remove nested data
+                cohorts.append(cohort)
+            
+            return cohorts
+        except Exception:
+            return []
+    
+    def get_cohort_by_id(self, cohort_id: str) -> Optional[Dict]:
+        """Get cohort by ID"""
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('id', cohort_id).eq('is_active', True).execute()
+            return result.data[0] if result.data else None
+        except Exception:
+            return None
+    
+    def get_teacher_cohorts(self, teacher_id: str) -> List[Dict]:
+        """Get cohorts for a teacher"""
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data
+        except Exception:
+            return []
+    
+    def get_student_cohorts(self, student_id: str) -> List[Dict]:
+        """Get cohorts for a student"""
+        try:
+            result = self.supabase.table('cohort_students').select(
+                'cohorts(*, teachers!inner(name))'
+            ).eq('student_id', student_id).execute()
+            
+            cohorts = []
+            for cs in result.data:
+                cohort = cs['cohorts']
+                teacher_data = cohort.get('teachers', {})
+                cohort['teacher_name'] = teacher_data.get('name')
+                del cohort['teachers']  # Remove nested data
+                cohorts.append(cohort)
+            
+            return cohorts
+        except Exception:
+            return []
+    
+    def join_cohort_by_code(self, student_id: str, cohort_code: str) -> Tuple[bool, str]:
+        """Join cohort by code"""
+        try:
+            # Find cohort by code
+            cohort_result = self.supabase.table('cohorts').select('id').eq('code', cohort_code).eq('is_active', True).execute()
+            if not cohort_result.data:
+                return False, 'Invalid cohort code'
+            
+            cohort_id = cohort_result.data[0]['id']
+            
+            # Check if already in cohort
+            existing = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
+            if existing.data:
+                return True, 'Already in cohort'
+            
+            # Add to cohort
+            cs_data = {
+                'cohort_id': cohort_id,
+                'student_id': student_id,
+                'joined_at': datetime.now().isoformat()
+            }
+            
+            self.supabase.table('cohort_students').insert(cs_data).execute()
+            return True, 'Joined cohort'
+            
+        except Exception as e:
+            return False, str(e)
+    
+    def is_student_in_cohort(self, student_id: str, cohort_id: str) -> bool:
+        """Check if student is in cohort"""
+        try:
+            result = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
+            return len(result.data) > 0
+        except Exception:
+            return False
+    
+    def create_lecture_for_cohort(self, cohort_id: str, teacher_id: str, title: str, description: str, scheduled_time: str, duration: int) -> Tuple[Optional[str], str]:
+        """Create lecture for cohort"""
+        try:
+            # Create lecture
+            lecture_id, msg = self.create_lecture(teacher_id, title, description, scheduled_time, duration)
+            if not lecture_id:
+                return None, msg
+            
+            # Link to cohort
+            cl_data = {
+                'cohort_id': cohort_id,
+                'lecture_id': lecture_id
+            }
+            
+            self.supabase.table('cohort_lectures').insert(cl_data).execute()
+            return lecture_id, 'Lecture created for cohort'
+            
+        except Exception as e:
+            return None, str(e)
+    
+    def get_cohort_lectures(self, cohort_id: str) -> List[Dict]:
+        """Get lectures for a cohort"""
+        try:
+            result = self.supabase.table('cohort_lectures').select(
+                'lectures(*, teachers!inner(name))'
+            ).eq('cohort_id', cohort_id).execute()
+            
+            lectures = []
+            for cl in result.data:
+                lecture = cl['lectures']
+                teacher_data = lecture.get('teachers', {})
+                lecture['teacher_name'] = teacher_data.get('name')
+                del lecture['teachers']  # Remove nested data
+                lectures.append(lecture)
+            
+            return lectures
+        except Exception:
+            return []
+    
+    def get_cohort_students(self, cohort_id: str) -> List[Dict]:
+        """Get students in a cohort"""
+        try:
+            result = self.supabase.table('cohort_students').select(
+                'students(*), joined_at'
+            ).eq('cohort_id', cohort_id).order('joined_at', desc=True).execute()
+            
+            students = []
+            for cs in result.data:
+                student = cs['students']
+                student['joined_at'] = cs['joined_at']
+                students.append(student)
+            
+            return students
+        except Exception:
+            return []
+    
+    def add_student_to_cohort(self, cohort_id: str, student_id: str) -> Tuple[bool, str]:
+        """Add student to cohort"""
+        try:
+            # Check if already in cohort
+            existing = self.supabase.table('cohort_students').select('id').eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
+            if existing.data:
+                return True, 'Already in cohort'
+            
+            cs_data = {
+                'cohort_id': cohort_id,
+                'student_id': student_id,
+                'joined_at': datetime.now().isoformat()
+            }
+            
+            self.supabase.table('cohort_students').insert(cs_data).execute()
+            return True, 'Student added to cohort'
+            
+        except Exception as e:
+            return False, str(e)
+    
+    def remove_student_from_cohort(self, cohort_id: str, student_id: str) -> Tuple[bool, str]:
+        """Remove student from cohort"""
+        try:
+            self.supabase.table('cohort_students').delete().eq('cohort_id', cohort_id).eq('student_id', student_id).execute()
+            return True, 'Removed from cohort'
+        except Exception as e:
+            return False, str(e)
 
 
 # Create a global instance for compatibility

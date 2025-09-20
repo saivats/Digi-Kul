@@ -1,243 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Dashboard • Digi Kul</title>
+{% extends 'base.html' %}
+{% block title %}Teacher Dashboard • Digi Kul{% endblock %}
+{% block header_title %}Teacher Dashboard{% endblock %}
+{% block content %}
+<!-- Custom styles for teacher dashboard specific elements -->
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .header p {
-            opacity: 0.9;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        
-        .tabs {
-            display: flex;
-            margin-bottom: 2rem;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .tab {
-            flex: 1;
-            padding: 1rem;
-            background: #f8f9fa;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
+.lecture-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-4);
+    box-shadow: var(--shadow-sm);
             transition: all 0.3s ease;
         }
         
-        .tab.active {
-            background: #667eea;
-            color: white;
-        }
-        
-        .tab-content {
-            display: none;
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 0.8rem;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .btn-success {
-            background: linear-gradient(45deg, #28a745, #20c997);
-        }
-        
-        .btn-danger {
-            background: linear-gradient(45deg, #dc3545, #e83e8c);
-        }
-        
-        .lecture-card {
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+.lecture-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
         }
         
         .lecture-card h3 {
-            color: #333;
-            margin-bottom: 0.5rem;
+    color: var(--gray-900);
+    margin-bottom: var(--space-2);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
         }
         
         .lecture-card p {
-            color: #666;
-            margin-bottom: 1rem;
+    color: var(--gray-600);
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-sm);
         }
         
         .lecture-actions {
             display: flex;
-            gap: 10px;
+    gap: var(--space-3);
             flex-wrap: wrap;
         }
         
         .status-badge {
             display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-bottom: var(--space-4);
         }
         
         .status-active {
-            background: #d4edda;
-            color: #155724;
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
         }
         
         .status-scheduled {
-            background: #fff3cd;
-            color: #856404;
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fed7aa;
         }
         
         .upload-area {
-            border: 2px dashed #ccc;
-            border-radius: 10px;
-            padding: 2rem;
+    border: 2px dashed var(--gray-300);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
             text-align: center;
-            margin-bottom: 1rem;
+    margin-bottom: var(--space-4);
             cursor: pointer;
-            transition: border-color 0.3s ease;
+    transition: all 0.3s ease;
+    background: var(--gray-50);
         }
         
         .upload-area:hover {
-            border-color: #667eea;
+    border-color: var(--primary);
+    background: #f8f9ff;
         }
         
         .upload-area.dragover {
-            border-color: #667eea;
+    border-color: var(--primary);
             background: #f8f9ff;
         }
         
         .file-info {
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 8px;
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--gray-50);
+    border-radius: var(--radius);
             display: none;
         }
         
         .progress-bar {
             width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
+    height: 1.25rem;
+    background: var(--gray-200);
+    border-radius: var(--radius-xl);
             overflow: hidden;
-            margin-top: 1rem;
+    margin-top: var(--space-4);
             display: none;
         }
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
             width: 0%;
             transition: width 0.3s ease;
-        }
-        
-        .alert {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            display: none;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
         }
         
         .materials-list {
@@ -249,54 +114,92 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
+    padding: var(--space-4);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-2);
+    background: var(--white);
+    transition: all 0.3s ease;
+}
+
+.material-item:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
         }
         
         .material-info h4 {
-            color: #333;
-            margin-bottom: 0.3rem;
+    color: var(--gray-900);
+    margin-bottom: var(--space-1);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
         }
         
         .material-info p {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-            
-            .tabs {
-                flex-direction: column;
-            }
-            
+    color: var(--gray-600);
+    font-size: var(--font-size-xs);
+    margin: 0;
+}
+
+.option-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    align-items: center;
+}
+
+.option-row input {
+    flex: 1;
+}
+
+.btn-remove {
+    background: var(--error);
+    color: var(--white);
+    border: none;
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    cursor: pointer;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-lg);
+    transition: all 0.3s ease;
+}
+
+.btn-remove:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+.btn-add {
+    background: var(--info);
+    color: var(--white);
+    border: none;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius);
+    cursor: pointer;
+    margin-top: var(--space-2);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-add:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
             .lecture-actions {
                 flex-direction: column;
             }
             
             .btn {
                 width: 100%;
-                margin-right: 0;
+        justify-content: center;
             }
         }
     </style>
-</head>
-<body>
-    <div class="header">
-        <div>
-            <h1>👨‍🏫 Teacher Dashboard</h1>
-            <p>Hello, {{ user_name }} • {{ user_email }}</p>
-        </div>
-        <div>
-            <button class="btn" onclick="logout()">Logout</button>
-        </div>
-    </div>
-    
-    <div class="container">
         <div class="tabs">
             <button class="tab active" onclick="switchTab('lectures')">📚 My Lectures</button>
             <button class="tab" onclick="switchTab('cohorts')">🏫 My Cohorts</button>
@@ -338,7 +241,19 @@
                     <button type="submit" class="btn">Create Cohort Lecture</button>
                 </form>
             </div>
+            <div id="cohort-students-section" style="display:none; margin-top:1rem;">
+                <h3>Students in Cohort</h3>
+                <div id="cohort-students"></div>
         </div>
+            <div id="cohort-polls-section" style="display:none; margin-top:1rem;">
+                <h3>Create Poll for Cohort</h3>
+            <div style="margin-bottom: 1rem;">
+                    <button class="btn" onclick="showCreateCohortPollModal()">📊 Create New Poll</button>
+            </div>
+                <div id="cohort-polls-list"></div>
+            </div>
+        </div>
+        
         
         <!-- Create Lecture Tab -->
         <div id="create" class="tab-content">
@@ -435,6 +350,11 @@
             
             // Add active class to clicked tab
             event.target.classList.add('active');
+            
+            // Load data for specific tabs
+            if (tabName === 'polls') {
+                loadTeacherPolls();
+            }
             
             // Load content based on tab
             if (tabName === 'lectures') {
@@ -773,6 +693,7 @@
                         <div class="lecture-actions">
                             <button class="btn" onclick="openCohortLectureForm('${cohort.id}', '${cohort.name.replace(/'/g, "\\'")}')">Create Lecture</button>
                             <button class="btn btn-success" onclick="viewCohortStudents('${cohort.id}')">View Students</button>
+                            <button class="btn" onclick="openCohortPolls('${cohort.id}', '${cohort.name.replace(/'/g, "\\'")}')">📊 Manage Polls</button>
                         </div>
                     </div>
                 `).join('');
@@ -789,6 +710,21 @@
             t.setHours(t.getHours() + 1);
             document.getElementById('c_scheduled_time').value = t.toISOString().slice(0, 16);
             box.style.display = 'block';
+            // Also show students and polls sections
+            document.getElementById('cohort-students-section').style.display = 'block';
+            document.getElementById('cohort-polls-section').style.display = 'block';
+            loadCohortStudents(cohortId);
+            loadCohortPolls(cohortId);
+        }
+
+        function openCohortPolls(cohortId, name) {
+            // Set the current cohort ID
+            document.getElementById('cohort-create-id').value = cohortId;
+            // Show both students and polls sections
+            document.getElementById('cohort-students-section').style.display = 'block';
+            document.getElementById('cohort-polls-section').style.display = 'block';
+            loadCohortStudents(cohortId);
+            loadCohortPolls(cohortId);
         }
 
         document.getElementById('cohort-lecture-form').addEventListener('submit', async function(e){
@@ -827,10 +763,601 @@
             showAlert('Student list view coming soon!', 'success');
         }
         
-        // Placeholder functions
-        function viewMaterials(lectureId) {
-            showAlert('Materials view coming soon!', 'success');
+        // Materials Functions
+        async function viewMaterials(lectureId) {
+            try {
+                const res = await fetch(`/api/teacher/lecture/${lectureId}/materials`, { credentials: 'same-origin' });
+                const data = await res.json();
+                
+                if (!data.success) {
+                    showAlert(data.error || 'Failed to load materials', 'error');
+                    return;
+                }
+                
+                showMaterialsModal(data.materials || [], lectureId);
+            } catch (error) {
+                showAlert('Error loading materials: ' + error.message, 'error');
+            }
+        }
+        
+        function showMaterialsModal(materials, lectureId) {
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.style.zIndex = '1000';
+            
+            const materialsHTML = materials.length === 0 
+                ? '<p style="text-align: center; color: #666; padding: 20px;">No materials available for this lecture</p>'
+                : materials.map(material => `
+                    <div class="material-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; background: #f8f9fa;">
+                        <div class="material-info" style="flex: 1;">
+                            <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">${material.title}</h4>
+                            <p style="margin: 0 0 5px 0; color: #666; font-size: 14px;">${material.description || 'No description'}</p>
+                            <p style="margin: 0; color: #999; font-size: 12px;">
+                                ${material.file_type} • ${(material.file_size / (1024 * 1024)).toFixed(2)} MB • 
+                                Uploaded: ${new Date(material.uploaded_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <div class="material-actions" style="display: flex; gap: 8px;">
+                            <a href="/api/download/${material.id}" class="btn" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">📥 Download</a>
+                            <button onclick="deleteMaterial('${material.id}', '${lectureId}')" class="btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #ddd;">
+                        <h3 style="margin: 0; color: #333;">Lecture Materials</h3>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button onclick="uploadMaterial('${lectureId}')" class="btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">📤 Upload</button>
+                            <span class="close" onclick="this.closest('.modal').remove()" style="font-size: 24px; cursor: pointer; color: #999;">&times;</span>
+                        </div>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        ${materialsHTML}
+                    </div>
+                    <div class="modal-footer" style="padding: 20px; border-top: 1px solid #ddd; text-align: right;">
+                        <button onclick="this.closest('.modal').remove()" class="btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                .modal-content {
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    max-width: 90vw;
+                    max-height: 90vh;
+                    overflow: hidden;
+                }
+                .close:hover {
+                    color: #333 !important;
+                }
+                .material-item:hover {
+                    background: #e9ecef !important;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                .btn:hover {
+                    opacity: 0.9;
+                    transform: translateY(-1px);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        function uploadMaterial(lectureId) {
+            // Create file input
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip';
+            
+            input.onchange = async function(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                for (const file of files) {
+                    await uploadFile(file, lectureId);
+                }
+                
+                // Refresh materials modal
+                viewMaterials(lectureId);
+            };
+            
+            input.click();
+        }
+        
+        async function uploadFile(file, lectureId) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('lecture_id', lectureId);
+            formData.append('title', file.name);
+            formData.append('description', 'Uploaded via materials modal');
+            
+            try {
+                const res = await fetch('/api/teacher/upload_material', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert(`File "${file.name}" uploaded successfully!`, 'success');
+                } else {
+                    showAlert(`Failed to upload "${file.name}": ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`Error uploading "${file.name}": ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteMaterial(materialId, lectureId) {
+            if (!confirm('Are you sure you want to delete this material?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/teacher/materials/${materialId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('Material deleted successfully!', 'success');
+                    // Refresh materials modal
+                    viewMaterials(lectureId);
+                } else {
+                    showAlert(data.error || 'Failed to delete material', 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to delete material: ' + error.message, 'error');
+            }
+        }
+        
+        // Poll Functions
+        async function loadTeacherPolls() {
+            try {
+                const res = await fetch('/api/teacher/polls', { credentials: 'same-origin' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    renderTeacherPolls(data.polls);
+                }
+            } catch (error) {
+                console.error('Failed to load polls:', error);
+            }
+        }
+        
+        function renderTeacherPolls(polls) {
+            const container = document.getElementById('polls-list');
+            
+            if (polls.length === 0) {
+                container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No polls created yet</p>';
+                return;
+            }
+            
+            container.innerHTML = polls.map(poll => `
+                <div class="lecture-card">
+                    <h3>${poll.question}</h3>
+                    <p><strong>Options:</strong> ${poll.options.join(', ')}</p>
+                    <p><strong>Created:</strong> ${new Date(poll.created_at).toLocaleString()}</p>
+                    <div class="lecture-actions">
+                        <button class="btn" onclick="viewPollResults('${poll.id}')">View Results</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showCreatePollModal() {
+            // Create modal if it doesn't exist
+            if (!document.getElementById('teacherPollModal')) {
+                createTeacherPollModal();
+            }
+            
+            // Reset form
+            document.getElementById('teacherPollQuestion').value = '';
+            const optionsContainer = document.getElementById('teacherPollOptions');
+            optionsContainer.innerHTML = `
+                <div class="option-row">
+                    <input type="text" placeholder="Option 1" class="poll-option-input">
+                    <button class="btn-remove" onclick="removeTeacherPollOption(this)">×</button>
+                </div>
+                <div class="option-row">
+                    <input type="text" placeholder="Option 2" class="poll-option-input">
+                    <button class="btn-remove" onclick="removeTeacherPollOption(this)">×</button>
+                </div>
+            `;
+            
+            // Show modal
+            document.getElementById('teacherPollModal').style.display = 'flex';
+        }
+        
+        function createTeacherPollModal() {
+            const modal = document.createElement('div');
+            modal.id = 'teacherPollModal';
+            modal.className = 'modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Create New Poll</h3>
+                        <span class="close" onclick="closeTeacherPollModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="teacherPollQuestion">Poll Question</label>
+                            <textarea id="teacherPollQuestion" placeholder="Enter your poll question..." rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Poll Options</label>
+                            <div id="teacherPollOptions">
+                                <div class="option-row">
+                                    <input type="text" placeholder="Option 1" class="poll-option-input">
+                                    <button class="btn-remove" onclick="removeTeacherPollOption(this)">×</button>
+                                </div>
+                                <div class="option-row">
+                                    <input type="text" placeholder="Option 2" class="poll-option-input">
+                                    <button class="btn-remove" onclick="removeTeacherPollOption(this)">×</button>
+                                </div>
+                            </div>
+                            <button class="btn-add" onclick="addTeacherPollOption()">+ Add Option</button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" onclick="createTeacherPoll()">Create Poll</button>
+                        <button class="btn btn-secondary" onclick="closeTeacherPollModal()">Cancel</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function closeTeacherPollModal() {
+            document.getElementById('teacherPollModal').style.display = 'none';
+        }
+        
+        function addTeacherPollOption() {
+            const optionsContainer = document.getElementById('teacherPollOptions');
+            const optionCount = optionsContainer.children.length + 1;
+            
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option-row';
+            optionDiv.innerHTML = `
+                <input type="text" placeholder="Option ${optionCount}" class="poll-option-input">
+                <button class="btn-remove" onclick="removeTeacherPollOption(this)">×</button>
+            `;
+            
+            optionsContainer.appendChild(optionDiv);
+        }
+        
+        function removeTeacherPollOption(button) {
+            const optionRow = button.parentElement;
+            if (optionRow.parentElement.children.length > 2) {
+                optionRow.remove();
+            }
+        }
+        
+        async function createTeacherPoll() {
+            const question = document.getElementById('teacherPollQuestion').value.trim();
+            const optionInputs = document.querySelectorAll('#teacherPollOptions .poll-option-input');
+            const options = Array.from(optionInputs)
+                .map(input => input.value.trim())
+                .filter(option => option.length > 0);
+            
+            if (!question) {
+                showAlert('Please enter a poll question', 'error');
+                return;
+            }
+            
+            if (options.length < 2) {
+                showAlert('Please enter at least 2 options', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/polls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        question: question,
+                        options: options,
+                        lecture_id: null // For general polls not tied to specific lectures
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('Poll created successfully!', 'success');
+                    closeTeacherPollModal();
+                    loadTeacherPolls();
+                } else {
+                    showAlert(data.error || 'Failed to create poll', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to create poll:', error);
+                showAlert('Failed to create poll');
+            }
+        }
+        
+        // Cohort Management Functions
+        async function loadCohortStudents(cohortId) {
+            try {
+                const res = await fetch(`/api/teacher/cohort/${cohortId}/students`, { credentials: 'same-origin' });
+                const data = await res.json();
+                const container = document.getElementById('cohort-students');
+                
+                if (!data.success) {
+                    container.innerHTML = '<p>Failed to load students</p>';
+                    return;
+                }
+                
+                if (data.students.length === 0) {
+                    container.innerHTML = '<p>No students in this cohort yet.</p>';
+                    return;
+                }
+                
+                container.innerHTML = data.students.map(student => `
+                    <div class="user-card">
+                        <h3>${student.name}</h3>
+                        <p>${student.email}</p>
+                        <p>Institution: ${student.institution}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load cohort students:', error);
+                document.getElementById('cohort-students').innerHTML = '<p>Failed to load students</p>';
+            }
+        }
+
+        // Cohort Poll Functions
+        async function loadCohortPolls(cohortId) {
+            try {
+                const res = await fetch(`/api/cohorts/${cohortId}/polls`, { credentials: 'same-origin' });
+                const data = await res.json();
+                const container = document.getElementById('cohort-polls-list');
+                
+                if (!data.success) {
+                    container.innerHTML = '<p>Failed to load cohort polls</p>';
+                    return;
+                }
+                
+                if (data.polls.length === 0) {
+                    container.innerHTML = '<p>No polls in this cohort yet.</p>';
+                    return;
+                }
+                
+                container.innerHTML = data.polls.map(poll => `
+                    <div class="lecture-card">
+                        <h3>${poll.question}</h3>
+                        <p><strong>Options:</strong> ${poll.options.join(', ')}</p>
+                        <p><strong>Created:</strong> ${new Date(poll.created_at).toLocaleString()}</p>
+                        <div class="lecture-actions">
+                            <button class="btn" onclick="viewPollResults('${poll.id}')">View Results</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load cohort polls:', error);
+                document.getElementById('cohort-polls-list').innerHTML = '<p>Failed to load cohort polls</p>';
+            }
+        }
+        
+        function showCreateCohortPollModal() {
+            // Create modal if it doesn't exist
+            if (!document.getElementById('cohortPollModal')) {
+                createCohortPollModal();
+            }
+            
+            // Reset form
+            document.getElementById('cohortPollQuestion').value = '';
+            const optionsContainer = document.getElementById('cohortPollOptions');
+            optionsContainer.innerHTML = `
+                <div class="option-row">
+                    <input type="text" placeholder="Option 1" class="poll-option-input">
+                    <button class="btn-remove" onclick="removeCohortPollOption(this)">×</button>
+                </div>
+                <div class="option-row">
+                    <input type="text" placeholder="Option 2" class="poll-option-input">
+                    <button class="btn-remove" onclick="removeCohortPollOption(this)">×</button>
+                </div>
+            `;
+            
+            // Show modal
+            document.getElementById('cohortPollModal').style.display = 'flex';
+        }
+        
+        function createCohortPollModal() {
+            const modal = document.createElement('div');
+            modal.id = 'cohortPollModal';
+            modal.className = 'modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Create New Poll for Cohort</h3>
+                        <span class="close" onclick="closeCohortPollModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="cohortPollQuestion">Poll Question</label>
+                            <textarea id="cohortPollQuestion" placeholder="Enter your poll question..." rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Poll Options</label>
+                            <div id="cohortPollOptions">
+                                <div class="option-row">
+                                    <input type="text" placeholder="Option 1" class="poll-option-input">
+                                    <button class="btn-remove" onclick="removeCohortPollOption(this)">×</button>
+                                </div>
+                                <div class="option-row">
+                                    <input type="text" placeholder="Option 2" class="poll-option-input">
+                                    <button class="btn-remove" onclick="removeCohortPollOption(this)">×</button>
+                                </div>
+                            </div>
+                            <button class="btn-add" onclick="addCohortPollOption()">+ Add Option</button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" onclick="createCohortPoll()">Create Poll</button>
+                        <button class="btn btn-secondary" onclick="closeCohortPollModal()">Cancel</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function closeCohortPollModal() {
+            document.getElementById('cohortPollModal').style.display = 'none';
+        }
+        
+        function addCohortPollOption() {
+            const optionsContainer = document.getElementById('cohortPollOptions');
+            const optionCount = optionsContainer.children.length + 1;
+            
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option-row';
+            optionDiv.innerHTML = `
+                <input type="text" placeholder="Option ${optionCount}" class="poll-option-input">
+                <button class="btn-remove" onclick="removeCohortPollOption(this)">×</button>
+            `;
+            
+            optionsContainer.appendChild(optionDiv);
+        }
+        
+        function removeCohortPollOption(button) {
+            const optionRow = button.parentElement;
+            if (optionRow.parentElement.children.length > 2) {
+                optionRow.remove();
+            }
+        }
+        
+        async function createCohortPoll() {
+            const question = document.getElementById('cohortPollQuestion').value.trim();
+            const optionInputs = document.querySelectorAll('#cohortPollOptions .poll-option-input');
+            const options = Array.from(optionInputs)
+                .map(input => input.value.trim())
+                .filter(option => option.length > 0);
+            
+            if (!question) {
+                showAlert('Please enter a poll question', 'error');
+                return;
+            }
+            
+            if (options.length < 2) {
+                showAlert('Please enter at least 2 options', 'error');
+                return;
+            }
+            
+            const cohortId = document.getElementById('cohort-create-id').value;
+            
+            try {
+                const res = await fetch(`/api/cohorts/${cohortId}/polls`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        question: question,
+                        options: options
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('Poll created successfully!', 'success');
+                    closeCohortPollModal();
+                    loadCohortPolls(cohortId);
+                } else {
+                    showAlert(data.error || 'Failed to create poll', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to create poll:', error);
+                showAlert('Failed to create poll');
+            }
+        }
+        
+        async function viewPollResults(pollId) {
+            try {
+                const res = await fetch(`/api/polls/${pollId}/results`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.success) {
+                    const results = data.results;
+                    let resultsHTML = `
+                        <h3>${results.question}</h3>
+                        <p><strong>Total Votes:</strong> ${results.total_votes}</p>
+                        <div style="margin-top: 1rem;">
+                    `;
+                    
+                    results.results.forEach(result => {
+                        resultsHTML += `
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>${result.option}</span>
+                                    <span>${result.votes} votes (${result.percentage}%)</span>
+                                </div>
+                                <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden;">
+                                    <div style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: ${result.percentage}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                                        ${result.percentage}%
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    resultsHTML += '</div>';
+                    
+                    // Show results in a modal
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                        background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+                        justify-content: center; z-index: 1000;
+                    `;
+                    modal.innerHTML = `
+                        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80%; overflow-y: auto;">
+                            ${resultsHTML}
+                            <button class="btn" onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem;">Close</button>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                } else {
+                    showAlert(data.error || 'Failed to load poll results', 'error');
+                }
+            } catch (e) {
+                showAlert('Failed to load poll results: ' + e.message, 'error');
+            }
         }
     </script>
-</body>
-</html>
+{% endblock %}

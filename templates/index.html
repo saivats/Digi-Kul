@@ -1,41 +1,66 @@
 {% extends 'base.html' %}
 {% block title %}Welcome • Digi Kul{% endblock %}
 {% block content %}
-<section>
-  <h1>Welcome to Digi Kul</h1>
-  <p class="muted">A simple portal for teachers and students.</p>
-  {% if not session.get('user_id') %}
-    <div style="display:flex; gap: .5rem;">
-      <a href="/admin_login" role="button">Admin Login</a>
-      <a href="/login" role="button">Login</a>
-      <a href="/register" role="button" class="secondary">Register</a>
-    </div>
-  {% else %}
-    {% if session.get('user_type') == 'teacher' %}
-      <a href="/teacher_dashboard" role="button">Go to Teacher Dashboard</a>
-    {% elif session.get('user_type') == 'admin' %}
-      <a href="/admin_dashboard" role="button">Go to Admin Dashboard</a>
+<div class="card" style="max-width: 800px; margin: 2rem auto;">
+  <div class="card-header">
+    <h1 class="card-title">Welcome to Digi Kul</h1>
+    <p class="card-subtitle">A simple portal for teachers and students</p>
+  </div>
+  <div class="card-body">
+    {% if not session.get('user_id') %}
+      <div class="flex gap-4 justify-center">
+        <a href="/admin_login" class="btn btn-primary">Admin Login</a>
+        <a href="/login" class="btn btn-secondary">Login</a>
+      </div>
     {% else %}
-      <a href="/student_dashboard" role="button">Go to Student Dashboard</a>
+      <div class="text-center">
+        {% if session.get('user_type') == 'teacher' %}
+          <a href="/teacher_dashboard" class="btn btn-primary btn-lg">Go to Teacher Dashboard</a>
+        {% elif session.get('user_type') == 'admin' %}
+          <a href="/admin_dashboard" class="btn btn-primary btn-lg">Go to Admin Dashboard</a>
+        {% else %}
+          <a href="/student_dashboard" class="btn btn-primary btn-lg">Go to Student Dashboard</a>
+        {% endif %}
+      </div>
     {% endif %}
-  {% endif %}
-</section>
+  </div>
+</div>
 
-<section style="margin-top: 2rem;">
-  <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.06);">
-    <h2 style="margin-bottom: .5rem;">DigiKul Highlights</h2>
-    <p class="muted" style="margin-bottom: 1rem;">Low-bandwidth e-learning built for reliability.</p>
-    <ul style="list-style:none; padding:0; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem;">
-      <li>✓ Audio-first live classes</li>
-      <li>✓ Adaptive quality</li>
-      <li>✓ Offline downloads</li>
-      <li>✓ Device-to-device sharing</li>
-      <li>✓ Push-to-talk</li>
-      <li>✓ Real-time chat & quizzes</li>
-            </ul>
-    <div id="status" class="status offline" style="margin-top: 1rem; padding: .75rem 1rem; border-radius: 8px; background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;">🔴 Checking server status...</div>
-        </div>
-</section>
+<div class="card" style="margin-top: 2rem;">
+  <div class="card-header">
+    <h2 class="card-title">DigiKul Highlights</h2>
+    <p class="card-subtitle">Low-bandwidth e-learning built for reliability</p>
+  </div>
+  <div class="card-body">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Audio-first live classes</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Adaptive quality</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Offline downloads</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Device-to-device sharing</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Push-to-talk</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span style="color: var(--success); font-size: 1.2rem;">✓</span>
+        <span>Real-time chat & quizzes</span>
+      </div>
+    </div>
+    <div id="status" class="alert error" style="margin-top: 1rem;">🔴 Checking server status...</div>
+  </div>
+</div>
 
     <script>
   async function checkStatus(){
