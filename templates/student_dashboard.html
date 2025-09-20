@@ -3,177 +3,185 @@
 {% block header_title %}Student Dashboard{% endblock %}
 {% block content %}
 <div class="tabs">
-    <button class="tab active" onclick="switchTab('cohorts')">🏫 My Cohorts</button>
-    <button class="tab" onclick="switchTab('available')">📚 Available Lectures</button>
-    <button class="tab" onclick="switchTab('enrolled')">📖 Enrolled Lectures</button>
+    <button class="tab active" onclick="switchTab('cohorts', event)">🏫 My Cohorts</button>
+    <button class="tab" onclick="switchTab('available', event)">📚 Available Lectures</button>
+    <button class="tab" onclick="switchTab('enrolled', event)">📖 Enrolled Lectures</button>
+    <button class="tab" onclick="switchTab('polls', event)">📊 Polls</button>
 </div>
 
 <!-- Cohorts Tab -->
 <div id="cohorts" class="tab-content active">
-    <h2>My Cohorts</h2>
+    <div class="card-header">
+        <h2 class="card-title">My Cohorts</h2>
+        <p class="card-subtitle">Join cohorts to access lectures and materials</p>
+    </div>
     <div id="cohorts-list"></div>
 </div>
 
 <!-- Available Lectures Tab -->
 <div id="available" class="tab-content">
-    <h2>Available Lectures</h2>
+    <div class="card-header">
+        <h2 class="card-title">Available Lectures</h2>
+        <p class="card-subtitle">Browse and enroll in available lectures</p>
+    </div>
     <div id="available-list"></div>
 </div>
 
 <!-- Enrolled Lectures Tab -->
 <div id="enrolled" class="tab-content">
-    <h2>Your Enrollments</h2>
+    <div class="card-header">
+        <h2 class="card-title">Your Enrollments</h2>
+        <p class="card-subtitle">Manage your enrolled lectures</p>
+    </div>
     <div id="enrolled-list"></div>
+</div>
+
+<!-- Polls Tab -->
+<div id="polls" class="tab-content">
+    <div class="card-header">
+        <h2 class="card-title">Available Polls</h2>
+        <p class="card-subtitle">Participate in polls from your cohorts</p>
+    </div>
+    <div id="polls-list"></div>
 </div>
 
 <div id="alert" class="alert"></div>
 
+<!-- Custom styles for student dashboard specific elements -->
 <style>
-.tabs {
-    display: flex;
-    margin-bottom: 2rem;
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.tab {
-    flex: 1;
-    padding: 1rem;
-    background: #f8f9fa;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
+.lecture-card, .cohort-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-4);
+    box-shadow: var(--shadow-sm);
     transition: all 0.3s ease;
 }
 
-.tab.active {
-    background: #667eea;
-    color: white;
-}
-
-.tab-content {
-    display: none;
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.lecture-card, .cohort-card {
-    background: white;
-    border: 1px solid #e9ecef;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+.lecture-card:hover, .cohort-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 .lecture-card h3, .cohort-card h3 {
-    color: #333;
-    margin-bottom: 0.5rem;
+    color: var(--gray-900);
+    margin-bottom: var(--space-2);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
 }
 
 .lecture-card p, .cohort-card p {
-    color: #666;
-    margin-bottom: 1rem;
+    color: var(--gray-600);
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-sm);
 }
 
 .lecture-actions, .cohort-actions {
     display: flex;
-    gap: 10px;
+    gap: var(--space-3);
     flex-wrap: wrap;
-}
-
-.btn {
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    color: white;
-    border: none;
-    padding: 12px 30px;
-    border-radius: 25px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    text-decoration: none;
-    display: inline-block;
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.btn-success {
-    background: linear-gradient(45deg, #28a745, #20c997);
-}
-
-.btn-secondary {
-    background: linear-gradient(45deg, #6c757d, #adb5bd);
 }
 
 .status-badge {
     display: inline-block;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-bottom: var(--space-4);
 }
 
 .status-active {
-    background: #d4edda;
-    color: #155724;
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
 }
 
 .status-scheduled {
-    background: #fff3cd;
-    color: #856404;
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fed7aa;
 }
 
-.alert {
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    display: none;
+.option-row {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    align-items: center;
 }
 
-.alert-success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+.poll-option-input {
+    flex: 1;
 }
 
-.alert-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+.btn-remove {
+    background: var(--error);
+    color: var(--white);
+    border: none;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-lg);
+    transition: all 0.3s ease;
+}
+
+.btn-remove:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+.btn-add {
+    background: var(--success);
+    color: var(--white);
+    border: none;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-add:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.btn-copy {
+    background: var(--info);
+    color: var(--white);
+    border: none;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    margin-left: var(--space-3);
+    font-size: var(--font-size-xs);
+    transition: all 0.3s ease;
+}
+
+.btn-copy:hover {
+    background: #2563eb;
+    transform: scale(1.05);
 }
 
 @media (max-width: 768px) {
-    .tabs {
-        flex-direction: column;
-    }
-    
     .lecture-actions, .cohort-actions {
         flex-direction: column;
     }
     
     .btn {
         width: 100%;
-        margin-right: 0;
+        justify-content: center;
     }
 }
 </style>
 
 <script>
-function switchTab(tabName) {
+function switchTab(tabName, event) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
@@ -188,7 +196,9 @@ function switchTab(tabName) {
     document.getElementById(tabName).classList.add('active');
     
     // Add active class to clicked tab
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     // Load content based on tab
     if (tabName === 'cohorts') {
@@ -197,6 +207,8 @@ function switchTab(tabName) {
         loadAvailable();
     } else if (tabName === 'enrolled') {
         loadEnrolled();
+    } else if (tabName === 'polls') {
+        loadPolls();
     }
 }
 
@@ -369,21 +381,97 @@ async function viewMaterials(lectureId) {
             return;
         }
         
-        if (!data.materials || data.materials.length === 0) {
-            showAlert('No materials available for this lecture', 'success');
-            return;
-        }
-        
-        const materialsList = data.materials.map(m => `${m.title} (${m.file_type}) - ${(m.file_size / (1024 * 1024)).toFixed(2)} MB`).join('\n');
-        alert(`Available Materials:\n\n${materialsList}\n\nClick OK to download the first material.`);
-        
-        // Download first material
-        if (data.materials.length > 0) {
-            window.open(data.materials[0].download_url, '_blank');
-        }
+        showMaterialsModal(data.materials || []);
     } catch (error) {
         showAlert('Error loading materials: ' + error.message, 'error');
     }
+}
+
+function showMaterialsModal(materials) {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.style.zIndex = '1000';
+    
+    const materialsHTML = materials.length === 0 
+        ? '<p style="text-align: center; color: #666; padding: 20px;">No materials available for this lecture</p>'
+        : materials.map(material => `
+            <div class="material-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; background: #f8f9fa;">
+                <div class="material-info" style="flex: 1;">
+                    <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">${material.title}</h4>
+                    <p style="margin: 0 0 5px 0; color: #666; font-size: 14px;">${material.description || 'No description'}</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">
+                        ${material.file_type} • ${(material.file_size / (1024 * 1024)).toFixed(2)} MB • 
+                        Uploaded: ${new Date(material.uploaded_at).toLocaleDateString()}
+                    </p>
+                </div>
+                <div class="material-actions">
+                    <a href="/api/download/${material.id}" class="btn" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">📥 Download</a>
+                </div>
+            </div>
+        `).join('');
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #ddd;">
+                <h3 style="margin: 0; color: #333;">Lecture Materials</h3>
+                <span class="close" onclick="this.closest('.modal').remove()" style="font-size: 24px; cursor: pointer; color: #999;">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                ${materialsHTML}
+            </div>
+            <div class="modal-footer" style="padding: 20px; border-top: 1px solid #ddd; text-align: right;">
+                <button onclick="this.closest('.modal').remove()" class="btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            </div>
+        </div>
+    `;
+    
+    // Add modal styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .close:hover {
+            color: #333 !important;
+        }
+        .material-item:hover {
+            background: #e9ecef !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 async function viewCohortLectures(cohortId) {
@@ -451,6 +539,172 @@ async function joinCohort() {
         }
     } catch (error) {
         showAlert('Error joining cohort: ' + error.message, 'error');
+    }
+}
+
+async function loadPolls() {
+    try {
+        const res = await fetch('/api/student/polls', { credentials: 'same-origin' });
+        const data = await res.json();
+        const container = document.getElementById('polls-list');
+        
+        if (!data.success) {
+            container.innerHTML = '<p>Failed to load polls</p>';
+            return;
+        }
+        
+        if (data.polls.length === 0) {
+            container.innerHTML = '<p>No polls available at the moment.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.polls.map(poll => `
+            <div class="lecture-card">
+                <h3>${poll.question}</h3>
+                <p><strong>Options:</strong> ${poll.options.join(', ')}</p>
+                <p><strong>Created:</strong> ${new Date(poll.created_at).toLocaleString()}</p>
+                <div class="lecture-actions">
+                    <button class="btn" onclick="votePoll('${poll.id}')">Vote</button>
+                    <button class="btn btn-secondary" onclick="viewPollResults('${poll.id}')">View Results</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load polls:', error);
+        document.getElementById('polls-list').innerHTML = '<p>Failed to load polls</p>';
+    }
+}
+
+async function votePoll(pollId) {
+    try {
+        // Get poll details first
+        const pollRes = await fetch(`/api/polls/${pollId}/results`, { credentials: 'same-origin' });
+        const pollData = await pollRes.json();
+        
+        if (!pollData.success) {
+            showAlert('Failed to load poll details', 'error');
+            return;
+        }
+        
+        const poll = pollData.poll;
+        const options = poll.options;
+        
+        // Create voting modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${poll.question}</h3>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Select your answer:</p>
+                    <form id="voteForm">
+                        ${options.map((option, index) => `
+                            <label style="display: block; margin: 10px 0;">
+                                <input type="radio" name="vote" value="${option}" required>
+                                ${option}
+                            </label>
+                        `).join('')}
+                        <div style="margin-top: 20px;">
+                            <button type="submit" class="btn">Submit Vote</button>
+                            <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle form submission
+        document.getElementById('voteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const selectedOption = formData.get('vote');
+            
+            if (!selectedOption) {
+                showAlert('Please select an option', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ response: selectedOption })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('Vote submitted successfully!', 'success');
+                    modal.remove();
+                    loadPolls(); // Refresh polls list
+                } else {
+                    showAlert(data.error || 'Failed to submit vote', 'error');
+                }
+            } catch (error) {
+                showAlert('Error submitting vote: ' + error.message, 'error');
+            }
+        });
+        
+    } catch (error) {
+        showAlert('Error loading poll: ' + error.message, 'error');
+    }
+}
+
+async function viewPollResults(pollId) {
+    try {
+        const res = await fetch(`/api/polls/${pollId}/results`, { credentials: 'same-origin' });
+        const data = await res.json();
+        
+        if (!data.success) {
+            showAlert('Failed to load poll results', 'error');
+            return;
+        }
+        
+        const poll = data.poll;
+        
+        // Create results modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Poll Results: ${poll.question}</h3>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Total Votes:</strong> ${poll.total_votes}</p>
+                    <div style="margin-top: 20px;">
+                        ${poll.results.map(result => `
+                            <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>${result.option}</span>
+                                    <span><strong>${result.votes} votes (${result.percentage}%)</strong></span>
+                                </div>
+                                <div style="width: 100%; background-color: #f0f0f0; border-radius: 3px; margin-top: 5px;">
+                                    <div style="width: ${result.percentage}%; background-color: #007bff; height: 20px; border-radius: 3px;"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        showAlert('Error loading poll results: ' + error.message, 'error');
     }
 }
 

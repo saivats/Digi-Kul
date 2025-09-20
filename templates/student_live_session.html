@@ -1,0 +1,1129 @@
+{% extends 'base.html' %}
+{% block title %}Live Session • Digi Kul{% endblock %}
+{% block header_title %}Live Session{% endblock %}
+{% block content %}
+
+<style>
+    .main-container {
+        display: flex;
+        height: calc(100vh - 120px);
+        gap: 1rem;
+    }
+    
+    .video-container {
+        flex: 2;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        padding: 1rem;
+        height: 100%;
+        overflow-y: auto;
+    }
+    
+    .video-wrapper {
+        position: relative;
+        background: #333;
+        border-radius: 8px;
+        overflow: hidden;
+        min-height: 200px;
+    }
+    
+    .video-wrapper.teacher {
+        border: 3px solid #28a745;
+    }
+    
+    .video-wrapper.student {
+        border: 2px solid #6c757d;
+    }
+    
+    .video-wrapper video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .video-label {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+    }
+    
+    .sidebar {
+        width: 350px;
+        background: white;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-tabs {
+        display: flex;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .sidebar-tab {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+    
+    .sidebar-tab.active {
+        background: #007bff;
+        color: white;
+    }
+    
+    .tab-panel {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+    }
+    
+    .tab-panel.active {
+        display: flex;
+    }
+    
+    .polls-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    
+    .poll-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .poll-question {
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+    
+    .poll-option {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .poll-option:hover {
+        background: #e9ecef;
+    }
+    
+    .poll-option.selected {
+        background: #007bff;
+        color: white;
+    }
+    
+    .session-controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        background: rgba(0,0,0,0.8);
+        padding: 10px 20px;
+        border-radius: 25px;
+        z-index: 1000;
+    }
+    
+    .control-btn {
+        width: 50px;
+        height: 50px;
+        border: none;
+        border-radius: 50%;
+        background: #6c757d;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .control-btn.active {
+        background: #28a745;
+    }
+    
+    .control-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .control-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .alert {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+    
+    .alert-error {
+        background: #dc3545;
+    }
+    
+    .alert-success {
+        background: #28a745;
+    }
+    
+    @media (max-width: 768px) {
+        .main-container {
+            flex-direction: column;
+            height: auto;
+        }
+        
+        .sidebar {
+            width: 100%;
+            height: 300px;
+        }
+        
+        .video-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="main-container">
+    <div class="video-container">
+        <div class="video-grid" id="video-grid">
+            <!-- Video elements will be added here dynamically -->
+        </div>
+    </div>
+    
+    <div class="sidebar">
+        <div class="sidebar-tabs">
+            <button class="sidebar-tab active" onclick="switchSidebarTab('polls')">📊 Polls</button>
+            <button class="sidebar-tab" onclick="switchSidebarTab('materials')">📁 Materials</button>
+            <button class="sidebar-tab" onclick="switchSidebarTab('chat')">💬 Chat</button>
+        </div>
+        
+        <!-- Polls Panel -->
+        <div id="polls-panel" class="tab-panel active">
+            <div class="polls-container" id="polls-container">
+                <!-- Polls will be added here -->
+            </div>
+        </div>
+        
+        <!-- Materials Panel -->
+        <div id="materials-panel" class="tab-panel">
+            <div class="polls-container" id="materials-container">
+                <h4>Lecture Materials</h4>
+                <div id="materials-list">
+                    <!-- Materials will be added here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Panel -->
+        <div id="chat-panel" class="tab-panel">
+            <div class="polls-container" id="chat-container">
+                <div id="chat-messages" style="height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
+                    <!-- Chat messages will appear here -->
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chat-input" placeholder="Type a message..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button onclick="sendChatMessage()" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Controls -->
+<div class="session-controls">
+    <div id="participants-count">👥 0 participants</div>
+    <button class="control-btn" id="mic-btn" title="Microphone">🎤</button>
+    <button class="control-btn" id="leave-btn" title="Leave Session" style="background: #dc3545;">❌</button>
+</div>
+
+<div id="alert" class="alert"></div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+    // Global variables
+    let socket = null;
+    let currentUser = null;
+    let sessionId = null;
+    let isMuted = false;
+    let localStream = null;
+    let peerConnections = new Map();
+    let remoteStreams = new Map();
+    let currentLectureId = null;
+    let polls = [];
+    let userVotes = new Map();
+    
+    // WebRTC configuration
+    const rtcConfig = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    };
+    
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get session ID from URL
+        const pathParts = window.location.pathname.split('/');
+        sessionId = pathParts[pathParts.length - 1];
+        
+        initializeSession();
+        setupEventListeners();
+        
+        // Periodic check for track changes (fallback for screen sharing)
+        setInterval(() => {
+            peerConnections.forEach((peerConnection, userId) => {
+                const receivers = peerConnection.getReceivers();
+                receivers.forEach(receiver => {
+                    if (receiver.track && receiver.track.kind === 'video') {
+                        const stream = receiver.track.streams[0];
+                        if (stream && remoteStreams.get(userId) !== stream) {
+                            console.log('Detected track change for user:', userId);
+                            remoteStreams.set(userId, stream);
+                            
+                            const videoElement = document.getElementById(`video-${userId}`);
+                            if (videoElement) {
+                                videoElement.srcObject = stream;
+                                videoElement.play().catch(e => console.log('Video play failed:', e));
+                                updateScreenSharingIndicator(userId, stream);
+                            }
+                        }
+                    }
+                });
+            });
+        }, 2000); // Check every 2 seconds
+    });
+    
+    async function initializeSession() {
+        try {
+            // Get user info from Flask session
+            const userType = '{{ session.user_type }}';
+            const userName = '{{ session.user_name }}';
+            const userId = '{{ session.user_id }}';
+            
+            currentUser = {
+                id: userId,
+                type: userType,
+                name: userName
+            };
+            
+            // Connect to socket
+            socket = io();
+            
+            // Setup socket event listeners
+            setupSocketListeners();
+            
+            // Get user media (audio only for students)
+            await getUserMedia();
+            
+            // Join session
+            socket.emit('join_session', {
+                session_id: sessionId,
+                user_id: userId,
+                user_type: userType,
+                user_name: userName
+            });
+            
+            // Get lecture ID from server template variable
+            currentLectureId = '{{ lecture_id }}';
+            
+            console.log('Current Lecture ID:', currentLectureId);
+            console.log('Lecture ID type:', typeof currentLectureId);
+            console.log('Lecture ID length:', currentLectureId ? currentLectureId.length : 'null');
+            
+            // Load polls and materials if we have a valid lecture ID
+            if (currentLectureId && currentLectureId !== 'None' && currentLectureId !== '' && currentLectureId !== 'undefined') {
+                console.log('Loading polls for lecture:', currentLectureId);
+                loadPolls();
+                loadMaterials();
+            } else {
+                console.warn('No valid lecture ID found, polls will not be loaded');
+                // Try to get lecture ID from session data as fallback
+                fetch('/api/session/lecture_id', { credentials: 'same-origin' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.lecture_id) {
+                            currentLectureId = data.lecture_id;
+                            console.log('Got lecture ID from session:', currentLectureId);
+                            loadPolls();
+                            loadMaterials();
+                        }
+                    })
+                    .catch(err => console.error('Failed to get lecture ID from session:', err));
+            }
+            
+        } catch (error) {
+            console.error('Failed to initialize session:', error);
+            showError('Failed to join session: ' + error.message);
+        }
+    }
+    
+    function setupSocketListeners() {
+        socket.on('session_info', (data) => {
+            updateParticipantsList(data.participants);
+            // Initiate WebRTC connections with all participants
+            data.participants.forEach(participant => {
+                if (participant.user_id !== currentUser.id) {
+                    initiateCall(participant.user_id);
+                }
+            });
+        });
+        
+        socket.on('user_joined', (data) => {
+            addParticipant(data);
+            document.getElementById('participants-count').textContent = `👥 ${data.participants_count} participants`;
+            addChatMessage('system', `${data.user_name} joined the session`);
+            
+            // Initiate WebRTC connection with new user
+            if (data.user_id !== currentUser.id) {
+                initiateCall(data.user_id);
+            }
+        });
+        
+        socket.on('user_left', (data) => {
+            removeParticipant(data.user_id);
+            document.getElementById('participants-count').textContent = `👥 ${data.participants_count} participants`;
+            addChatMessage('system', `${data.user_name} left the session`);
+        });
+        
+        socket.on('webrtc_offer', async (data) => {
+            await handleWebRTCOffer(data);
+        });
+        
+        socket.on('webrtc_answer', async (data) => {
+            await handleWebRTCAnswer(data);
+        });
+        
+        socket.on('ice_candidate', async (data) => {
+            await handleICECandidate(data);
+        });
+        
+        socket.on('chat_message', (data) => {
+            addChatMessage(data.user_name, data.message, data.timestamp, data.user_id === currentUser.id);
+        });
+        
+        socket.on('poll_created', (data) => {
+            polls.unshift(data.poll);
+            renderPolls();
+        });
+        
+        socket.on('poll_vote', (data) => {
+            updatePollResults(data.poll_id, data.results);
+        });
+        
+        // Handle screen sharing events
+        socket.on('screen_share_started', (data) => {
+            if (data.session_id === sessionId) {
+                console.log('Screen sharing started by teacher:', data.user_id);
+                // Force refresh of video streams
+                setTimeout(() => {
+                    peerConnections.forEach((peerConnection, userId) => {
+                        if (userId === data.user_id) {
+                            const receivers = peerConnection.getReceivers();
+                            receivers.forEach(receiver => {
+                                if (receiver.track && receiver.track.kind === 'video') {
+                                    const stream = receiver.track.streams[0];
+                                    if (stream) {
+                                        const videoElement = document.getElementById(`video-${userId}`);
+                                        if (videoElement) {
+                                            videoElement.srcObject = stream;
+                                            videoElement.play().catch(e => console.log('Video play failed:', e));
+                                            updateScreenSharingIndicator(userId, stream);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }, 1000);
+            }
+        });
+        
+        socket.on('screen_share_stopped', (data) => {
+            if (data.session_id === sessionId) {
+                console.log('Screen sharing stopped by teacher:', data.user_id);
+                // Update screen sharing indicator
+                const videoElement = document.getElementById(`video-${data.user_id}`);
+                if (videoElement) {
+                    const stream = videoElement.srcObject;
+                    if (stream) {
+                        updateScreenSharingIndicator(data.user_id, stream);
+                    }
+                }
+            }
+        });
+    }
+    
+    async function getUserMedia() {
+        try {
+            // Students only get audio, no video
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true
+            });
+            
+            // Create local audio element (no video for students)
+            createAudioElement(currentUser.id, localStream, true);
+            
+        } catch (error) {
+            console.error('Failed to get user media:', error);
+            showError('Failed to access microphone');
+        }
+    }
+    
+    function createAudioElement(userId, stream, isLocal = false) {
+        console.log('Creating audio element for user:', userId, 'isLocal:', isLocal);
+        const videoGrid = document.getElementById('video-grid');
+        
+        // Remove existing element for this user
+        const existingElement = document.getElementById(`audio-${userId}`);
+        if (existingElement) {
+            existingElement.parentElement.remove();
+        }
+        
+        const audioWrapper = document.createElement('div');
+        audioWrapper.className = `video-wrapper ${isLocal ? 'local' : 'student'}`;
+        audioWrapper.id = `wrapper-${userId}`;
+        
+        const audio = document.createElement('audio');
+        audio.id = `audio-${userId}`;
+        audio.srcObject = stream;
+        audio.autoplay = true;
+        audio.muted = isLocal;
+        audio.controls = true;
+        
+        const label = document.createElement('div');
+        label.className = 'video-label';
+        label.textContent = isLocal ? 'You (Audio Only)' : `${userId.split('_')[1]} (Audio)`;
+        
+        audioWrapper.appendChild(audio);
+        audioWrapper.appendChild(label);
+        videoGrid.appendChild(audioWrapper);
+    }
+    
+    function createVideoElement(userId, stream, isLocal = false) {
+        console.log('Creating video element for user:', userId, 'isLocal:', isLocal);
+        const videoGrid = document.getElementById('video-grid');
+        
+        // Remove existing element for this user
+        const existingElement = document.getElementById(`video-${userId}`);
+        if (existingElement) {
+            existingElement.parentElement.remove();
+        }
+        
+        const videoWrapper = document.createElement('div');
+        videoWrapper.className = `video-wrapper ${isLocal ? 'local' : 'teacher'}`;
+        videoWrapper.id = `wrapper-${userId}`;
+        
+        const video = document.createElement('video');
+        video.id = `video-${userId}`;
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.muted = isLocal;
+        video.playsInline = true;
+        
+        // Add event listener to detect when video starts playing
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded for user:', userId);
+            video.play().catch(e => console.log('Video play failed:', e));
+        });
+        
+        const label = document.createElement('div');
+        label.className = 'video-label';
+        label.textContent = isLocal ? 'You' : `Teacher ${userId.split('_')[1]}`;
+        
+        // Add screen sharing indicator
+        const screenIndicator = document.createElement('div');
+        screenIndicator.className = 'screen-indicator';
+        screenIndicator.innerHTML = '🖥️ Screen Sharing';
+        screenIndicator.style.display = 'none';
+        screenIndicator.style.position = 'absolute';
+        screenIndicator.style.top = '10px';
+        screenIndicator.style.right = '10px';
+        screenIndicator.style.background = 'rgba(0,0,0,0.7)';
+        screenIndicator.style.color = 'white';
+        screenIndicator.style.padding = '5px 10px';
+        screenIndicator.style.borderRadius = '15px';
+        screenIndicator.style.fontSize = '12px';
+        screenIndicator.style.zIndex = '10';
+        
+        videoWrapper.appendChild(video);
+        videoWrapper.appendChild(label);
+        videoWrapper.appendChild(screenIndicator);
+        videoGrid.appendChild(videoWrapper);
+        
+        // Check if this is a screen share stream
+        const videoTracks = stream.getVideoTracks();
+        if (videoTracks.length > 0) {
+            const videoTrack = videoTracks[0];
+            const settings = videoTrack.getSettings();
+            if (settings.displaySurface === 'monitor' || settings.displaySurface === 'window') {
+                screenIndicator.style.display = 'block';
+                console.log('Screen sharing detected for user:', userId);
+            }
+        }
+    }
+    
+    function updateScreenSharingIndicator(userId, stream) {
+        const screenIndicator = document.querySelector(`#wrapper-${userId} .screen-indicator`);
+        if (screenIndicator) {
+            const videoTracks = stream.getVideoTracks();
+            if (videoTracks.length > 0) {
+                const videoTrack = videoTracks[0];
+                const settings = videoTrack.getSettings();
+                if (settings.displaySurface === 'monitor' || settings.displaySurface === 'window') {
+                    screenIndicator.style.display = 'block';
+                    console.log('Screen sharing active for user:', userId);
+                } else {
+                    screenIndicator.style.display = 'none';
+                    console.log('Screen sharing stopped for user:', userId);
+                }
+            }
+        }
+    }
+    
+    async function handleWebRTCOffer(data) {
+        try {
+            console.log('Handling WebRTC offer from:', data.from_user_id);
+            const peerConnection = new RTCPeerConnection(rtcConfig);
+            peerConnections.set(data.from_user_id, peerConnection);
+            
+            // Add local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                console.log('Added local stream to peer connection');
+            }
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                console.log('Received remote stream from:', data.from_user_id);
+                const remoteStream = event.streams[0];
+                remoteStreams.set(data.from_user_id, remoteStream);
+                
+                // Check if it's video or audio stream
+                const videoTracks = remoteStream.getVideoTracks();
+                if (videoTracks.length > 0) {
+                    createVideoElement(data.from_user_id, remoteStream);
+                } else {
+                    createAudioElement(data.from_user_id, remoteStream);
+                }
+            };
+            
+            // Handle track changes (for screen sharing)
+            peerConnection.addEventListener('track', (event) => {
+                console.log('Track changed from:', data.from_user_id, 'Track kind:', event.track.kind);
+                const remoteStream = event.streams[0];
+                if (remoteStream) {
+                    remoteStreams.set(data.from_user_id, remoteStream);
+                    
+                    // Update video element with new stream
+                    const videoElement = document.getElementById(`video-${data.from_user_id}`);
+                    if (videoElement) {
+                        videoElement.srcObject = remoteStream;
+                        console.log('Updated video element with new stream');
+                        
+                        // Force play the video
+                        videoElement.play().catch(e => console.log('Video play failed:', e));
+                        
+                        // Update screen sharing indicator
+                        updateScreenSharingIndicator(data.from_user_id, remoteStream);
+                    } else {
+                        // Create new video element if it doesn't exist
+                        const videoTracks = remoteStream.getVideoTracks();
+                        if (videoTracks.length > 0) {
+                            createVideoElement(data.from_user_id, remoteStream);
+                        }
+                    }
+                }
+            });
+            
+            // Also listen for connection state changes
+            peerConnection.addEventListener('connectionstatechange', () => {
+                console.log('Connection state changed to:', peerConnection.connectionState);
+            });
+            
+            // Listen for ice connection state changes
+            peerConnection.addEventListener('iceconnectionstatechange', () => {
+                console.log('ICE connection state changed to:', peerConnection.iceConnectionState);
+            });
+            
+            // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice_candidate', {
+                        session_id: sessionId,
+                        target_user_id: data.from_user_id,
+                        candidate: event.candidate,
+                        from_user_id: currentUser.id
+                    });
+                }
+            };
+            
+            // Set remote description
+            await peerConnection.setRemoteDescription(data.offer);
+            console.log('Set remote description');
+            
+            // Create answer
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            console.log('Created and set local answer');
+            
+            // Send answer
+            socket.emit('webrtc_answer', {
+                session_id: sessionId,
+                target_user_id: data.from_user_id,
+                answer: answer,
+                from_user_id: currentUser.id
+            });
+            console.log('Sent WebRTC answer to:', data.from_user_id);
+            
+        } catch (error) {
+            console.error('Failed to handle WebRTC offer:', error);
+        }
+    }
+    
+    async function handleWebRTCAnswer(data) {
+        try {
+            const peerConnection = peerConnections.get(data.from_user_id);
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(data.answer);
+            }
+        } catch (error) {
+            console.error('Failed to handle WebRTC answer:', error);
+        }
+    }
+    
+    async function handleICECandidate(data) {
+        try {
+            const peerConnection = peerConnections.get(data.from_user_id);
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(data.candidate);
+            }
+        } catch (error) {
+            console.error('Failed to handle ICE candidate:', error);
+        }
+    }
+    
+    async function createPeerConnection(targetUserId) {
+        const peerConnection = new RTCPeerConnection(rtcConfig);
+        peerConnections.set(targetUserId, peerConnection);
+        
+        // Add local stream
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+        }
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote stream from:', targetUserId);
+            const remoteStream = event.streams[0];
+            remoteStreams.set(targetUserId, remoteStream);
+            
+            // Check if it's video or audio stream
+            const videoTracks = remoteStream.getVideoTracks();
+            if (videoTracks.length > 0) {
+                createVideoElement(targetUserId, remoteStream);
+            } else {
+                createAudioElement(targetUserId, remoteStream);
+            }
+        };
+        
+        // Handle track changes (for screen sharing)
+        peerConnection.addEventListener('track', (event) => {
+            console.log('Track changed from:', targetUserId, 'Track kind:', event.track.kind);
+            const remoteStream = event.streams[0];
+            if (remoteStream) {
+                remoteStreams.set(targetUserId, remoteStream);
+                
+                // Update video element with new stream
+                const videoElement = document.getElementById(`video-${targetUserId}`);
+                if (videoElement) {
+                    videoElement.srcObject = remoteStream;
+                    console.log('Updated video element with new stream');
+                    
+                    // Force play the video
+                    videoElement.play().catch(e => console.log('Video play failed:', e));
+                    
+                    // Update screen sharing indicator
+                    updateScreenSharingIndicator(targetUserId, remoteStream);
+                } else {
+                    // Create new video element if it doesn't exist
+                    const videoTracks = remoteStream.getVideoTracks();
+                    if (videoTracks.length > 0) {
+                        createVideoElement(targetUserId, remoteStream);
+                    }
+                }
+            }
+        });
+        
+        // Also listen for connection state changes
+        peerConnection.addEventListener('connectionstatechange', () => {
+            console.log('Connection state changed to:', peerConnection.connectionState);
+        });
+        
+        // Listen for ice connection state changes
+        peerConnection.addEventListener('iceconnectionstatechange', () => {
+            console.log('ICE connection state changed to:', peerConnection.iceConnectionState);
+        });
+        
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    session_id: sessionId,
+                    target_user_id: targetUserId,
+                    candidate: event.candidate,
+                    from_user_id: currentUser.id
+                });
+            }
+        };
+        
+        return peerConnection;
+    }
+    
+    async function initiateCall(targetUserId) {
+        try {
+            console.log('Initiating call with:', targetUserId);
+            const peerConnection = await createPeerConnection(targetUserId);
+            
+            // Create offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            // Send offer
+            socket.emit('webrtc_offer', {
+                session_id: sessionId,
+                target_user_id: targetUserId,
+                offer: offer,
+                from_user_id: currentUser.id
+            });
+            
+            console.log('Sent WebRTC offer to:', targetUserId);
+        } catch (error) {
+            console.error('Failed to initiate call:', error);
+        }
+    }
+    
+    function setupEventListeners() {
+        // Microphone toggle
+        document.getElementById('mic-btn').addEventListener('click', toggleMicrophone);
+        
+        // Leave session
+        document.getElementById('leave-btn').addEventListener('click', leaveSession);
+        
+        // Chat input
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
+    
+    function toggleMicrophone() {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                isMuted = !audioTrack.enabled;
+                
+                const btn = document.getElementById('mic-btn');
+                if (isMuted) {
+                    btn.classList.remove('active');
+                    btn.style.background = '#dc3545';
+                } else {
+                    btn.classList.add('active');
+                    btn.style.background = '#28a745';
+                }
+            }
+        }
+    }
+    
+    function leaveSession() {
+        if (socket) {
+            socket.emit('leave_session', {
+                session_id: sessionId,
+                user_id: currentUser.id
+            });
+        }
+        
+        // Stop local stream
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Close peer connections
+        peerConnections.forEach(connection => connection.close());
+        
+        // Redirect to dashboard
+        window.location.href = '/student_dashboard';
+    }
+    
+    function switchSidebarTab(tabName) {
+        // Hide all tab panels
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        
+        // Remove active class from all tabs
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Show selected tab panel
+        document.getElementById(`${tabName}-panel`).classList.add('active');
+        
+        // Add active class to clicked tab
+        event.target.classList.add('active');
+    }
+    
+    function addParticipant(participant) {
+        // This will be handled by WebRTC connections
+    }
+    
+    function removeParticipant(userId) {
+        // Remove peer connection
+        const peerConnection = peerConnections.get(userId);
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnections.delete(userId);
+        }
+        
+        // Remove video/audio element
+        const wrapper = document.getElementById(`wrapper-${userId}`);
+        if (wrapper) {
+            wrapper.remove();
+        }
+    }
+    
+    function updateParticipantsList(participants) {
+        // This will be handled by WebRTC connections
+    }
+    
+    function addChatMessage(userName, message, timestamp, isOwn = false) {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.style.marginBottom = '10px';
+        messageDiv.style.padding = '8px';
+        messageDiv.style.borderRadius = '5px';
+        messageDiv.style.backgroundColor = isOwn ? '#007bff' : '#f8f9fa';
+        messageDiv.style.color = isOwn ? 'white' : 'black';
+        
+        const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+        messageDiv.innerHTML = `<strong>${userName}:</strong> ${message} <small>(${time})</small>`;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        
+        if (message && socket) {
+            socket.emit('chat_message', {
+                session_id: sessionId,
+                message: message,
+                user_id: currentUser.id,
+                user_name: currentUser.name
+            });
+            
+            input.value = '';
+        }
+    }
+    
+    // Poll Functions
+    async function loadPolls() {
+        if (!currentLectureId) {
+            console.warn('No lecture ID available for loading polls');
+            return;
+        }
+        
+        console.log('Loading polls for lecture ID:', currentLectureId);
+        
+        try {
+            const res = await fetch(`/api/lectures/${currentLectureId}/polls`, {
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            
+            console.log('Polls API response:', data);
+            
+            if (data.success) {
+                polls = data.polls;
+                console.log('Loaded polls:', polls);
+                renderPolls();
+            } else {
+                console.error('Failed to load polls:', data.error);
+            }
+        } catch (error) {
+            console.error('Failed to load polls:', error);
+        }
+    }
+    
+    function renderPolls() {
+        const container = document.getElementById('polls-container');
+        container.innerHTML = '';
+        
+        if (polls.length === 0) {
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No polls available</p>';
+            return;
+        }
+        
+        polls.forEach(poll => {
+            addPollToUI(poll);
+        });
+    }
+    
+    function addPollToUI(poll) {
+        const container = document.getElementById('polls-container');
+        const pollDiv = document.createElement('div');
+        pollDiv.className = 'poll-card';
+        pollDiv.id = `poll-${poll.id}`;
+        
+        const hasVoted = userVotes.has(poll.id);
+        const userVote = userVotes.get(poll.id);
+        
+        let optionsHTML = '';
+        poll.options.forEach((option, index) => {
+            const isSelected = hasVoted && userVote === option;
+            optionsHTML += `
+                <div class="poll-option ${isSelected ? 'selected' : ''}" 
+                     onclick="voteOnPoll('${poll.id}', '${option}')">
+                    <span class="poll-option-text">${option}</span>
+                </div>
+            `;
+        });
+        
+        pollDiv.innerHTML = `
+            <div class="poll-question">${poll.question}</div>
+            <div class="poll-options">${optionsHTML}</div>
+        `;
+        
+        container.appendChild(pollDiv);
+    }
+    
+    function voteOnPoll(pollId, option) {
+        if (userVotes.has(pollId)) {
+            showAlert('You have already voted on this poll', 'error');
+            return;
+        }
+        
+        if (socket) {
+            socket.emit('poll_vote', {
+                session_id: sessionId,
+                poll_id: pollId,
+                option: option,
+                user_id: currentUser.id
+            });
+            
+            userVotes.set(pollId, option);
+            showAlert('Vote submitted!', 'success');
+            renderPolls(); // Refresh to show selection
+        }
+    }
+    
+    function updatePollResults(pollId, results) {
+        // This would update the poll results in real-time
+        renderPolls();
+    }
+    
+    // Materials Functions
+    async function loadMaterials() {
+        if (!currentLectureId) {
+            console.warn('No lecture ID available for loading materials');
+            return;
+        }
+        
+        console.log('Loading materials for lecture ID:', currentLectureId);
+        
+        try {
+            const res = await fetch(`/api/student/lecture/${currentLectureId}/materials`, {
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            
+            console.log('Materials API response:', data);
+            
+            if (data.success) {
+                renderMaterials(data.materials);
+            } else {
+                console.error('Failed to load materials:', data.error);
+                document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load materials:', error);
+            document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+        }
+    }
+    
+    function renderMaterials(materials) {
+        const container = document.getElementById('materials-list');
+        
+        if (!materials || materials.length === 0) {
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No materials available</p>';
+            return;
+        }
+        
+        container.innerHTML = materials.map(material => `
+            <div class="material-item" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; background: #f8f9fa;">
+                <h5 style="margin: 0 0 5px 0; color: #333;">${material.title}</h5>
+                <p style="margin: 0 0 5px 0; font-size: 12px; color: #666;">${material.description || 'No description'}</p>
+                <p style="margin: 0 0 10px 0; font-size: 11px; color: #999;">Uploaded: ${new Date(material.uploaded_at).toLocaleString()}</p>
+                <a href="/api/download/${material.id}" class="btn" style="padding: 5px 10px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; font-size: 12px;">📥 Download</a>
+            </div>
+        `).join('');
+    }
+    
+    function showError(message) {
+        showAlert(message, 'error');
+    }
+    
+    function showAlert(message, type) {
+        const alert = document.getElementById('alert');
+        alert.textContent = message;
+        alert.className = `alert alert-${type}`;
+        alert.style.display = 'block';
+        
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 3000);
+    }
+</script>
+
+{% endblock %}

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, flash
+from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, flash, make_response
 from flask_cors import CORS
 try:
     from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -24,8 +24,34 @@ db = DatabaseManager()
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enhanced session security configuration
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
-app.permanent_session_lifetime = timedelta(days=7)
+app.permanent_session_lifetime = timedelta(hours=8)  # Reduced from 7 days to 8 hours
+app.config['SESSION_COOKIE_SECURE'] = True  # Only send over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS attacks
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['SESSION_COOKIE_NAME'] = 'digi_kul_session'  # Custom session cookie name
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+
+# Additional security headers
+@app.after_request
+def set_security_headers(response):
+    """Set security headers for all responses"""
+    # Prevent caching of sensitive pages
+    if request.endpoint in ['teacher_dashboard', 'student_dashboard', 'admin_dashboard', 'teacher', 'student']:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    return response
+
 CORS(app, origins="*", supports_credentials=True)
 
 if SocketIO:
@@ -57,35 +83,160 @@ os.makedirs(os.path.join(app.config['COMPRESSED_FOLDER'], 'documents'), exist_ok
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            # Clear any invalid session data
+            session.clear()
+            flash('Please log in to access this page.', 'error')
             return redirect(url_for('login_page'))
+        
+        # Additional security: Check if user is still in online_users (session validation)
+        user_id = session.get('user_id')
+        if user_id not in online_users:
+            session.clear()
+            flash('Session expired. Please log in again.', 'error')
+            return redirect(url_for('login_page'))
+        
         return f(*args, **kwargs)
     return decorated_function
 
 def teacher_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('user_type') != 'teacher':
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            session.clear()
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Check user type
+        if session.get('user_type') != 'teacher':
+            session.clear()
             flash('Access denied. Teachers only.', 'error')
             return redirect(url_for('login_page'))
+        
+        # Additional security: Check if user is still in online_users
+        user_id = session.get('user_id')
+        if user_id not in online_users:
+            session.clear()
+            flash('Session expired. Please log in again.', 'error')
+            return redirect(url_for('login_page'))
+        
         return f(*args, **kwargs)
     return decorated_function
 
-def student_required(f):
+def api_teacher_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('user_type') != 'student':
-            flash('Access denied. Students only.', 'error')
-            return redirect(url_for('login_page'))
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            return jsonify({'error': 'Please log in to access this API'}), 401
+        
+        # Check user type
+        if session.get('user_type') != 'teacher':
+            return jsonify({'error': 'Access denied. Teachers only.'}), 403
+        
+        # Additional security: Check if user is still in online_users
+        user_id = session.get('user_id')
+        if user_id not in online_users:
+            return jsonify({'error': 'Session expired. Please log in again.'}), 401
+        
         return f(*args, **kwargs)
     return decorated_function
 
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('user_type') != 'admin':
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            session.clear()
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Check user type
+        if session.get('user_type') != 'admin':
+            session.clear()
             flash('Access denied. Admin only.', 'error')
             return redirect(url_for('login_page'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            return jsonify({'error': 'Please log in to access this API'}), 401
+        
+        # Check user type
+        if session.get('user_type') != 'admin':
+            return jsonify({'error': 'Access denied. Admin only.'}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_student_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            return jsonify({'error': 'Please log in to access this API'}), 401
+        
+        # Check user type
+        if session.get('user_type') != 'student':
+            return jsonify({'error': 'Access denied. Students only.'}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def student_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            session.clear()
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Check user type
+        if session.get('user_type') != 'student':
+            session.clear()
+            flash('Access denied. Students only.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Additional security: Check if user is still in online_users
+        user_id = session.get('user_id')
+        if user_id not in online_users:
+            session.clear()
+            flash('Session expired. Please log in again.', 'error')
+            return redirect(url_for('login_page'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session exists and is valid
+        if 'user_id' not in session or not session.get('user_id'):
+            session.clear()
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Check user type
+        if session.get('user_type') != 'admin':
+            session.clear()
+            flash('Access denied. Admin only.', 'error')
+            return redirect(url_for('login_page'))
+        
+        # Additional security: Check if user is still in online_users
+        user_id = session.get('user_id')
+        if user_id not in online_users:
+            session.clear()
+            flash('Session expired. Please log in again.', 'error')
+            return redirect(url_for('login_page'))
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -93,8 +244,13 @@ def admin_required(f):
 def api_auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check session first
-        if 'user_id' in session:
+        # Check session first with enhanced validation
+        if 'user_id' in session and session.get('user_id'):
+            user_id = session.get('user_id')
+            # Additional security: Check if user is still in online_users
+            if user_id not in online_users:
+                session.clear()
+                return jsonify({'error': 'Session expired. Please log in again.'}), 401
             return f(*args, **kwargs)
         
         # Check Authorization header for API requests
@@ -140,6 +296,7 @@ def register_page():
     return render_template('register.html')
 
 @app.route('/api/register/teacher', methods=['POST'])
+@api_admin_required
 def register_teacher():
     """Register a new teacher"""
     try:
@@ -151,7 +308,7 @@ def register_teacher():
         # Hash password
         password_hash = generate_password_hash(data['password'])
         
-        teacher_id, response = DatabaseManager.create_teacher(
+        teacher_id, response = db.create_teacher(
             data['name'], data['email'], data['institution'], 
             data['subject'], password_hash
         )
@@ -174,6 +331,7 @@ def register_admin():
     return jsonify({'error': 'Admin registration is disabled'}), 403
 
 @app.route('/api/register/student', methods=['POST'])
+@api_admin_required
 def register_student():
     """Register a new student"""
     try:
@@ -185,7 +343,7 @@ def register_student():
         # Hash password
         password_hash = generate_password_hash(data['password'])
         
-        student_id, response = DatabaseManager.create_student(
+        student_id, response = db.create_student(
             data['name'], data['email'], data['institution'], password_hash
         )
         
@@ -215,9 +373,9 @@ def login():
         user_type = data['user_type']  # 'teacher' or 'student'
         
         if user_type == 'teacher':
-            user = DatabaseManager.get_teacher_by_email(email)
+            user = db.get_teacher_by_email(email)
         elif user_type == 'student':
-            user = DatabaseManager.get_student_by_email(email)
+            user = db.get_student_by_email(email)
         elif user_type == 'admin':
             # Enforce single hardcoded admin
             if email != 'Admin@gmail.com' or password != 'Admin@#1234':
@@ -277,18 +435,132 @@ def login():
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
-    """Logout user"""
+    """Secure logout with complete session destruction"""
     try:
         user_id = session.get('user_id')
+        user_type = session.get('user_type')
+        
+        # Remove from online users tracking
         if user_id and user_id in online_users:
             del online_users[user_id]
         
+        # Clear all session data
         session.clear()
+        
+        # Force session expiration by setting a past date
+        session.permanent = False
+        
+        # Create response with security headers
+        response = jsonify({
+            'success': True,
+            'message': 'Logged out successfully',
+            'redirect_url': '/',
+            'logout_timestamp': datetime.now().isoformat()
+        })
+        
+        # Set session cookie to expire immediately
+        response.set_cookie(
+            app.config['SESSION_COOKIE_NAME'], 
+            '', 
+            expires=0,
+            secure=app.config['SESSION_COOKIE_SECURE'],
+            httponly=app.config['SESSION_COOKIE_HTTPONLY'],
+            samesite=app.config['SESSION_COOKIE_SAMESITE']
+        )
+        
+        # Additional security headers for logout
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response, 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout_page():
+    """Logout page with additional security measures"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+        
+        # Remove from online users tracking
+        if user_id and user_id in online_users:
+            del online_users[user_id]
+        
+        # Clear all session data
+        session.clear()
+        session.permanent = False
+        
+        # Create response
+        response = make_response(render_template('logout.html'))
+        
+        # Set session cookie to expire immediately
+        response.set_cookie(
+            app.config['SESSION_COOKIE_NAME'], 
+            '', 
+            expires=0,
+            secure=app.config['SESSION_COOKIE_SECURE'],
+            httponly=app.config['SESSION_COOKIE_HTTPONLY'],
+            samesite=app.config['SESSION_COOKIE_SAMESITE']
+        )
+        
+        # Security headers
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response
+        
+    except Exception as e:
+        return redirect(url_for('login_page'))
+
+@app.route('/api/validate-session', methods=['GET'])
+def validate_session():
+    """Validate current session and return user info"""
+    try:
+        if 'user_id' not in session or not session.get('user_id'):
+            return jsonify({'valid': False, 'error': 'No active session'}), 401
+        
+        user_id = session.get('user_id')
+        
+        # Check if user is still in online_users
+        if user_id not in online_users:
+            session.clear()
+            return jsonify({'valid': False, 'error': 'Session expired'}), 401
+        
+        return jsonify({
+            'valid': True,
+            'user_id': user_id,
+            'user_type': session.get('user_type'),
+            'user_name': session.get('user_name'),
+            'user_email': session.get('user_email')
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'valid': False, 'error': str(e)}), 500
+
+@app.route('/api/force-logout', methods=['POST'])
+def force_logout():
+    """Force logout all sessions for a user (admin function)"""
+    try:
+        if session.get('user_type') != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        
+        data = request.get_json()
+        target_user_id = data.get('user_id')
+        
+        if not target_user_id:
+            return jsonify({'error': 'User ID required'}), 400
+        
+        # Remove from online users
+        if target_user_id in online_users:
+            del online_users[target_user_id]
         
         return jsonify({
             'success': True,
-            'message': 'Logged out successfully',
-            'redirect_url': '/'
+            'message': f'User {target_user_id} logged out successfully'
         }), 200
         
     except Exception as e:
@@ -322,19 +594,18 @@ def admin_dashboard():
 @app.route('/student/<student_id>')
 @student_required
 def student_profile(student_id):
-    """Individual student profile page"""
+    """Individual student profile page - redirects to dashboard"""
     if session.get('user_id') != student_id:
         flash('Access denied.', 'error')
         return redirect(url_for('student_dashboard'))
     
-    return render_template('student_profile.html',
-                         student_id=student_id,
-                         user_name=session.get('user_name'),
-                         user_email=session.get('user_email'))
+    # Redirect to student dashboard since individual profile page is not implemented
+    flash('Profile page not available. Redirecting to dashboard.', 'info')
+    return redirect(url_for('student_dashboard'))
 
 # Teacher APIs
 @app.route('/api/teacher/lectures', methods=['POST'])
-@teacher_required
+@api_teacher_required
 def create_lecture():
     """Create a new lecture schedule"""
     try:
@@ -343,7 +614,7 @@ def create_lecture():
         if not all(key in data for key in ['title', 'description', 'scheduled_time', 'duration']):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        lecture_id, response = DatabaseManager.create_lecture(
+        lecture_id, response = db.create_lecture(
             session['user_id'], data['title'], data['description'], 
             data['scheduled_time'], data['duration']
         )
@@ -370,11 +641,11 @@ def create_lecture():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/teacher/lectures', methods=['GET'])
-@teacher_required
+@api_teacher_required
 def get_teacher_lectures():
     """Get all lectures for current teacher"""
     try:
-        lectures = DatabaseManager.get_teacher_lectures(session['user_id'])
+        lectures = db.get_teacher_lectures(session['user_id'])
         return jsonify({
             'success': True,
             'lectures': lectures
@@ -384,7 +655,7 @@ def get_teacher_lectures():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/teacher/upload_material', methods=['POST'])
-@teacher_required
+@api_teacher_required
 def upload_material():
     """Upload teaching material with automatic compression"""
     try:
@@ -403,7 +674,7 @@ def upload_material():
             return jsonify({'error': 'Lecture ID is required'}), 400
         
         # Verify teacher owns this lecture
-        lecture = DatabaseManager.get_lecture_by_id(lecture_id)
+        lecture = db.get_lecture_by_id(lecture_id)
         if not lecture or lecture['teacher_id'] != session['user_id']:
             return jsonify({'error': 'Unauthorized'}), 403
         
@@ -443,7 +714,7 @@ def upload_material():
                     f_out.write(f_in.read())
             compressed_size = original_size
         
-        material_id, response = DatabaseManager.add_material(
+        material_id, response = db.add_material(
             lecture_id, title, description, original_path, 
             compressed_path, compressed_size, file_type
         )
@@ -474,7 +745,7 @@ def upload_material():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/teacher/live_session/start', methods=['POST'])
-@teacher_required
+@api_teacher_required
 def start_live_session():
     """Start a live session for a lecture"""
     try:
@@ -485,7 +756,7 @@ def start_live_session():
             return jsonify({'error': 'Lecture ID is required'}), 400
         
         # Verify teacher owns this lecture
-        lecture = DatabaseManager.get_lecture_by_id(lecture_id)
+        lecture = db.get_lecture_by_id(lecture_id)
         if not lecture or lecture['teacher_id'] != session['user_id']:
             return jsonify({'error': 'Unauthorized'}), 403
         
@@ -523,11 +794,11 @@ def start_live_session():
 
 # Student APIs
 @app.route('/api/student/lectures/available', methods=['GET'])
-@student_required
+@api_student_required
 def get_available_lectures():
     """Get all available lectures for students"""
     try:
-        lectures = DatabaseManager.get_all_lectures()
+        lectures = db.get_all_lectures()
         current_time = datetime.now().isoformat()
         
         available_lectures = []
@@ -541,7 +812,7 @@ def get_available_lectures():
             lecture['can_join'] = True
             
             # Get teacher info
-            teacher = DatabaseManager.get_teacher_by_id(lecture['teacher_id'])
+            teacher = db.get_teacher_by_id(lecture['teacher_id'])
             if teacher:
                 lecture['teacher_name'] = teacher['name']
                 lecture['teacher_institution'] = teacher['institution']
@@ -557,7 +828,7 @@ def get_available_lectures():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/session/by_lecture/<lecture_id>', methods=['GET'])
-@login_required
+@api_auth_required
 def get_session_by_lecture(lecture_id):
     """Return active session id for a given lecture if exists"""
     try:
@@ -568,11 +839,11 @@ def get_session_by_lecture(lecture_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/api/student/lecture/<lecture_id>/materials', methods=['GET'])
-@student_required
+@api_student_required
 def get_lecture_materials(lecture_id):
     """Get materials for a lecture"""
     try:
-        materials = DatabaseManager.get_lecture_materials(lecture_id)
+        materials = db.get_lecture_materials(lecture_id)
         
         # Add download URLs and file info
         for material in materials:
@@ -587,8 +858,57 @@ def get_lecture_materials(lecture_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/teacher/lecture/<lecture_id>/materials', methods=['GET'])
+@api_teacher_required
+def get_teacher_lecture_materials(lecture_id):
+    """Get materials for a lecture (teacher view)"""
+    try:
+        # Verify teacher owns this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture or lecture['teacher_id'] != session['user_id']:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        materials = db.get_lecture_materials(lecture_id)
+        
+        # Add download URLs and file info
+        for material in materials:
+            material['download_url'] = f"/api/download/{material['id']}"
+            material['file_size_mb'] = round(material['file_size'] / (1024 * 1024), 2)
+        
+        return jsonify({
+            'success': True,
+            'materials': materials
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/teacher/materials/<material_id>', methods=['DELETE'])
+@api_teacher_required
+def delete_teacher_material(material_id):
+    """Delete a material (teacher only)"""
+    try:
+        # Get material details to verify ownership
+        material = db.get_material_by_id(material_id)
+        if not material:
+            return jsonify({'error': 'Material not found'}), 404
+        
+        # Verify teacher owns the lecture this material belongs to
+        lecture = db.get_lecture_by_id(material['lecture_id'])
+        if not lecture or lecture['teacher_id'] != session['user_id']:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        success = db.delete_material(material_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Material deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Failed to delete material'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/student/enroll', methods=['POST'])
-@student_required
+@api_student_required
 def enroll_in_lecture():
     """Enroll student in a lecture"""
     try:
@@ -599,12 +919,12 @@ def enroll_in_lecture():
             return jsonify({'error': 'Lecture ID is required'}), 400
         
         # Check if lecture exists
-        lecture = DatabaseManager.get_lecture_by_id(lecture_id)
+        lecture = db.get_lecture_by_id(lecture_id)
         if not lecture:
             return jsonify({'error': 'Lecture not found'}), 404
         
         # Check if already enrolled
-        already_enrolled = DatabaseManager.is_student_enrolled(session['user_id'], lecture_id)
+        already_enrolled = db.is_student_enrolled(session['user_id'], lecture_id)
         if already_enrolled:
             return jsonify({
                 'success': True,
@@ -613,7 +933,7 @@ def enroll_in_lecture():
             }), 200
         
         # Enroll student
-        enrollment_id, response = DatabaseManager.enroll_student(
+        enrollment_id, response = db.enroll_student(
             session['user_id'], lecture_id
         )
         
@@ -630,11 +950,11 @@ def enroll_in_lecture():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/student/enrolled_lectures', methods=['GET'])
-@student_required
+@api_student_required
 def get_enrolled_lectures():
     """Get lectures student is enrolled in"""
     try:
-        lectures = DatabaseManager.get_student_enrolled_lectures(session['user_id'])
+        lectures = db.get_student_enrolled_lectures(session['user_id'])
         
         for lecture in lectures:
             # Add session status
@@ -645,7 +965,7 @@ def get_enrolled_lectures():
             lecture['session_active'] = session_active
             
             # Get teacher info
-            teacher = DatabaseManager.get_teacher_by_id(lecture['teacher_id'])
+            teacher = db.get_teacher_by_id(lecture['teacher_id'])
             if teacher:
                 lecture['teacher_name'] = teacher['name']
         
@@ -666,7 +986,7 @@ def join_session_page(session_id):
         return redirect(url_for('student_dashboard'))
     
     session_info = active_sessions[session_id]
-    return render_template('live_session.html')
+    return render_template('student_live_session.html', lecture_id=session_info['lecture_id'])
 
 @app.route('/teacher/manage_session/<session_id>')
 @teacher_required
@@ -681,7 +1001,7 @@ def manage_session_page(session_id):
         flash('Access denied.', 'error')
         return redirect(url_for('teacher_dashboard'))
     
-    return render_template('live_session.html')
+    return render_template('teacher_live_session.html', lecture_id=session_info['lecture_id'])
 
 # File Download
 @app.route('/api/download/<material_id>')
@@ -689,14 +1009,14 @@ def manage_session_page(session_id):
 def download_material(material_id):
     """Download teaching material"""
     try:
-        material = DatabaseManager.get_material_details(material_id)
+        material = db.get_material_details(material_id)
         
         if not material:
             return jsonify({'error': 'Material not found'}), 404
         
         # For students, check if they're enrolled in the lecture
         if session.get('user_type') == 'student':
-            enrolled = DatabaseManager.is_student_enrolled(
+            enrolled = db.is_student_enrolled(
                 session['user_id'], material['lecture_id']
             )
             if not enrolled:
@@ -704,7 +1024,7 @@ def download_material(material_id):
         
         # For teachers, check if they own the lecture
         elif session.get('user_type') == 'teacher':
-            lecture = DatabaseManager.get_lecture_by_id(material['lecture_id'])
+            lecture = db.get_lecture_by_id(material['lecture_id'])
             if not lecture or lecture['teacher_id'] != session['user_id']:
                 return jsonify({'error': 'Unauthorized'}), 403
         
@@ -868,11 +1188,11 @@ if socketio:
 
 # Admin API Routes
 @app.route('/api/admin/cohorts', methods=['GET'])
-@admin_required
+@api_admin_required
 def get_all_cohorts():
     """Get all cohorts"""
     try:
-        cohorts = DatabaseManager.get_all_cohorts()
+        cohorts = db.get_all_cohorts()
         return jsonify({
             'success': True,
             'cohorts': cohorts
@@ -881,7 +1201,7 @@ def get_all_cohorts():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/cohorts', methods=['POST'])
-@admin_required
+@api_admin_required
 def create_cohort():
     """Create a new cohort"""
     try:
@@ -891,7 +1211,7 @@ def create_cohort():
             return jsonify({'error': 'Missing required fields'}), 400
         
         description = data.get('description', '')
-        cohort_id, response = DatabaseManager.create_cohort(
+        cohort_id, response = db.create_cohort(
             data['name'], description, data['subject'], data['teacher_id']
         )
         
@@ -911,7 +1231,7 @@ def create_cohort():
 @admin_required
 def admin_get_cohort_students(cohort_id):
     try:
-        students = DatabaseManager.get_cohort_students(cohort_id)
+        students = db.get_cohort_students(cohort_id)
         return jsonify({'success': True, 'students': students}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -926,11 +1246,11 @@ def admin_add_student_to_cohort(cohort_id):
         if not student_id and not student_email:
             return jsonify({'error': 'student_id or student_email is required'}), 400
         if not student_id and student_email:
-            student = DatabaseManager.get_student_by_email(student_email)
+            student = db.get_student_by_email(student_email)
             if not student:
                 return jsonify({'error': 'Student not found'}), 404
             student_id = student['id']
-        success, msg = DatabaseManager.add_student_to_cohort(cohort_id, student_id)
+        success, msg = db.add_student_to_cohort(cohort_id, student_id)
         if success:
             return jsonify({'success': True, 'message': msg}), 200
         return jsonify({'error': msg}), 400
@@ -941,7 +1261,7 @@ def admin_add_student_to_cohort(cohort_id):
 @admin_required
 def admin_remove_student_from_cohort(cohort_id, student_id):
     try:
-        success, msg = DatabaseManager.remove_student_from_cohort(cohort_id, student_id)
+        success, msg = db.remove_student_from_cohort(cohort_id, student_id)
         if success:
             return jsonify({'success': True, 'message': msg}), 200
         return jsonify({'error': msg}), 400
@@ -949,11 +1269,11 @@ def admin_remove_student_from_cohort(cohort_id, student_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/cohorts/<cohort_id>', methods=['DELETE'])
-@admin_required
+@api_admin_required
 def delete_cohort(cohort_id):
     """Delete a cohort"""
     try:
-        success, response = DatabaseManager.delete_cohort(cohort_id)
+        success, response = db.delete_cohort(cohort_id)
         
         if success:
             return jsonify({
@@ -971,7 +1291,7 @@ def delete_cohort(cohort_id):
 def get_all_teachers():
     """Get all teachers"""
     try:
-        teachers = DatabaseManager.get_all_teachers()
+        teachers = db.get_all_teachers()
         return jsonify({
             'success': True,
             'teachers': teachers
@@ -984,7 +1304,7 @@ def get_all_teachers():
 def get_all_students():
     """Get all students"""
     try:
-        students = DatabaseManager.get_all_students()
+        students = db.get_all_students()
         return jsonify({
             'success': True,
             'students': students
@@ -992,13 +1312,36 @@ def get_all_students():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/cohort/<cohort_id>/lectures', methods=['GET'])
+@api_admin_required
+def get_admin_cohort_lectures(cohort_id):
+    """Get lectures for a cohort (admin access)"""
+    try:
+        lectures = db.get_cohort_lectures(cohort_id)
+        
+        for lecture in lectures:
+            # Add session status
+            session_active = any(
+                session['lecture_id'] == lecture['id'] and session['status'] == 'active'
+                for session in active_sessions.values()
+            )
+            lecture['session_active'] = session_active
+        
+        return jsonify({
+            'success': True,
+            'lectures': lectures
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Student Cohort Routes
 @app.route('/api/student/cohorts', methods=['GET'])
-@student_required
+@api_student_required
 def get_student_cohorts():
     """Get cohorts for current student"""
     try:
-        cohorts = DatabaseManager.get_student_cohorts(session['user_id'])
+        cohorts = db.get_student_cohorts(session['user_id'])
         return jsonify({
             'success': True,
             'cohorts': cohorts
@@ -1007,7 +1350,7 @@ def get_student_cohorts():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/student/cohorts/join', methods=['POST'])
-@student_required
+@api_student_required
 def join_cohort():
     """Student joins a cohort"""
     try:
@@ -1017,7 +1360,7 @@ def join_cohort():
         if not cohort_code:
             return jsonify({'error': 'Cohort code is required'}), 400
         
-        success, response = DatabaseManager.join_cohort_by_code(session['user_id'], cohort_code)
+        success, response = db.join_cohort_by_code(session['user_id'], cohort_code)
         
         if success:
             return jsonify({
@@ -1031,16 +1374,16 @@ def join_cohort():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/student/cohort/<cohort_id>/lectures', methods=['GET'])
-@student_required
+@api_student_required
 def get_cohort_lectures(cohort_id):
     """Get lectures for a specific cohort"""
     try:
         # Verify student is in this cohort
-        in_cohort = DatabaseManager.is_student_in_cohort(session['user_id'], cohort_id)
+        in_cohort = db.is_student_in_cohort(session['user_id'], cohort_id)
         if not in_cohort:
             return jsonify({'error': 'Not enrolled in this cohort'}), 403
         
-        lectures = DatabaseManager.get_cohort_lectures(cohort_id)
+        lectures = db.get_cohort_lectures(cohort_id)
         
         for lecture in lectures:
             # Add session status
@@ -1051,7 +1394,7 @@ def get_cohort_lectures(cohort_id):
             lecture['session_active'] = session_active
             
             # Get teacher info
-            teacher = DatabaseManager.get_teacher_by_id(lecture['teacher_id'])
+            teacher = db.get_teacher_by_id(lecture['teacher_id'])
             if teacher:
                 lecture['teacher_name'] = teacher['name']
         
@@ -1063,13 +1406,55 @@ def get_cohort_lectures(cohort_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/student/polls', methods=['GET'])
+@api_student_required
+def get_student_polls():
+    """Get all polls available to a student"""
+    try:
+        # Get student's cohorts
+        cohorts = db.get_student_cohorts(session['user_id'])
+        cohort_ids = [cohort['id'] for cohort in cohorts]
+        
+        # Get polls from all cohorts
+        all_polls = []
+        for cohort_id in cohort_ids:
+            polls = db.get_cohort_polls(cohort_id)
+            all_polls.extend(polls)
+        
+        # Remove duplicates based on poll ID
+        unique_polls = []
+        seen_ids = set()
+        for poll in all_polls:
+            if poll['id'] not in seen_ids:
+                unique_polls.append(poll)
+                seen_ids.add(poll['id'])
+        
+        return jsonify({
+            'success': True,
+            'polls': unique_polls
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/session/lecture_id', methods=['GET'])
+@api_auth_required
+def get_session_lecture_id():
+    """Get lecture ID from current session"""
+    try:
+        # This is a placeholder - in a real implementation, you'd get this from the session
+        # For now, we'll return an error as this should be handled by the template
+        return jsonify({'error': 'Lecture ID should be provided by template'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Teacher Cohort Routes
 @app.route('/api/teacher/cohorts', methods=['GET'])
-@teacher_required
+@api_teacher_required
 def get_teacher_cohorts():
     """Get cohorts for current teacher"""
     try:
-        cohorts = DatabaseManager.get_teacher_cohorts(session['user_id'])
+        cohorts = db.get_teacher_cohorts(session['user_id'])
         return jsonify({
             'success': True,
             'cohorts': cohorts
@@ -1077,8 +1462,27 @@ def get_teacher_cohorts():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/teacher/cohort/<cohort_id>/students', methods=['GET'])
+@api_teacher_required
+def get_cohort_students(cohort_id):
+    """Get students in a cohort for teachers"""
+    try:
+        # Verify teacher owns this cohort
+        cohort = db.get_cohort_by_id(cohort_id)
+        if not cohort or cohort['teacher_id'] != session['user_id']:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        students = db.get_cohort_students(cohort_id)
+        return jsonify({
+            'success': True,
+            'students': students
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/teacher/cohort/<cohort_id>/lectures', methods=['POST'])
-@teacher_required
+@api_teacher_required
 def create_cohort_lecture(cohort_id):
     """Create a lecture for a specific cohort"""
     try:
@@ -1088,11 +1492,11 @@ def create_cohort_lecture(cohort_id):
             return jsonify({'error': 'Missing required fields'}), 400
         
         # Verify teacher owns this cohort
-        cohort = DatabaseManager.get_cohort_by_id(cohort_id)
+        cohort = db.get_cohort_by_id(cohort_id)
         if not cohort or cohort['teacher_id'] != session['user_id']:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        lecture_id, response = DatabaseManager.create_lecture_for_cohort(
+        lecture_id, response = db.create_lecture_for_cohort(
             cohort_id, session['user_id'], data['title'], data['description'], 
             data['scheduled_time'], data['duration']
         )
@@ -1120,6 +1524,206 @@ def create_cohort_lecture(cohort_id):
         return jsonify({'error': str(e)}), 500
 
 # Health Check
+# Poll System APIs
+@app.route('/api/polls', methods=['POST'])
+@api_auth_required
+def create_poll():
+    """Create a new poll"""
+    try:
+        data = request.get_json()
+        
+        if not all(key in data for key in ['question', 'options', 'lecture_id']):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        poll_id, response = db.create_poll(
+            data['lecture_id'], 
+            data['question'], 
+            data['options'],
+            session['user_id']
+        )
+        
+        if poll_id:
+            return jsonify({
+                'success': True,
+                'message': 'Poll created successfully',
+                'poll_id': poll_id
+            }), 201
+        else:
+            return jsonify({'error': response}), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/polls/<poll_id>/vote', methods=['POST'])
+@api_student_required
+def vote_on_poll(poll_id):
+    """Vote on a poll"""
+    try:
+        data = request.get_json()
+        
+        if 'response' not in data:
+            return jsonify({'error': 'Response is required'}), 400
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        response_id, message = db.submit_poll_response(user_id, poll_id, data['response'])
+        
+        if response_id:
+            return jsonify({
+                'success': True,
+                'message': 'Vote submitted successfully'
+            }), 200
+        else:
+            return jsonify({'error': message}), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/polls/<poll_id>/results', methods=['GET'])
+@api_auth_required
+def get_poll_results(poll_id):
+    """Get poll results"""
+    try:
+        results = db.get_poll_results(poll_id)
+        
+        if results:
+            return jsonify({
+                'success': True,
+                'results': results,
+                'poll': results  # Also return as 'poll' for compatibility
+            }), 200
+        else:
+            return jsonify({'error': 'Poll not found'}), 404
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lectures/<lecture_id>/polls', methods=['GET'])
+@api_auth_required
+def get_lecture_polls(lecture_id):
+    """Get all polls for a lecture"""
+    try:
+        polls = db.get_lecture_polls(lecture_id)
+        
+        return jsonify({
+            'success': True,
+            'polls': polls
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lectures/<lecture_id>/polls', methods=['POST'])
+@api_teacher_required
+def create_lecture_poll(lecture_id):
+    """Create a poll for a lecture"""
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        options = data.get('options')
+        
+        if not question or not options:
+            return jsonify({'error': 'Question and options are required'}), 400
+        
+        if len(options) < 2:
+            return jsonify({'error': 'At least 2 options are required'}), 400
+        
+        # Verify teacher owns this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture or lecture['teacher_id'] != session['user_id']:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        poll_id, message = db.create_poll(lecture_id, question, options, session['user_id'])
+        
+        if poll_id:
+            return jsonify({
+                'success': True,
+                'poll_id': poll_id,
+                'message': message
+            }), 201
+        else:
+            return jsonify({'error': message}), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cohorts/<cohort_id>/polls', methods=['POST'])
+@api_auth_required
+def create_cohort_poll(cohort_id):
+    """Create a poll for a cohort"""
+    try:
+        data = request.get_json()
+        
+        if not all(key in data for key in ['question', 'options']):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Get a lecture from the cohort to associate the poll with
+        lectures = db.get_cohort_lectures(cohort_id)
+        if not lectures:
+            return jsonify({'error': 'No lectures found in this cohort'}), 400
+        
+        # Use the most recent lecture
+        lecture_id = lectures[0]['id']
+        
+        # For admin users, use the cohort's teacher_id instead of admin user_id
+        teacher_id = session['user_id']
+        if session.get('user_type') == 'admin':
+            cohort = db.get_cohort_by_id(cohort_id)
+            if cohort:
+                teacher_id = cohort['teacher_id']
+        
+        poll_id, response = db.create_poll(
+            lecture_id, 
+            data['question'], 
+            data['options'],
+            teacher_id
+        )
+        
+        if poll_id:
+            return jsonify({
+                'success': True,
+                'message': 'Cohort poll created successfully',
+                'poll_id': poll_id
+            }), 201
+        else:
+            return jsonify({'error': response}), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cohorts/<cohort_id>/polls', methods=['GET'])
+@api_auth_required
+def get_cohort_polls(cohort_id):
+    """Get all polls for a cohort"""
+    try:
+        polls = db.get_cohort_polls(cohort_id)
+        
+        return jsonify({
+            'success': True,
+            'polls': polls
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/teacher/polls', methods=['GET'])
+@api_teacher_required
+def get_teacher_polls():
+    """Get all polls created by the teacher"""
+    try:
+        teacher_id = session.get('user_id')
+        polls = db.get_teacher_polls(teacher_id)
+        
+        return jsonify({
+            'success': True,
+            'polls': polls
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({

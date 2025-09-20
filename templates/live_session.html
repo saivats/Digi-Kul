@@ -349,6 +349,179 @@
             background: rgba(255,193,7,0.8);
         }
         
+        /* Poll Styles */
+        .polls-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .poll-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            border: 1px solid #333;
+        }
+        
+        .poll-question {
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        
+        .poll-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .poll-option {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .poll-option:hover {
+            background: rgba(40,167,69,0.2);
+            border-color: #28a745;
+        }
+        
+        .poll-option.selected {
+            background: rgba(40,167,69,0.3);
+            border-color: #28a745;
+        }
+        
+        .poll-option-text {
+            flex: 1;
+        }
+        
+        .poll-option-votes {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .poll-results {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #333;
+        }
+        
+        .poll-result-bar {
+            background: #333;
+            border-radius: 10px;
+            height: 20px;
+            margin: 0.5rem 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .poll-result-fill {
+            background: linear-gradient(90deg, #28a745, #20c997);
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .poll-actions {
+            padding: 1rem;
+            border-top: 1px solid #333;
+        }
+        
+        .btn {
+            background: #28a745;
+            border: none;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background: #218838;
+        }
+        
+        .create-poll-form {
+            background: rgba(0,0,0,0.8);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .create-poll-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ccc;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+        }
+        
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+        
+        .option-input {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .option-input input {
+            flex: 1;
+        }
+        
+        .remove-option {
+            background: #dc3545;
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .add-option {
+            background: #17a2b8;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        
         .push-to-talk {
             position: absolute;
             bottom: 20px;
@@ -404,8 +577,8 @@
         <div class="session-controls">
             <div id="participants-count">👥 0 participants</div>
             <button class="control-btn" id="mic-btn" title="Microphone">🎤</button>
-            <button class="control-btn" id="cam-btn" title="Camera">📹</button>
-            <button class="control-btn" id="screen-btn" title="Share Screen">🖥️</button>
+            <button class="control-btn" id="cam-btn" title="Camera" style="display: none;">📹</button>
+            <button class="control-btn" id="screen-btn" title="Share Screen" style="display: none;">🖥️</button>
             <button class="control-btn" id="leave-btn" title="Leave Session" style="background: #dc3545;">❌</button>
         </div>
     </div>
@@ -426,6 +599,7 @@
         <div class="sidebar">
             <div class="sidebar-tabs">
                 <button class="sidebar-tab active" onclick="switchSidebarTab('chat')">💬 Chat</button>
+                <button class="sidebar-tab" onclick="switchSidebarTab('polls')">📊 Polls</button>
                 <button class="sidebar-tab" onclick="switchSidebarTab('participants')">👥 People</button>
                 <button class="sidebar-tab" onclick="switchSidebarTab('materials')">📁 Materials</button>
             </div>
@@ -437,6 +611,16 @@
                     <div class="chat-input">
                         <input type="text" id="chat-input" placeholder="Type a message..." maxlength="500">
                         <button class="send-btn" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+                
+                <!-- Polls Panel -->
+                <div id="polls-panel" class="tab-panel">
+                    <div class="polls-container" id="polls-container">
+                        <!-- Polls will be added here -->
+                    </div>
+                    <div class="poll-actions" id="poll-actions" style="display: none;">
+                        <button class="btn" onclick="showCreatePollForm()">📊 Create Poll</button>
                     </div>
                 </div>
                 
@@ -473,6 +657,9 @@
         let isScreenSharing = false;
         let pushToTalkActive = false;
         let qualityMonitor = null;
+        let currentLectureId = null;
+        let polls = [];
+        let userVotes = new Map();
         
         // WebRTC configuration
         const rtcConfig = {
@@ -496,10 +683,10 @@
         
         async function initializeSession() {
             try {
-                // Get user info
-                const userType = prompt('Are you a teacher or student? (teacher/student)');
-                const userName = prompt('Enter your name:');
-                const userId = userType + '_' + Date.now();
+                // Get user info from Flask session
+                const userType = '{{ session.user_type }}';
+                const userName = '{{ session.user_name }}';
+                const userId = '{{ session.user_id }}';
                 
                 currentUser = {
                     id: userId,
@@ -528,6 +715,27 @@
                 document.getElementById('session-title').textContent = `Session: ${sessionId}`;
                 document.getElementById('connection-status').textContent = '🟢 Connected';
                 document.getElementById('connection-status').className = 'connection-status status-connected';
+                
+                // Get lecture ID from server template variable
+                currentLectureId = '{{ lecture_id }}';
+                
+                // Debug: log the lecture ID
+                console.log('Current Lecture ID:', currentLectureId);
+                
+                // Load polls if we have a valid lecture ID
+                if (currentLectureId && currentLectureId !== 'None' && currentLectureId !== '' && currentLectureId !== 'undefined') {
+                    loadPolls();
+                } else {
+                    console.warn('No valid lecture ID found, polls will not be loaded');
+                }
+                
+                // Show poll actions for teachers
+                if (currentUser.type === 'teacher') {
+                    document.getElementById('poll-actions').style.display = 'block';
+                }
+                
+                // Load polls
+                loadPolls();
                 
             } catch (error) {
                 console.error('Failed to initialize session:', error);
@@ -581,6 +789,14 @@
             socket.on('error', (data) => {
                 showError(data.message);
             });
+            
+            socket.on('poll_created', (data) => {
+                addPollToUI(data.poll);
+            });
+            
+            socket.on('poll_vote', (data) => {
+                updatePollResults(data.poll_id, data.results);
+            });
         }
         
         async function getUserMedia() {
@@ -598,7 +814,13 @@
                 
                 // Enable controls
                 document.getElementById('mic-btn').classList.add('active');
-                document.getElementById('cam-btn').classList.add('active');
+                
+                // Show camera and screen share buttons only for teachers
+                if (currentUser.type === 'teacher') {
+                    document.getElementById('cam-btn').style.display = 'inline-block';
+                    document.getElementById('screen-btn').style.display = 'inline-block';
+                    document.getElementById('cam-btn').classList.add('active');
+                }
                 
             } catch (error) {
                 console.error('Failed to get user media:', error);
@@ -607,6 +829,7 @@
         }
         
         function createVideoElement(userId, stream, isLocal = false) {
+            console.log('Creating video element for user:', userId, 'isLocal:', isLocal);
             const videoGrid = document.getElementById('video-grid');
             
             // Remove existing video for this user
@@ -667,6 +890,7 @@
                 
                 // Handle remote stream
                 peerConnection.ontrack = (event) => {
+                    console.log('Received remote stream from:', data.from_user_id);
                     const remoteStream = event.streams[0];
                     remoteStreams.set(data.from_user_id, remoteStream);
                     createVideoElement(data.from_user_id, remoteStream);
@@ -1106,6 +1330,287 @@
         
         function showError(message) {
             alert('Error: ' + message);
+        }
+        
+        // Helper Functions
+        function getLectureIdFromUrl() {
+            // Try to get lecture ID from URL parameters or session data
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('lecture_id') || null;
+        }
+
+        // Poll Functions
+        async function loadPolls() {
+            if (!currentLectureId) {
+                console.warn('No lecture ID available for loading polls');
+                return;
+            }
+            
+            console.log('Loading polls for lecture ID:', currentLectureId);
+            
+            try {
+                const res = await fetch(`/api/lectures/${currentLectureId}/polls`, {
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                
+                console.log('Polls API response:', data);
+                
+                if (data.success) {
+                    polls = data.polls;
+                    console.log('Loaded polls:', polls);
+                    renderPolls();
+                } else {
+                    console.error('Failed to load polls:', data.error);
+                }
+            } catch (error) {
+                console.error('Failed to load polls:', error);
+            }
+        }
+        
+        function renderPolls() {
+            const container = document.getElementById('polls-container');
+            container.innerHTML = '';
+            
+            if (polls.length === 0) {
+                container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No polls available</p>';
+                return;
+            }
+            
+            polls.forEach(poll => {
+                addPollToUI(poll);
+            });
+        }
+        
+        function addPollToUI(poll) {
+            const container = document.getElementById('polls-container');
+            const pollDiv = document.createElement('div');
+            pollDiv.className = 'poll-card';
+            pollDiv.id = `poll-${poll.id}`;
+            
+            const hasVoted = userVotes.has(poll.id);
+            const userVote = userVotes.get(poll.id);
+            
+            let optionsHTML = '';
+            poll.options.forEach((option, index) => {
+                const isSelected = hasVoted && userVote === option;
+                optionsHTML += `
+                    <div class="poll-option ${isSelected ? 'selected' : ''}" 
+                         onclick="voteOnPoll('${poll.id}', '${option}')">
+                        <span class="poll-option-text">${option}</span>
+                        <span class="poll-option-votes" id="votes-${poll.id}-${index}">0 votes</span>
+                    </div>
+                `;
+            });
+            
+            pollDiv.innerHTML = `
+                <div class="poll-question">${poll.question}</div>
+                <div class="poll-options">${optionsHTML}</div>
+                <div class="poll-results" id="results-${poll.id}" style="display: ${hasVoted ? 'block' : 'none'};">
+                    <!-- Results will be populated here -->
+                </div>
+            `;
+            
+            container.appendChild(pollDiv);
+            
+            // Load results if user has voted
+            if (hasVoted) {
+                loadPollResults(poll.id);
+            }
+        }
+        
+        async function voteOnPoll(pollId, option) {
+            try {
+                const res = await fetch(`/api/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ response: option })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    userVotes.set(pollId, option);
+                    updatePollUI(pollId, option);
+                    loadPollResults(pollId);
+                } else {
+                    showError(data.error || 'Failed to vote');
+                }
+            } catch (error) {
+                console.error('Failed to vote:', error);
+                showError('Failed to submit vote');
+            }
+        }
+        
+        function updatePollUI(pollId, selectedOption) {
+            const pollDiv = document.getElementById(`poll-${pollId}`);
+            if (!pollDiv) return;
+            
+            // Update option selection
+            const options = pollDiv.querySelectorAll('.poll-option');
+            options.forEach(option => {
+                option.classList.remove('selected');
+                if (option.querySelector('.poll-option-text').textContent === selectedOption) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // Show results
+            const resultsDiv = pollDiv.querySelector('.poll-results');
+            resultsDiv.style.display = 'block';
+        }
+        
+        async function loadPollResults(pollId) {
+            try {
+                const res = await fetch(`/api/polls/${pollId}/results`, {
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    updatePollResults(pollId, data.results);
+                }
+            } catch (error) {
+                console.error('Failed to load poll results:', error);
+            }
+        }
+        
+        function updatePollResults(pollId, results) {
+            const resultsDiv = document.getElementById(`results-${pollId}`);
+            if (!resultsDiv) return;
+            
+            let resultsHTML = '';
+            results.results.forEach(result => {
+                resultsHTML += `
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>${result.option}</span>
+                            <span>${result.votes} votes (${result.percentage}%)</span>
+                        </div>
+                        <div class="poll-result-bar">
+                            <div class="poll-result-fill" style="width: ${result.percentage}%">
+                                ${result.percentage}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = resultsHTML;
+        }
+        
+        function showCreatePollForm() {
+            const form = document.getElementById('create-poll-form');
+            if (form) {
+                form.classList.toggle('active');
+                return;
+            }
+            
+            const container = document.getElementById('polls-container');
+            const formDiv = document.createElement('div');
+            formDiv.className = 'create-poll-form active';
+            formDiv.id = 'create-poll-form';
+            
+            formDiv.innerHTML = `
+                <div class="form-group">
+                    <label>Poll Question</label>
+                    <textarea id="poll-question" placeholder="Enter your poll question..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Options</label>
+                    <div id="poll-options">
+                        <div class="option-input">
+                            <input type="text" placeholder="Option 1" class="poll-option-input">
+                            <button class="remove-option" onclick="removePollOption(this)">×</button>
+                        </div>
+                        <div class="option-input">
+                            <input type="text" placeholder="Option 2" class="poll-option-input">
+                            <button class="remove-option" onclick="removePollOption(this)">×</button>
+                        </div>
+                    </div>
+                    <button class="add-option" onclick="addPollOption()">+ Add Option</button>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn" onclick="createPoll()">Create Poll</button>
+                    <button class="btn" onclick="cancelCreatePoll()" style="background: #6c757d;">Cancel</button>
+                </div>
+            `;
+            
+            container.insertBefore(formDiv, container.firstChild);
+        }
+        
+        function addPollOption() {
+            const optionsContainer = document.getElementById('poll-options');
+            const optionCount = optionsContainer.children.length;
+            
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option-input';
+            optionDiv.innerHTML = `
+                <input type="text" placeholder="Option ${optionCount + 1}" class="poll-option-input">
+                <button class="remove-option" onclick="removePollOption(this)">×</button>
+            `;
+            
+            optionsContainer.appendChild(optionDiv);
+        }
+        
+        function removePollOption(button) {
+            const optionDiv = button.parentElement;
+            if (optionDiv.parentElement.children.length > 2) {
+                optionDiv.remove();
+            }
+        }
+        
+        async function createPoll() {
+            const question = document.getElementById('poll-question').value.trim();
+            const optionInputs = document.querySelectorAll('.poll-option-input');
+            const options = Array.from(optionInputs)
+                .map(input => input.value.trim())
+                .filter(option => option.length > 0);
+            
+            if (!question || options.length < 2) {
+                showError('Please enter a question and at least 2 options');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/polls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        question: question,
+                        options: options,
+                        lecture_id: currentLectureId
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Add poll to UI immediately
+                    const newPoll = {
+                        id: data.poll_id,
+                        question: question,
+                        options: options,
+                        created_at: new Date().toISOString()
+                    };
+                    addPollToUI(newPoll);
+                    cancelCreatePoll();
+                } else {
+                    showError(data.error || 'Failed to create poll');
+                }
+            } catch (error) {
+                console.error('Failed to create poll:', error);
+                showError('Failed to create poll');
+            }
+        }
+        
+        function cancelCreatePoll() {
+            const form = document.getElementById('create-poll-form');
+            if (form) {
+                form.remove();
+            }
         }
         
         // Handle page unload

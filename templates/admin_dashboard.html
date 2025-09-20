@@ -3,18 +3,29 @@
 {% block header_title %}Admin Dashboard{% endblock %}
 {% block content %}
 <div class="tabs">
-    <button class="tab active" onclick="switchTab('cohorts')">🏫 Manage Cohorts</button>
-    <button class="tab" onclick="switchTab('teachers')">👨‍🏫 Teachers</button>
-    <button class="tab" onclick="switchTab('students')">👨‍🎓 Students</button>
-    <button class="tab" onclick="switchTab('create')">➕ Create Cohort</button>
+    <button class="tab active" onclick="switchTab('cohorts', event)">🏫 Manage Cohorts</button>
+    <button class="tab" onclick="switchTab('teachers', event)">👨‍🏫 Teachers</button>
+    <button class="tab" onclick="switchTab('students', event)">👨‍🎓 Students</button>
+    <button class="tab" onclick="switchTab('create', event)">➕ Create Cohort</button>
 </div>
 
 <!-- Cohorts Tab -->
 <div id="cohorts" class="tab-content active">
-    <h2>All Cohorts</h2>
+    <div class="card-header">
+        <h2 class="card-title">All Cohorts</h2>
+        <p class="card-subtitle">Manage cohorts, students, and lectures</p>
+    </div>
     <div id="cohorts-list"></div>
     <div id="cohort-manage" style="display:none; margin-top:1rem;" class="cohort-card">
         <h3 id="manage-cohort-title">Manage Cohort</h3>
+        <div id="cohort-code-display" style="display:none; background: #e3f2fd; padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid #2196f3;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #1976d2;">📋 Cohort Code for Students</h4>
+            <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; color: #1976d2;">
+                <span id="display-cohort-code"></span>
+                <button class="btn-copy" onclick="copyCohortCode(document.getElementById('display-cohort-code').textContent, 'display-cohort-code')" title="Copy to clipboard">📋</button>
+            </p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #666;">Share this code with students so they can join the cohort</p>
+        </div>
         <div>
             <h4>Students in Cohort</h4>
             <div id="cohort-students"></div>
@@ -35,6 +46,47 @@
         <h4>Lectures in Cohort</h4>
         <div id="cohort-lectures-list"></div>
     </div>
+    <div id="cohortPolls" style="display:none; margin-top:1rem;" class="cohort-card">
+        <h4>Polls in Cohort</h4>
+        <div style="margin-bottom: 1rem;">
+            <button class="btn" onclick="showCreateCohortPollModal()">📊 Create Poll</button>
+        </div>
+        <div id="cohort-polls-list"></div>
+    </div>
+    
+    <!-- Poll Creation Modal -->
+    <div id="pollModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Poll</h3>
+                <span class="close" onclick="closePollModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="pollQuestion">Poll Question</label>
+                    <textarea id="pollQuestion" placeholder="Enter your poll question..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Poll Options</label>
+                    <div id="pollOptions">
+                        <div class="option-row">
+                            <input type="text" placeholder="Option 1" class="poll-option-input">
+                            <button class="btn-remove" onclick="removePollOption(this)">×</button>
+                        </div>
+                        <div class="option-row">
+                            <input type="text" placeholder="Option 2" class="poll-option-input">
+                            <button class="btn-remove" onclick="removePollOption(this)">×</button>
+                        </div>
+                    </div>
+                    <button class="btn-add" onclick="addPollOption()">+ Add Option</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="createCohortPollFromModal()">Create Poll</button>
+                <button class="btn btn-secondary" onclick="closePollModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
     <input type="hidden" id="current-cohort-id" value="">
     <input type="hidden" id="current-cohort-name" value="">
     <input type="hidden" id="current-cohort-code" value="">
@@ -47,19 +99,106 @@
 
 <!-- Teachers Tab -->
 <div id="teachers" class="tab-content">
-    <h2>All Teachers</h2>
+    <div class="card-header">
+        <h2 class="card-title">All Teachers</h2>
+        <p class="card-subtitle">Manage teacher accounts and permissions</p>
+    </div>
+    <div style="margin-bottom: 1rem;">
+        <button class="btn" onclick="showCreateTeacherModal()">➕ Add Teacher</button>
+    </div>
     <div id="teachers-list"></div>
+    
+    <!-- Create Teacher Modal -->
+    <div id="createTeacherModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Teacher</h3>
+                <span class="close" onclick="closeCreateTeacherModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="create-teacher-form">
+                    <div class="form-group">
+                        <label for="teacher-name">Name</label>
+                        <input type="text" id="teacher-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-email">Email</label>
+                        <input type="email" id="teacher-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-institution">Institution</label>
+                        <input type="text" id="teacher-institution" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-subject">Subject</label>
+                        <input type="text" id="teacher-subject" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-password">Password</label>
+                        <input type="password" id="teacher-password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="createTeacher()">Create Teacher</button>
+                <button class="btn btn-secondary" onclick="closeCreateTeacherModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Students Tab -->
 <div id="students" class="tab-content">
-    <h2>All Students</h2>
+    <div class="card-header">
+        <h2 class="card-title">All Students</h2>
+        <p class="card-subtitle">Manage student accounts and enrollments</p>
+    </div>
+    <div style="margin-bottom: 1rem;">
+        <button class="btn" onclick="showCreateStudentModal()">➕ Add Student</button>
+    </div>
     <div id="students-list"></div>
+    
+    <!-- Create Student Modal -->
+    <div id="createStudentModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Student</h3>
+                <span class="close" onclick="closeCreateStudentModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="create-student-form">
+                    <div class="form-group">
+                        <label for="student-name">Name</label>
+                        <input type="text" id="student-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-email">Email</label>
+                        <input type="email" id="student-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-institution">Institution</label>
+                        <input type="text" id="student-institution" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-password">Password</label>
+                        <input type="password" id="student-password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="createStudent()">Create Student</button>
+                <button class="btn btn-secondary" onclick="closeCreateStudentModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Create Cohort Tab -->
 <div id="create" class="tab-content">
-    <h2>Create New Cohort</h2>
+    <div class="card-header">
+        <h2 class="card-title">Create New Cohort</h2>
+        <p class="card-subtitle">Set up a new cohort with teacher and subject details</p>
+    </div>
     <form id="cohort-form">
         <div class="form-group">
             <label for="cohort-name">Cohort Name</label>
@@ -237,6 +376,150 @@
     margin-bottom: 0.5rem;
 }
 
+.cohort-code-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 1px solid #e9ecef;
+}
+
+.cohort-code {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #667eea;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+.btn-copy {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+}
+
+.btn-copy:hover {
+    background: #218838;
+}
+
+.btn-copy.copied {
+    background: #17a2b8;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.option-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+
+.option-row input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.btn-remove {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-add {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
 @media (max-width: 768px) {
     .tabs {
         flex-direction: column;
@@ -254,7 +537,7 @@
 </style>
 
 <script>
-function switchTab(tabName) {
+function switchTab(tabName, event) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
@@ -269,7 +552,9 @@ function switchTab(tabName) {
     document.getElementById(tabName).classList.add('active');
     
     // Add active class to clicked tab
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     // Load content based on tab
     if (tabName === 'cohorts') {
@@ -306,9 +591,14 @@ async function loadCohorts() {
                 <p><strong>Subject:</strong> ${cohort.subject}</p>
                 <p><strong>Teacher:</strong> ${cohort.teacher_name || 'Unassigned'}</p>
                 <p><strong>Students:</strong> ${cohort.student_count || 0}</p>
+                <div class="cohort-code-section">
+                    <p><strong>Cohort Code:</strong> <span class="cohort-code" id="code-${cohort.id}">${cohort.code}</span>
+                    <button class="btn-copy" onclick="copyCohortCode('${cohort.code}', 'code-${cohort.id}')" title="Copy to clipboard">📋</button></p>
+                </div>
                 <div class="cohort-actions">
                             <button class="btn" onclick="manageCohort('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">Manage Students</button>
                             <button class="btn" onclick="viewCohortLectures('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">View Lectures</button>
+                            <button class="btn" onclick="viewCohortPolls('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">📊 Polls</button>
                     <button class="btn btn-danger" onclick="deleteCohort('${cohort.id}')">Delete</button>
                 </div>
             </div>
@@ -420,7 +710,7 @@ document.getElementById('cohort-form').addEventListener('submit', async function
         if (data.success) {
             showAlert('Cohort created successfully!', 'success');
             this.reset();
-            switchTab('cohorts');
+            switchTab('cohorts', null);
             loadCohorts();
         } else {
             showAlert(data.error || 'Failed to create cohort', 'error');
@@ -469,6 +759,32 @@ function showAlert(message, type) {
     }, 5000);
 }
 
+async function copyCohortCode(code, elementId) {
+    try {
+        await navigator.clipboard.writeText(code);
+        const button = document.querySelector(`#${elementId}`).nextElementSibling;
+        const originalText = button.textContent;
+        button.textContent = '✓';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('copied');
+        }, 2000);
+        
+        showAlert('Cohort code copied to clipboard!', 'success');
+    } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showAlert('Cohort code copied to clipboard!', 'success');
+    }
+}
+
 // Load initial data
 loadCohorts();
 
@@ -477,6 +793,26 @@ async function manageCohort(cohortId, name){
     document.getElementById('cohort-manage').style.display = 'block';
     document.getElementById('manage-cohort-title').textContent = `Manage Cohort • ${name}`;
     document.getElementById('current-cohort-id').value = cohortId;
+    
+    // Get cohort details to display the code
+    try {
+        const res = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) {
+            const cohort = data.cohorts.find(c => c.id === cohortId);
+            if (cohort) {
+                document.getElementById('current-cohort-code').value = cohort.code;
+                document.getElementById('display-cohort-code').textContent = cohort.code;
+                document.getElementById('cohort-code-display').style.display = 'block';
+                // Update the title to include the cohort code
+                document.getElementById('manage-cohort-title').innerHTML = 
+                    `Manage Cohort • ${name} <span style="font-size: 0.8em; color: #666;">(Code: ${cohort.code})</span>`;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to get cohort details:', e);
+    }
+    
     await refreshCohortStudents();
     const addBtn = document.getElementById('add-student-btn');
     addBtn.onclick = addStudentToCohort;
@@ -570,7 +906,7 @@ async function viewCohortLectures(cohortId, name){
     const container = document.getElementById('cohort-lectures-list');
     container.innerHTML = '<p>Loading...</p>';
     try{
-        const res = await fetch(`/api/student/cohort/${cohortId}/lectures`, { credentials: 'same-origin' });
+        const res = await fetch(`/api/admin/cohort/${cohortId}/lectures`, { credentials: 'same-origin' });
         const data = await res.json();
         if(!data.success){ container.innerHTML = '<p>Failed to load cohort lectures</p>'; return; }
         if(data.lectures.length === 0){ container.innerHTML = '<p>No lectures in this cohort yet.</p>'; return; }
@@ -587,6 +923,263 @@ async function viewCohortLectures(cohortId, name){
         `).join('');
     } catch(e){
         container.innerHTML = '<p>Failed to load cohort lectures</p>';
+    }
+}
+
+async function viewCohortPolls(cohortId, name){
+    // Set the current cohort ID for poll creation
+    document.getElementById('current-cohort-id').value = cohortId;
+    
+    document.getElementById('cohortPolls').style.display = 'block';
+    const container = document.getElementById('cohort-polls-list');
+    container.innerHTML = '<p>Loading...</p>';
+    try{
+        const res = await fetch(`/api/cohorts/${cohortId}/polls`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if(!data.success){ container.innerHTML = '<p>Failed to load cohort polls</p>'; return; }
+        if(data.polls.length === 0){ container.innerHTML = '<p>No polls in this cohort yet.</p>'; return; }
+        container.innerHTML = data.polls.map(poll => `
+            <div class="cohort-card">
+                <h3>${poll.question}</h3>
+                <p><strong>Options:</strong> ${poll.options.join(', ')}</p>
+                <p><strong>Created:</strong> ${new Date(poll.created_at).toLocaleString()}</p>
+                <div class="cohort-actions">
+                    <button class="btn" onclick="viewPollResults('${poll.id}')">View Results</button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e){
+        container.innerHTML = '<p>Failed to load cohort polls</p>';
+    }
+}
+
+function showCreateCohortPollModal(){
+    const cohortId = document.getElementById('current-cohort-id').value;
+    if(!cohortId){
+        showAlert('Please select a cohort first', 'error');
+        return;
+    }
+    
+    // Reset form
+    document.getElementById('pollQuestion').value = '';
+    const optionsContainer = document.getElementById('pollOptions');
+    optionsContainer.innerHTML = `
+        <div class="option-row">
+            <input type="text" placeholder="Option 1" class="poll-option-input">
+            <button class="btn-remove" onclick="removePollOption(this)">×</button>
+        </div>
+        <div class="option-row">
+            <input type="text" placeholder="Option 2" class="poll-option-input">
+            <button class="btn-remove" onclick="removePollOption(this)">×</button>
+        </div>
+    `;
+    
+    // Show modal
+    document.getElementById('pollModal').style.display = 'flex';
+}
+
+function closePollModal(){
+    document.getElementById('pollModal').style.display = 'none';
+}
+
+function addPollOption(){
+    const optionsContainer = document.getElementById('pollOptions');
+    const optionCount = optionsContainer.children.length + 1;
+    
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'option-row';
+    optionDiv.innerHTML = `
+        <input type="text" placeholder="Option ${optionCount}" class="poll-option-input">
+        <button class="btn-remove" onclick="removePollOption(this)">×</button>
+    `;
+    
+    optionsContainer.appendChild(optionDiv);
+}
+
+function removePollOption(button){
+    const optionRow = button.parentElement;
+    if(optionRow.parentElement.children.length > 2){
+        optionRow.remove();
+    }
+}
+
+function createCohortPollFromModal(){
+    const cohortId = document.getElementById('current-cohort-id').value;
+    const question = document.getElementById('pollQuestion').value.trim();
+    const optionInputs = document.querySelectorAll('.poll-option-input');
+    const options = Array.from(optionInputs)
+        .map(input => input.value.trim())
+        .filter(option => option.length > 0);
+    
+    if(!question){
+        showAlert('Please enter a poll question', 'error');
+        return;
+    }
+    
+    if(options.length < 2){
+        showAlert('Please enter at least 2 options', 'error');
+        return;
+    }
+    
+    createCohortPoll(cohortId, question, options);
+    closePollModal();
+}
+
+async function createCohortPoll(cohortId, question, options){
+    try{
+        const res = await fetch(`/api/cohorts/${cohortId}/polls`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ question, options })
+        });
+        
+        const data = await res.json();
+        if(data.success){
+            showAlert('Poll created successfully!', 'success');
+            viewCohortPolls(cohortId, '');
+        } else {
+            showAlert(data.error || 'Failed to create poll', 'error');
+        }
+    } catch(e){
+        showAlert('Failed to create poll: ' + e.message, 'error');
+    }
+}
+
+// Teacher Management Functions
+function showCreateTeacherModal() {
+    document.getElementById('createTeacherModal').style.display = 'flex';
+    document.getElementById('create-teacher-form').reset();
+}
+
+function closeCreateTeacherModal() {
+    document.getElementById('createTeacherModal').style.display = 'none';
+}
+
+async function createTeacher() {
+    const name = document.getElementById('teacher-name').value.trim();
+    const email = document.getElementById('teacher-email').value.trim();
+    const institution = document.getElementById('teacher-institution').value.trim();
+    const subject = document.getElementById('teacher-subject').value.trim();
+    const password = document.getElementById('teacher-password').value;
+
+    if (!name || !email || !institution || !subject || !password) {
+        showAlert('Please fill in all fields', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/register/teacher', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, email, institution, subject, password })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showAlert('Teacher created successfully!', 'success');
+            closeCreateTeacherModal();
+            loadTeachers();
+        } else {
+            showAlert(data.error || 'Failed to create teacher', 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to create teacher: ' + error.message, 'error');
+    }
+}
+
+// Student Management Functions
+function showCreateStudentModal() {
+    document.getElementById('createStudentModal').style.display = 'flex';
+    document.getElementById('create-student-form').reset();
+}
+
+function closeCreateStudentModal() {
+    document.getElementById('createStudentModal').style.display = 'none';
+}
+
+async function createStudent() {
+    const name = document.getElementById('student-name').value.trim();
+    const email = document.getElementById('student-email').value.trim();
+    const institution = document.getElementById('student-institution').value.trim();
+    const password = document.getElementById('student-password').value;
+
+    if (!name || !email || !institution || !password) {
+        showAlert('Please fill in all fields', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/register/student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, email, institution, password })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showAlert('Student created successfully!', 'success');
+            closeCreateStudentModal();
+            loadStudents();
+        } else {
+            showAlert(data.error || 'Failed to create student', 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to create student: ' + error.message, 'error');
+    }
+}
+
+async function viewPollResults(pollId){
+    try{
+        const res = await fetch(`/api/polls/${pollId}/results`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if(data.success){
+            const results = data.results;
+            let resultsHTML = `
+                <h3>${results.question}</h3>
+                <p><strong>Total Votes:</strong> ${results.total_votes}</p>
+                <div style="margin-top: 1rem;">
+            `;
+            
+            results.results.forEach(result => {
+                resultsHTML += `
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>${result.option}</span>
+                            <span>${result.votes} votes (${result.percentage}%)</span>
+                        </div>
+                        <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden;">
+                            <div style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: ${result.percentage}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                                ${result.percentage}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsHTML += '</div>';
+            
+            // Show results in a modal or alert
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+                justify-content: center; z-index: 1000;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80%; overflow-y: auto;">
+                    ${resultsHTML}
+                    <button class="btn" onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem;">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else {
+            showAlert(data.error || 'Failed to load poll results', 'error');
+        }
+    } catch(e){
+        showAlert('Failed to load poll results: ' + e.message, 'error');
     }
 }
 </script>
