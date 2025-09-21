@@ -4,6 +4,13 @@ import '../models/cohort.dart';
 import '../models/lecture.dart';
 import '../models/material.dart';
 
+// Dynamic base URL - can be configured based on environment
+String getBaseUrl() {
+  // Try to detect if running on emulator vs physical device
+  // For development, you can change this IP to your computer's IP
+  return 'http://192.168.29.104:5000'; // Update this to your server IP
+}
+
 const String baseUrl = 'http://192.168.29.104:5000'; // For physical device
 
 class ApiService {
@@ -200,6 +207,49 @@ class ApiService {
       return data['session_id'];
     } else {
       return null; // No active session
+    }
+  }
+
+  // Validate current session
+  static Future<Map<String, dynamic>?> validateSession() async {
+    if (_sessionCookie == null) return null;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/validate-session'),
+        headers: {'Cookie': _sessionCookie!},
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['valid']) {
+          return data;
+        }
+      }
+      
+      // Session invalid, clear it
+      _sessionCookie = null;
+      return null;
+    } catch (e) {
+      _sessionCookie = null;
+      return null;
+    }
+  }
+
+  // Get all student polls
+  static Future<List<Poll>> getStudentPolls() async {
+    if (_sessionCookie == null) throw Exception('Not authenticated');
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/student/polls'),
+      headers: {'Cookie': _sessionCookie!},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List pollsJson = data['polls'];
+      return pollsJson.map((json) => Poll.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load student polls');
     }
   }
 

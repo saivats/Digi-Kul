@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../services/socket_service.dart';
+import '../services/api_service.dart';
 import 'dart:async';
 
 class LiveSessionScreen extends StatefulWidget {
@@ -23,17 +22,8 @@ class LiveSessionScreen extends StatefulWidget {
 }
 
 class _LiveSessionScreenState extends State<LiveSessionScreen> {
-  // WebRTC
-  RTCPeerConnection? _peerConnection;
-  MediaStream? _localStream;
-  MediaStream? _remoteStream;
-  bool _isMuted = false;
-  bool _isConnected = false;
-  bool _isConnecting = false;
-
-  // Socket.IO
-  IO.Socket? _socket;
-  bool _isSocketConnected = false;
+  // Services
+  final SocketService _socketService = SocketService();
 
   // Chat
   final TextEditingController _messageController = TextEditingController();
@@ -41,21 +31,37 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   final ScrollController _chatScrollController = ScrollController();
 
   // Polls
-  List<Poll> _polls = [];
+  final List<Poll> _polls = [];
   String? _currentPollId;
 
   // Content sharing
   String? _sharedContentUrl;
   String? _sharedContentType;
 
-  // UI
+  // UI state
   bool _showChat = false;
   bool _showPolls = false;
+  bool _isSocketConnected = false;
+  bool _isInitializing = true;
+  String? _errorMessage;
+
+  // Stream subscriptions
+  StreamSubscription? _connectionSubscription;
+  StreamSubscription? _webrtcOfferSubscription;
+  StreamSubscription? _webrtcAnswerSubscription;
+  StreamSubscription? _iceCandidateSubscription;
+  StreamSubscription? _chatSubscription;
+  StreamSubscription? _pollSubscription;
+  StreamSubscription? _contentSubscription;
+  StreamSubscription? _errorSubscription;
+  StreamSubscription? _webrtcConnectionSubscription;
+  StreamSubscription? _sessionInfoSubscription;
+  StreamSubscription? _userJoinedSubscription;
 
   @override
   void initState() {
     super.initState();
-    _initializeSession();
+    _initializeServices();
   }
 
   @override
@@ -64,238 +70,175 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     super.dispose();
   }
 
-  Future<void> _initializeSession() async {
-    await _requestPermissions();
-    await _initializeWebRTC();
-    await _connectSocket();
-    await _joinSession();
-  }
+  Future<void> _initializeServices() async {
+    setState(() {
+      _isInitializing = true;
+      _errorMessage = null;
+    });
 
-  Future<void> _requestPermissions() async {
-    final status = await Permission.microphone.request();
-    if (status != PermissionStatus.granted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Microphone permission is required for live sessions'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _initializeWebRTC() async {
     try {
-      _peerConnection = await createPeerConnection({
-        'iceServers': [
-          {'urls': 'stun:stun.l.google.com:19302'},
-        ],
-      });
-
-      // Handle remote stream
-      _peerConnection!.onAddStream = (MediaStream stream) {
-        setState(() {
-          _remoteStream = stream;
-          _isConnected = true;
-        });
-      };
-
-      // Handle ICE candidates
-      _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
-        _socket?.emit('ice_candidate', {
-          'session_id': widget.sessionId,
-          'candidate': {
-            'candidate': candidate.candidate,
-            'sdpMid': candidate.sdpMid,
-            'sdpMLineIndex': candidate.sdpMLineIndex,
-          },
-          'from_user_id': 'student', // This should be the actual student ID
-        });
-      };
-
-      // Get local audio stream
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': false,
-      });
-
+      // Connect to Socket.IO
+      await _socketService.connect('http://192.168.29.104:5000');
+      
+      // Set up event listeners
+      _setupEventListeners();
+      
+      // Join the session
+      await _socketService.joinSession(widget.sessionId);
+      
+      // Load initial polls for this lecture
+      await _loadLecturePolls();
+      
       setState(() {
-        _isConnecting = true;
+        _isInitializing = false;
       });
+      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to initialize audio: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() {
+        _isInitializing = false;
+        _errorMessage = e.toString();
+      });
+      _showError('Failed to initialize live session: $e');
     }
   }
 
-  Future<void> _connectSocket() async {
+  void _setupEventListeners() {
+    // Socket connection state
+    _connectionSubscription = _socketService.connectionState.listen((connected) {
+      setState(() {
+        _isSocketConnected = connected;
+      });
+    });
+
+    // Session info and participants
+    _sessionInfoSubscription = _socketService.sessionInfo.listen((data) {
+      // Handle session participants - for future WebRTC implementation
+      print('Session participants: ${data['participants']}');
+    });
+
+    _userJoinedSubscription = _socketService.userJoined.listen((data) {
+      print('User joined: ${data['user_name']}');
+    });
+
+    // Chat messages
+    _chatSubscription = _socketService.chatMessage.listen((data) {
+      setState(() {
+        _chatMessages.add(ChatMessage.fromJson(data));
+      });
+      _scrollToBottom();
+    });
+
+    // Polls
+    _pollSubscription = _socketService.newPoll.listen((data) {
+      setState(() {
+        _polls.add(Poll(
+          id: data['poll_id'] ?? '',
+          question: data['question'] ?? '',
+          options: List<String>.from(data['options'] ?? []),
+          hasVoted: false,
+        ));
+        _currentPollId = data['poll_id'];
+      });
+    });
+
+    // Content sharing
+    _contentSubscription = _socketService.contentShared.listen((data) {
+      setState(() {
+        _sharedContentUrl = data['url'];
+        _sharedContentType = data['type'];
+      });
+    });
+
+    // Error handling
+    _errorSubscription = _socketService.errorStream.listen((error) {
+      _showError(error);
+    });
+  }
+
+  // WebRTC functionality removed for compatibility - to be added later
+
+  Future<void> _loadLecturePolls() async {
     try {
-      _socket = IO.io('http://192.168.29.104:5000', <String, dynamic>{
-        'transports': ['websocket'],
-        'autoConnect': false,
-      });
-
-      _socket!.connect();
-
-      _socket!.onConnect((_) {
-        setState(() {
-          _isSocketConnected = true;
-        });
-      });
-
-      _socket!.onDisconnect((_) {
-        setState(() {
-          _isSocketConnected = false;
-        });
-      });
-
-      _socket!.on('webrtc_offer', (data) async {
-        await _handleOffer(data);
-      });
-
-      _socket!.on('webrtc_answer', (data) async {
-        await _handleAnswer(data);
-      });
-
-      _socket!.on('ice_candidate', (data) async {
-        await _handleIceCandidate(data);
-      });
-
-      _socket!.on('chat_message', (data) {
-        setState(() {
-          _chatMessages.add(ChatMessage.fromJson(data));
-        });
-        _scrollToBottom();
-      });
-
-      _socket!.on('new_poll', (data) {
-        setState(() {
-          _polls.add(Poll.fromJson(data));
-          _currentPollId = data['poll_id'];
-        });
-      });
-
-      _socket!.on('content_shared', (data) {
-        setState(() {
-          _sharedContentUrl = data['url'];
-          _sharedContentType = data['type'];
-        });
-      });
-
-      _socket!.on('error', (data) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'An error occurred'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      final polls = await ApiService.getLecturePolls(widget.lectureId);
+      setState(() {
+        _polls.clear();
+        for (final poll in polls) {
+          _polls.add(Poll(
+            id: poll.id,
+            question: poll.question,
+            options: poll.options,
+            hasVoted: false,
+          ));
         }
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to connect to server: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print('Failed to load lecture polls: $e');
+      // Don't show error for polls as it's not critical
     }
   }
 
-  Future<void> _joinSession() async {
-    if (_socket != null && _isSocketConnected) {
-      _socket!.emit('join_session', {
-        'session_id': widget.sessionId,
-      });
-    }
-  }
+  Future<void> _cleanup() async {
+    // Cancel all subscriptions
+    await _connectionSubscription?.cancel();
+    await _chatSubscription?.cancel();
+    await _pollSubscription?.cancel();
+    await _contentSubscription?.cancel();
+    await _errorSubscription?.cancel();
+    await _sessionInfoSubscription?.cancel();
+    await _userJoinedSubscription?.cancel();
 
-  Future<void> _handleOffer(dynamic data) async {
-    try {
-      final offer = RTCSessionDescription(
-        data['offer']['sdp'],
-        data['offer']['type'],
-      );
+    // Cleanup services
+    await _socketService.leaveSession();
+    _socketService.disconnect();
 
-      await _peerConnection!.setRemoteDescription(offer);
-      final answer = await _peerConnection!.createAnswer();
-      await _peerConnection!.setLocalDescription(answer);
-
-      _socket!.emit('webrtc_answer', {
-        'session_id': widget.sessionId,
-        'answer': answer.toMap(),
-        'from_user_id': 'student',
-        'target_user_id': data['from_user_id'],
-      });
-    } catch (e) {
-      print('Error handling offer: $e');
-    }
-  }
-
-  Future<void> _handleAnswer(dynamic data) async {
-    try {
-      final answer = RTCSessionDescription(
-        data['answer']['sdp'],
-        data['answer']['type'],
-      );
-      await _peerConnection!.setRemoteDescription(answer);
-    } catch (e) {
-      print('Error handling answer: $e');
-    }
-  }
-
-  Future<void> _handleIceCandidate(dynamic data) async {
-    try {
-      final candidate = RTCIceCandidate(
-        data['candidate']['candidate'],
-        data['candidate']['sdpMid'],
-        data['candidate']['sdpMLineIndex'],
-      );
-      await _peerConnection!.addCandidate(candidate);
-    } catch (e) {
-      print('Error handling ICE candidate: $e');
-    }
-  }
-
-  void _toggleMute() {
-    if (_localStream != null) {
-      final audioTracks = _localStream!.getAudioTracks();
-      if (audioTracks.isNotEmpty) {
-        audioTracks.first.enabled = _isMuted;
-        setState(() {
-          _isMuted = !_isMuted;
-        });
-      }
-    }
+    // Dispose controllers
+    _messageController.dispose();
+    _chatScrollController.dispose();
   }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty && _socket != null) {
-      _socket!.emit('chat_message', {
-        'session_id': widget.sessionId,
-        'message': _messageController.text.trim(),
-        'user_name': 'Student', // This should be the actual student name
-        'user_type': 'student',
-      });
+    if (_messageController.text.trim().isNotEmpty) {
+      _socketService.sendChatMessage(_messageController.text.trim());
       _messageController.clear();
     }
   }
 
-  void _submitPollResponse(String pollId, String response) {
-    if (_socket != null) {
-      _socket!.emit('submit_poll_response', {
-        'poll_id': pollId,
-        'response': response,
+  Future<void> _submitPollResponse(String pollId, String response) async {
+    try {
+      await ApiService.voteOnPoll(pollId, response);
+      _socketService.submitPollResponse(pollId, response);
+      
+      // Update local poll state
+      setState(() {
+        final pollIndex = _polls.indexWhere((p) => p.id == pollId);
+        if (pollIndex != -1) {
+          // Mark poll as voted (you might need to add this field to Poll model)
+        }
       });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vote submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _showError('Failed to submit vote: $e');
+    }
+  }
+
+  // Mute functionality removed - to be implemented with WebRTC later
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -311,16 +254,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  void _cleanup() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _localStream?.dispose();
-    _remoteStream?.dispose();
-    _peerConnection?.close();
-    _messageController.dispose();
-    _chatScrollController.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -329,37 +262,68 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: Icon(_isMuted ? Icons.mic_off : Icons.mic),
-            onPressed: _isConnected ? _toggleMute : null,
-          ),
-          IconButton(
-            icon: Icon(_showChat ? Icons.chat : Icons.chat_outlined),
-            onPressed: () {
-              setState(() {
-                _showChat = !_showChat;
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(_showPolls ? Icons.poll : Icons.poll_outlined),
-            onPressed: () {
-              setState(() {
-                _showPolls = !_showPolls;
-              });
-            },
-          ),
+          if (!_isInitializing) ...[
+            IconButton(
+              icon: Icon(_showChat ? Icons.chat : Icons.chat_outlined),
+              onPressed: () {
+                setState(() {
+                  _showChat = !_showChat;
+                });
+              },
+            ),
+            IconButton(
+              icon: Icon(_showPolls ? Icons.poll : Icons.poll_outlined),
+              onPressed: () {
+                setState(() {
+                  _showPolls = !_showPolls;
+                });
+              },
+            ),
+          ],
         ],
       ),
-      body: Column(
+      body: _isInitializing 
+        ? const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Initializing live session...'),
+                SizedBox(height: 8),
+                Text('Setting up audio and connecting to server'),
+              ],
+            ),
+          )
+        : _errorMessage != null
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Failed to join session', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                Text(_errorMessage!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _initializeServices,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
+        : Column(
         children: [
           // Connection status
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            color: _isConnected ? Colors.green : Colors.orange,
+            color: _isSocketConnected ? Colors.green : Colors.orange,
             child: Text(
-              _isConnected ? 'Connected to Live Session' : 'Connecting...',
+              _isSocketConnected 
+                ? 'Connected to Live Session' 
+                : 'Connecting...',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
@@ -410,6 +374,22 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Live Session - Chat and Polls Available',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -499,7 +479,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           child: Center(
             child: _sharedContentType == 'image'
                 ? Image.network(_sharedContentUrl!)
-                : Text('Document: ${_sharedContentUrl}'),
+                : Text('Document: $_sharedContentUrl'),
           ),
         ),
       ],

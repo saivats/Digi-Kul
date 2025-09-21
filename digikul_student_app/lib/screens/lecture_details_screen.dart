@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../models/lecture.dart';
 import '../models/material.dart';
-import 'live_session_screen_simple.dart';
+import 'live_session_screen.dart';
 import 'polls_screen.dart';
 
 // --- THEME COLORS ---
@@ -64,7 +64,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
       if (sessionId != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => LiveSessionScreenSimple(
+            builder: (context) => LiveSessionScreen(
               sessionId: sessionId,
               lectureId: widget.lecture.id,
               lectureTitle: widget.lecture.title,
