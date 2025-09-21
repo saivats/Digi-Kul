@@ -170,6 +170,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
     // Chat messages
     _chatSubscription = _socketService.chatMessage.listen((data) {
+      print('Received chat message: $data'); // Debug print
       setState(() {
         _chatMessages.add(ChatMessage.fromJson(data));
       });
@@ -201,6 +202,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     _errorSubscription = _socketService.errorStream.listen((error) {
       _showError(error);
     });
+
   }
 
   Future<void> _initiateAudioConnection(String targetUserId) async {
@@ -258,7 +260,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   void _sendMessage() {
     if (_messageController.text.trim().isNotEmpty) {
-      _socketService.sendChatMessage(_messageController.text.trim());
+      final message = _messageController.text.trim();
+      print('Sending chat message: $message'); // Debug print
+      _socketService.sendChatMessage(message);
       _messageController.clear();
     }
   }
@@ -393,9 +397,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             color: _isAudioConnected ? Colors.green : (_isSocketConnected ? Colors.blue : Colors.orange),
             child: Text(
               _isAudioConnected 
-                ? 'Audio Connected - You can hear the teacher' 
+                ? 'Live Class Connected - Audio & Video Active' 
                 : _isSocketConnected 
-                  ? 'Connected - Setting up audio...'
+                  ? 'Connected - Setting up audio/video...'
                   : 'Connecting...',
               textAlign: TextAlign.center,
               style: const TextStyle(

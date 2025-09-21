@@ -107,6 +107,7 @@ class SocketService {
 
     // Chat events
     _socket!.on('chat_message', (data) {
+      print('SocketService received chat_message: $data'); // Debug print
       _chatMessageController.add(Map<String, dynamic>.from(data));
     });
 
@@ -164,7 +165,7 @@ class SocketService {
   void sendAudioOffer(String targetUserId) {
     if (_socket == null || !_isConnected || _currentSessionId == null) return;
 
-    _socket!.emit('audio_offer', {
+    _socket!.emit('webrtc_offer', {
       'session_id': _currentSessionId,
       'target_user_id': targetUserId,
       'from_user_id': 'student',
@@ -174,7 +175,7 @@ class SocketService {
   void sendAudioAnswer(String targetUserId) {
     if (_socket == null || !_isConnected || _currentSessionId == null) return;
 
-    _socket!.emit('audio_answer', {
+    _socket!.emit('webrtc_answer', {
       'session_id': _currentSessionId,
       'target_user_id': targetUserId,
       'from_user_id': 'student',
@@ -183,15 +184,21 @@ class SocketService {
 
   // Chat methods
   void sendChatMessage(String message) {
-    if (_socket == null || !_isConnected || _currentSessionId == null) return;
+    if (_socket == null || !_isConnected || _currentSessionId == null) {
+      print('Cannot send chat message: socket not connected or session ID null');
+      return;
+    }
 
-    _socket!.emit('chat_message', {
+    final chatData = {
       'session_id': _currentSessionId,
       'message': message,
       'user_name': 'Student',
       'user_type': 'student',
       'timestamp': DateTime.now().toIso8601String(),
-    });
+    };
+    
+    print('Sending chat message to server: $chatData'); // Debug print
+    _socket!.emit('chat_message', chatData);
   }
 
   // Poll methods

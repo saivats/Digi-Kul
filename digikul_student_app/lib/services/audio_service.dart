@@ -27,53 +27,41 @@ class AudioService {
 
     try {
       // Request microphone permission
-      final micPermission = await Permission.microphone.request();
-      if (!micPermission.isGranted) {
+      var status = await Permission.microphone.request();
+      if (status.isGranted) {
+        _isInitialized = true;
+        return true;
+      } else {
         _errorController.add('Microphone permission denied');
         return false;
       }
-
-      _isInitialized = true;
-      
-      // Simulate successful audio connection
-      await Future.delayed(const Duration(seconds: 2));
-      _isConnected = true;
-      _connectionStateController.add(true);
-      
-      return true;
     } catch (e) {
-      _errorController.add('Failed to initialize audio: $e');
+      _errorController.add('Error initializing audio: $e');
       return false;
     }
   }
 
-  Future<void> toggleMute() async {
-    _isMuted = !_isMuted;
-    // In a real implementation, this would control the microphone
-    print('Audio ${_isMuted ? 'muted' : 'unmuted'}');
-  }
-
-  Future<void> setMuted(bool muted) async {
-    _isMuted = muted;
-    // In a real implementation, this would control the microphone
-    print('Audio ${_isMuted ? 'muted' : 'unmuted'}');
-  }
-
   Future<void> joinSession(String sessionId) async {
-    _currentSessionId = sessionId;
-    
     if (!_isInitialized) {
       final initialized = await initialize();
-      if (!initialized) {
-        throw Exception('Failed to initialize audio system');
-      }
+      if (!initialized) return;
     }
+    _currentSessionId = sessionId;
+    _isConnected = true;
+    _connectionStateController.add(true);
+    // In a real scenario, this would start audio streaming
   }
 
   Future<void> leaveSession() async {
-    _currentSessionId = null;
     _isConnected = false;
     _connectionStateController.add(false);
+    _currentSessionId = null;
+    // In a real scenario, this would stop audio streaming
+  }
+
+  Future<void> toggleMute() async {
+    _isMuted = !_isMuted;
+    // In a real scenario, this would mute/unmute the local audio stream
   }
 
   void dispose() {
