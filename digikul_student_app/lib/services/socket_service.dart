@@ -160,37 +160,24 @@ class SocketService {
     _currentSessionId = null;
   }
 
-  // WebRTC signaling methods (simplified without WebRTC dependency)
-  void sendWebRTCOffer(String targetUserId, Map<String, dynamic> offer) {
+  // Audio signaling methods (simplified for compatibility)
+  void sendAudioOffer(String targetUserId) {
     if (_socket == null || !_isConnected || _currentSessionId == null) return;
 
-    _socket!.emit('webrtc_offer', {
+    _socket!.emit('audio_offer', {
       'session_id': _currentSessionId,
       'target_user_id': targetUserId,
       'from_user_id': 'student',
-      'offer': offer,
     });
   }
 
-  void sendWebRTCAnswer(String targetUserId, Map<String, dynamic> answer) {
+  void sendAudioAnswer(String targetUserId) {
     if (_socket == null || !_isConnected || _currentSessionId == null) return;
 
-    _socket!.emit('webrtc_answer', {
+    _socket!.emit('audio_answer', {
       'session_id': _currentSessionId,
       'target_user_id': targetUserId,
       'from_user_id': 'student',
-      'answer': answer,
-    });
-  }
-
-  void sendIceCandidate(String targetUserId, Map<String, dynamic> candidate) {
-    if (_socket == null || !_isConnected || _currentSessionId == null) return;
-
-    _socket!.emit('ice_candidate', {
-      'session_id': _currentSessionId,
-      'target_user_id': targetUserId,
-      'from_user_id': 'student',
-      'candidate': candidate,
     });
   }
 

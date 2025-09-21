@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/lecture.dart';
 import '../services/api_service.dart';
 import 'lecture_details_screen.dart';
+import 'live_session_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -116,6 +117,102 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _showJoinLiveClassDialog() async {
+    try {
+      // Get all enrolled lectures
+      final enrolledLectures = await ApiService.getEnrolledLectures();
+      
+      // Filter for lectures with active sessions
+      final liveLectures = <Lecture>[];
+      for (final lecture in enrolledLectures) {
+        try {
+          final sessionId = await ApiService.getActiveSessionId(lecture.id);
+          if (sessionId != null) {
+            liveLectures.add(lecture);
+          }
+        } catch (e) {
+          // Session not active, skip this lecture
+        }
+      }
+
+      if (!context.mounted) return;
+
+      if (liveLectures.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.orange,
+            content: Text('No live classes available right now'),
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Join Live Class'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Select a live class to join:'),
+                const SizedBox(height: 16),
+                ...liveLectures.map((lecture) => ListTile(
+                  leading: const Icon(Icons.live_tv, color: Colors.red),
+                  title: Text(lecture.title),
+                  subtitle: Text('By: ${lecture.teacherName}'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    try {
+                      final sessionId = await ApiService.getActiveSessionId(lecture.id);
+                      if (sessionId != null && context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => LiveSessionScreen(
+                              sessionId: sessionId,
+                              lectureId: lecture.id,
+                              lectureTitle: lecture.title,
+                              teacherName: lecture.teacherName,
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red,
+                            content: Text('Failed to join live class: ${e.toString()}'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                )),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Failed to load live classes: ${e.toString()}'),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,12 +267,27 @@ class _HomePageState extends State<HomePage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showJoinCohortDialog,
-        icon: const Icon(Icons.group_add),
-        label: const Text('Join Cohort'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: _showJoinLiveClassDialog,
+            icon: const Icon(Icons.live_tv),
+            label: const Text('Join Live Class'),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            heroTag: "live_class",
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            onPressed: _showJoinCohortDialog,
+            icon: const Icon(Icons.group_add),
+            label: const Text('Join Cohort'),
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white,
+            heroTag: "join_cohort",
+          ),
+        ],
       ),
     );
   }

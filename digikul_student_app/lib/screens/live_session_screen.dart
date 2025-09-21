@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/socket_service.dart';
+import '../services/audio_service.dart';
 import '../services/api_service.dart';
 import 'dart:async';
 
@@ -24,6 +25,7 @@ class LiveSessionScreen extends StatefulWidget {
 class _LiveSessionScreenState extends State<LiveSessionScreen> {
   // Services
   final SocketService _socketService = SocketService();
+  final AudioService _audioService = AudioService();
 
   // Chat
   final TextEditingController _messageController = TextEditingController();
@@ -42,6 +44,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   bool _showChat = false;
   bool _showPolls = false;
   bool _isSocketConnected = false;
+  bool _isAudioConnected = false;
+  bool _isMuted = false;
   bool _isInitializing = true;
   String? _errorMessage;
 
@@ -57,6 +61,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   StreamSubscription? _webrtcConnectionSubscription;
   StreamSubscription? _sessionInfoSubscription;
   StreamSubscription? _userJoinedSubscription;
+  StreamSubscription? _webrtcIceCandidateSubscription;
 
   @override
   void initState() {
@@ -77,6 +82,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
 
     try {
+      // Initialize Audio first
+      final audioInitialized = await _audioService.initialize();
+      if (!audioInitialized) {
+        throw Exception('Failed to initialize audio system');
+      }
+
       // Connect to Socket.IO
       await _socketService.connect('http://192.168.29.104:5000');
       
@@ -85,12 +96,14 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       
       // Join the session
       await _socketService.joinSession(widget.sessionId);
+      await _audioService.joinSession(widget.sessionId);
       
       // Load initial polls for this lecture
       await _loadLecturePolls();
       
       setState(() {
         _isInitializing = false;
+        _isMuted = _audioService.isMuted;
       });
       
     } catch (e) {
@@ -110,14 +123,49 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       });
     });
 
+    // Audio connection state
+    _webrtcConnectionSubscription = _audioService.connectionState.listen((connected) {
+      setState(() {
+        _isAudioConnected = connected;
+      });
+    });
+
     // Session info and participants
     _sessionInfoSubscription = _socketService.sessionInfo.listen((data) {
-      // Handle session participants - for future WebRTC implementation
-      print('Session participants: ${data['participants']}');
+      // Handle session participants and initiate WebRTC connections
+      final participants = data['participants'] as List?;
+      if (participants != null) {
+        for (final participant in participants) {
+          final participantId = participant['user_id'];
+          final participantType = participant['user_type'];
+          if (participantType == 'teacher') {
+            // Initiate audio connection with teacher
+            _initiateAudioConnection(participantId);
+          }
+        }
+      }
     });
 
     _userJoinedSubscription = _socketService.userJoined.listen((data) {
-      print('User joined: ${data['user_name']}');
+      final userId = data['user_id'];
+      final userType = data['user_type'];
+      if (userType == 'teacher') {
+        // Initiate audio connection with teacher
+        _initiateAudioConnection(userId);
+      }
+    });
+
+    // Audio signaling events (simplified)
+    _webrtcOfferSubscription = _socketService.webrtcOffer.listen((data) async {
+      try {
+        // Handle audio offer from teacher
+        _socketService.sendAudioAnswer(data['from_user_id']);
+        setState(() {
+          _isAudioConnected = true;
+        });
+      } catch (e) {
+        _showError('Failed to handle audio offer: $e');
+      }
     });
 
     // Chat messages
@@ -155,7 +203,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  // WebRTC functionality removed for compatibility - to be added later
+  Future<void> _initiateAudioConnection(String targetUserId) async {
+    try {
+      _socketService.sendAudioOffer(targetUserId);
+    } catch (e) {
+      _showError('Failed to initiate audio connection: $e');
+    }
+  }
 
   Future<void> _loadLecturePolls() async {
     try {
@@ -180,14 +234,20 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Future<void> _cleanup() async {
     // Cancel all subscriptions
     await _connectionSubscription?.cancel();
+    await _webrtcOfferSubscription?.cancel();
+    await _webrtcAnswerSubscription?.cancel();
+    await _iceCandidateSubscription?.cancel();
     await _chatSubscription?.cancel();
     await _pollSubscription?.cancel();
     await _contentSubscription?.cancel();
     await _errorSubscription?.cancel();
+    await _webrtcConnectionSubscription?.cancel();
     await _sessionInfoSubscription?.cancel();
     await _userJoinedSubscription?.cancel();
+    await _webrtcIceCandidateSubscription?.cancel();
 
     // Cleanup services
+    await _audioService.leaveSession();
     await _socketService.leaveSession();
     _socketService.disconnect();
 
@@ -229,7 +289,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
-  // Mute functionality removed - to be implemented with WebRTC later
+  Future<void> _toggleMute() async {
+    await _audioService.toggleMute();
+    setState(() {
+      _isMuted = _audioService.isMuted;
+    });
+  }
 
   void _showError(String message) {
     if (mounted) {
@@ -263,6 +328,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         foregroundColor: Colors.white,
         actions: [
           if (!_isInitializing) ...[
+            IconButton(
+              icon: Icon(_isMuted ? Icons.mic_off : Icons.mic),
+              onPressed: _toggleMute,
+              tooltip: _isMuted ? 'Unmute' : 'Mute',
+              color: _isMuted ? Colors.red : Colors.white,
+            ),
             IconButton(
               icon: Icon(_showChat ? Icons.chat : Icons.chat_outlined),
               onPressed: () {
@@ -319,11 +390,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            color: _isSocketConnected ? Colors.green : Colors.orange,
+            color: _isAudioConnected ? Colors.green : (_isSocketConnected ? Colors.blue : Colors.orange),
             child: Text(
-              _isSocketConnected 
-                ? 'Connected to Live Session' 
-                : 'Connecting...',
+              _isAudioConnected 
+                ? 'Audio Connected - You can hear the teacher' 
+                : _isSocketConnected 
+                  ? 'Connected - Setting up audio...'
+                  : 'Connecting...',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
@@ -380,16 +453,29 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.blue[100],
+                                color: _isAudioConnected ? Colors.green[100] : Colors.orange[100],
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
-                                'Live Session - Chat and Polls Available',
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isAudioConnected ? Icons.volume_up : Icons.volume_off,
+                                    size: 16,
+                                    color: _isAudioConnected ? Colors.green[700] : Colors.orange[700],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _isAudioConnected 
+                                      ? 'Audio Active - Real-time Class'
+                                      : 'Setting up audio connection...',
+                                    style: TextStyle(
+                                      color: _isAudioConnected ? Colors.green[700] : Colors.orange[700],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
