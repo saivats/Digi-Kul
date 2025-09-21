@@ -27,9 +27,8 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
   }
 
   Future<List<Lecture>> _fetchCohortLectures() async {
-    // For now, we'll fetch all available lectures since the backend doesn't have a specific cohort lectures endpoint
-    // In a real implementation, you would have an endpoint like /api/student/cohort/{cohortId}/lectures
-    return ApiService.getAvailableLectures();
+    // Use the correct API endpoint for cohort-specific lectures
+    return ApiService.getCohortLectures(widget.cohort.id);
   }
 
   void _refreshLectures() {

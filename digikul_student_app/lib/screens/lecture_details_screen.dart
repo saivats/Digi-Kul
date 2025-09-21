@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../models/lecture.dart';
 import '../models/material.dart';
+import 'live_session_screen_simple.dart';
+import 'polls_screen.dart';
 
 // --- THEME COLORS ---
 const Color primaryColor = Color(0xFF5247eb);
@@ -21,6 +23,7 @@ class LectureDetailsScreen extends StatefulWidget {
 class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
   late Future<List<MaterialItem>> _materialsFuture;
   bool _isEnrolling = false;
+  bool _isJoiningSession = false;
 
   @override
   void initState() {
@@ -50,6 +53,57 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         setState(() => _isEnrolling = false);
       }
     }
+  }
+
+  Future<void> _joinLiveSession() async {
+    setState(() => _isJoiningSession = true);
+    try {
+      final sessionId = await ApiService.getActiveSessionId(widget.lecture.id);
+      if (!mounted) return;
+      
+      if (sessionId != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => LiveSessionScreenSimple(
+              sessionId: sessionId,
+              lectureId: widget.lecture.id,
+              lectureTitle: widget.lecture.title,
+              teacherName: widget.lecture.teacherName,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.orange,
+            content: Text('No active session found for this lecture'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Failed to join session: ${e.toString()}'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isJoiningSession = false);
+      }
+    }
+  }
+
+  void _viewPolls() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PollsScreen(
+          lectureId: widget.lecture.id,
+          lectureTitle: widget.lecture.title,
+        ),
+      ),
+    );
   }
 
   @override
@@ -135,7 +189,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
     return Column(
       children: [
         if (widget.lecture.sessionActive) ...[
-           ElevatedButton.icon(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
@@ -144,15 +198,43 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            icon: const Icon(Icons.sensors),
-            label: const Text('Join Live Session',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onPressed: () {
-              // TODO: Implement join live session logic
-            },
+            icon: _isJoiningSession 
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.sensors),
+            label: Text(
+              _isJoiningSession ? 'Joining...' : 'Join Live Session',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            onPressed: _isJoiningSession ? null : _joinLiveSession,
           ),
           const SizedBox(height: 12),
         ],
+        
+        // Polls button
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade50,
+            foregroundColor: Colors.orange.shade700,
+            elevation: 0,
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          icon: const Icon(Icons.poll),
+          label: const Text('View Polls', style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: _viewPolls,
+        ),
+        const SizedBox(height: 12),
+        
+        // Enrollment button
         _isEnrolling
           ? const Center(child: CircularProgressIndicator())
           : ElevatedButton(

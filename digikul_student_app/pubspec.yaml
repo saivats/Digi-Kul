@@ -44,6 +44,12 @@ dependencies:
   
   # Package for launching URLs, used here to open download links.
   url_launcher: ^6.2.6
+  
+  # WebRTC package for real-time audio/video communication
+  flutter_webrtc: ^0.9.47
+  
+  # Permission handler for microphone access
+  permission_handler: ^11.3.1
 
 
 dev_dependencies:
