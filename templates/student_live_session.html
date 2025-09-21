@@ -18,6 +18,22 @@
         position: relative;
     }
     
+    .connection-indicator {
+        transition: all 0.3s ease;
+    }
+    
+    .connection-indicator.low {
+        background: rgba(220, 53, 69, 0.8) !important;
+    }
+    
+    .connection-indicator.medium {
+        background: rgba(255, 193, 7, 0.8) !important;
+    }
+    
+    .connection-indicator.high {
+        background: rgba(40, 167, 69, 0.8) !important;
+    }
+    
     .video-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -218,6 +234,9 @@
 
 <div class="main-container">
     <div class="video-container">
+        <div id="connection-quality" class="connection-indicator" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; z-index: 1000;">
+            Connection: DETECTING...
+        </div>
         <div class="video-grid" id="video-grid">
             <!-- Video elements will be added here dynamically -->
         </div>
@@ -284,6 +303,8 @@
     let currentLectureId = null;
     let polls = [];
     let userVotes = new Map();
+    let connectionQuality = 'high'; // high, medium, low
+    let bandwidth = 0;
     
     // WebRTC configuration
     const rtcConfig = {
@@ -301,6 +322,9 @@
         
         initializeSession();
         setupEventListeners();
+        
+        // Detect connection quality
+        detectConnectionQuality();
         
         // Periodic check for track changes (fallback for screen sharing)
         setInterval(() => {
@@ -325,6 +349,133 @@
             });
         }, 2000); // Check every 2 seconds
     });
+    
+    // Bandwidth detection and adaptive quality
+    async function detectConnectionQuality() {
+        try {
+            // Use navigator.connection if available
+            if ('connection' in navigator) {
+                const connection = navigator.connection;
+                bandwidth = connection.downlink || 0;
+                
+                if (bandwidth < 0.5) {
+                    connectionQuality = 'low';
+                } else if (bandwidth < 2) {
+                    connectionQuality = 'medium';
+                } else {
+                    connectionQuality = 'high';
+                }
+                
+                console.log('Connection quality detected:', connectionQuality, 'Bandwidth:', bandwidth + 'Mbps');
+                
+                // Listen for connection changes
+                connection.addEventListener('change', () => {
+                    bandwidth = connection.downlink || 0;
+                    updateConnectionQuality();
+                });
+            } else {
+                // Fallback: Test with a small image download
+                await testBandwidth();
+            }
+            
+            // Apply quality settings
+            applyQualitySettings();
+            
+        } catch (error) {
+            console.log('Bandwidth detection failed, using default settings');
+            connectionQuality = 'medium';
+            applyQualitySettings();
+        }
+    }
+    
+    async function testBandwidth() {
+        const startTime = Date.now();
+        try {
+            const response = await fetch('/static/images/logo.png?' + Date.now(), {
+                method: 'HEAD',
+                cache: 'no-cache'
+            });
+            const endTime = Date.now();
+            const duration = (endTime - startTime) / 1000;
+            const size = response.headers.get('content-length') || 1000;
+            bandwidth = (size * 8) / (duration * 1000000); // Convert to Mbps
+            
+            if (bandwidth < 0.5) {
+                connectionQuality = 'low';
+            } else if (bandwidth < 2) {
+                connectionQuality = 'medium';
+            } else {
+                connectionQuality = 'high';
+            }
+        } catch (error) {
+            connectionQuality = 'medium';
+        }
+    }
+    
+    function updateConnectionQuality() {
+        if (bandwidth < 0.5) {
+            connectionQuality = 'low';
+        } else if (bandwidth < 2) {
+            connectionQuality = 'medium';
+        } else {
+            connectionQuality = 'high';
+        }
+        applyQualitySettings();
+    }
+    
+    function applyQualitySettings() {
+        console.log('Applying quality settings for:', connectionQuality);
+        
+        // Update UI based on connection quality
+        const qualityIndicator = document.getElementById('connection-quality');
+        if (qualityIndicator) {
+            qualityIndicator.textContent = `Connection: ${connectionQuality.toUpperCase()}`;
+            qualityIndicator.className = `connection-indicator ${connectionQuality}`;
+        }
+        
+        // Adjust video quality constraints
+        if (localStream) {
+            localStream.getVideoTracks().forEach(track => {
+                const constraints = getVideoConstraints();
+                track.applyConstraints(constraints);
+            });
+        }
+        
+        // Update peer connections
+        peerConnections.forEach((peerConnection, userId) => {
+            const senders = peerConnection.getSenders();
+            senders.forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                    const constraints = getVideoConstraints();
+                    sender.track.applyConstraints(constraints);
+                }
+            });
+        });
+    }
+    
+    function getVideoConstraints() {
+        switch (connectionQuality) {
+            case 'low':
+                return {
+                    width: { ideal: 320, max: 480 },
+                    height: { ideal: 240, max: 360 },
+                    frameRate: { ideal: 15, max: 20 }
+                };
+            case 'medium':
+                return {
+                    width: { ideal: 640, max: 854 },
+                    height: { ideal: 480, max: 640 },
+                    frameRate: { ideal: 24, max: 30 }
+                };
+            case 'high':
+            default:
+                return {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 30, max: 60 }
+                };
+        }
+    }
     
     async function initializeSession() {
         try {
@@ -488,11 +639,17 @@
     
     async function getUserMedia() {
         try {
-            // Students only get audio, no video
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: true
-            });
+            // Students only get audio, no video (for low bandwidth)
+            const audioConstraints = {
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: connectionQuality === 'low' ? 16000 : 44100
+                }
+            };
+            
+            localStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
             
             // Create local audio element (no video for students)
             createAudioElement(currentUser.id, localStream, true);
