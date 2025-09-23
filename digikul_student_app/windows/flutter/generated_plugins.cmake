@@ -3,7 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  permission_handler_windows
+  connectivity_plus
   url_launcher_windows
 )
 

@@ -1,71 +1,116 @@
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart';
 
 class AudioService {
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
   AudioService._internal();
 
-  // State
-  bool _isInitialized = false;
-  bool _isMuted = false;
-  bool _isConnected = false;
+  bool _isRecording = false;
+  bool _isPlaying = false;
   String? _currentSessionId;
-  
-  // Event streams
-  final StreamController<bool> _connectionStateController = StreamController<bool>.broadcast();
-  final StreamController<String> _errorController = StreamController<String>.broadcast();
 
-  // Getters
-  Stream<bool> get connectionState => _connectionStateController.stream;
-  Stream<String> get errorStream => _errorController.stream;
-  bool get isMuted => _isMuted;
-  bool get isConnected => _isConnected;
+  // Stream controllers for audio events
+  final _audioStateController = StreamController<AudioState>.broadcast();
+  Stream<AudioState> get audioStateStream => _audioStateController.stream;
 
-  Future<bool> initialize() async {
-    if (_isInitialized) return true;
+  bool get isRecording => _isRecording;
+  bool get isPlaying => _isPlaying;
+  String? get currentSessionId => _currentSessionId;
 
+  // Initialize audio service
+  Future<void> initialize() async {
     try {
-      // Request microphone permission
-      var status = await Permission.microphone.request();
-      if (status.isGranted) {
-        _isInitialized = true;
-        return true;
-      } else {
-        _errorController.add('Microphone permission denied');
-        return false;
-      }
+      // TODO: Initialize audio system
+      print('Audio service initialized');
     } catch (e) {
-      _errorController.add('Error initializing audio: $e');
+      print('Error initializing audio service: $e');
+    }
+  }
+
+  // Request microphone permission
+  Future<bool> requestMicrophonePermission() async {
+    try {
+      // TODO: Implement permission request
+      // For now, assume permission is granted
+      return true;
+    } catch (e) {
+      print('Error requesting microphone permission: $e');
       return false;
     }
   }
 
-  Future<void> joinSession(String sessionId) async {
-    if (!_isInitialized) {
-      final initialized = await initialize();
-      if (!initialized) return;
+  // Start recording audio
+  Future<void> startRecording(String sessionId) async {
+    if (_isRecording) return;
+
+    try {
+      final hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        throw Exception('Microphone permission denied');
+      }
+
+      _currentSessionId = sessionId;
+      _isRecording = true;
+      
+      _audioStateController.add(AudioState.recording);
+      print('Started recording for session: $sessionId');
+    } catch (e) {
+      print('Error starting recording: $e');
+      _isRecording = false;
+      _audioStateController.add(AudioState.error);
     }
-    _currentSessionId = sessionId;
-    _isConnected = true;
-    _connectionStateController.add(true);
-    // In a real scenario, this would start audio streaming
   }
 
-  Future<void> leaveSession() async {
-    _isConnected = false;
-    _connectionStateController.add(false);
-    _currentSessionId = null;
-    // In a real scenario, this would stop audio streaming
+  // Stop recording audio
+  Future<void> stopRecording() async {
+    if (!_isRecording) return;
+
+    try {
+      _isRecording = false;
+      _audioStateController.add(AudioState.idle);
+      print('Stopped recording');
+    } catch (e) {
+      print('Error stopping recording: $e');
+    }
   }
 
-  Future<void> toggleMute() async {
-    _isMuted = !_isMuted;
-    // In a real scenario, this would mute/unmute the local audio stream
+  // Start playing audio
+  Future<void> startPlaying() async {
+    if (_isPlaying) return;
+
+    try {
+      _isPlaying = true;
+      _audioStateController.add(AudioState.playing);
+      print('Started playing audio');
+    } catch (e) {
+      print('Error starting playback: $e');
+      _isPlaying = false;
+      _audioStateController.add(AudioState.error);
+    }
   }
 
+  // Stop playing audio
+  Future<void> stopPlaying() async {
+    if (!_isPlaying) return;
+
+    try {
+      _isPlaying = false;
+      _audioStateController.add(AudioState.idle);
+      print('Stopped playing audio');
+    } catch (e) {
+      print('Error stopping playback: $e');
+    }
+  }
+
+  // Dispose resources
   void dispose() {
-    _connectionStateController.close();
-    _errorController.close();
+    _audioStateController.close();
   }
+}
+
+enum AudioState {
+  idle,
+  recording,
+  playing,
+  error,
 }

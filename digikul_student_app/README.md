@@ -1,88 +1,93 @@
-# Digi-Kul Student App
+# Digi-Kul Student Mobile Application
 
-A Flutter mobile application for students to participate in virtual classrooms with low-bandwidth optimization. This app is part of the Digi-Kul ecosystem designed for rural colleges with limited internet connectivity.
+A production-ready Flutter mobile application for the Digi-Kul educational platform. This app is designed to provide seamless educational experiences on low-bandwidth networks with audio-first, offline-capable functionality.
 
-## Features
+## 🚀 Features
 
-### ✅ Core Features Implemented
+### Core Features
+- **Audio-First Design**: Optimized for low-bandwidth (2G/3G) networks
+- **Offline Capability**: Download and access content without internet connection
+- **Real-time Communication**: Live audio sessions with WebRTC
+- **Interactive Learning**: Polls, quizzes, and chat during live sessions
+- **Material Management**: Download and organize educational materials
+- **Cohort Management**: Join and participate in study groups
 
-1. **Authentication System**
-   - Secure student login with session management
-   - Automatic session validation and logout
+### Technical Features
+- **Clean Architecture**: Separation of concerns with data, domain, and presentation layers
+- **State Management**: Riverpod for dependency injection and state management
+- **Offline Storage**: Hive for local caching and offline data persistence
+- **API Integration**: Robust API service with error handling and retry mechanisms
+- **Real-time Updates**: Socket.IO for live session communication
+- **Responsive Design**: Adaptive UI for different screen sizes
+- **Comprehensive Testing**: Unit, widget, and integration tests
 
-2. **Lecture Management**
-   - Browse available lectures
-   - Enroll in courses
-   - View lecture details and materials
-   - Join live sessions when available
+## 🏗️ Architecture
 
-3. **Cohort System**
-   - Join cohorts using codes provided by teachers
-   - View cohort-specific lectures
-   - Access cohort materials and discussions
+### Project Structure
+```
+lib/
+├── src/
+│   ├── core/                    # Core utilities and configuration
+│   │   ├── config/             # App configuration
+│   │   ├── constants/          # App constants
+│   │   └── theme/              # Design system (colors, text styles)
+│   ├── data/                   # Data layer
+│   │   ├── models/             # Data models
+│   │   ├── repositories/       # Repository implementations
+│   │   └── services/           # API and external services
+│   ├── domain/                 # Domain layer
+│   │   └── providers/          # Riverpod providers
+│   └── presentation/           # Presentation layer
+│       ├── router/             # App routing
+│       ├── screens/            # UI screens
+│       └── widgets/            # Reusable widgets
+├── main.dart                   # App entry point
+test/
+├── unit/                       # Unit tests
+├── widget/                     # Widget tests
+└── integration/                # Integration tests
+```
 
-4. **Live Session with WebRTC Audio**
-   - Real-time audio communication with teachers
-   - WebRTC peer-to-peer audio connection
-   - Mute/unmute functionality
-   - Connection status indicators
-   - Low-bandwidth optimized (audio-only)
+### Architecture Principles
+- **Clean Architecture**: Clear separation between data, domain, and presentation layers
+- **SOLID Principles**: Single responsibility, dependency inversion, etc.
+- **Repository Pattern**: Abstract data access through repositories
+- **Provider Pattern**: Centralized state management with Riverpod
+- **Dependency Injection**: Loose coupling through provider overrides
 
-5. **Real-time Features**
-   - Live chat during sessions
-   - Interactive polls with real-time results
-   - Content sharing (images, documents)
-   - Socket.IO for real-time communication
+## 📱 Screens
 
-6. **Course Materials**
-   - Download course materials for offline use
-   - Support for PDFs, images, and documents
-   - Compressed file downloads for low bandwidth
+### Authentication
+- **Splash Screen**: App initialization and session validation
+- **Login Screen**: Student authentication with form validation
+- **Signup Screen**: Student registration (placeholder)
 
-7. **User Interface**
-   - Modern, intuitive design
-   - Responsive layout for different screen sizes
-   - Dark/light theme support
-   - Accessibility features
+### Main Application
+- **Dashboard Screen**: Home with quick stats and recent activity
+- **Explore Screen**: Discover new lectures and courses
+- **Downloads Screen**: Manage offline content
+- **Settings Screen**: App configuration and preferences
+- **Profile Screen**: User profile management
 
-## Technical Architecture
+### Content Screens
+- **Cohort Details**: View cohort information and lectures
+- **Lecture Details**: Detailed lecture information and materials
+- **Live Session**: Real-time audio session with chat and interactions
 
-### Backend Integration
-- **REST API**: Flask-based backend with Supabase database
-- **Real-time Communication**: Socket.IO for live sessions
-- **WebRTC Signaling**: Socket.IO handles offer/answer/ICE candidate exchange
-- **Authentication**: Session-based with secure cookies
-
-### Flutter Architecture
-- **State Management**: StatefulWidget with proper lifecycle management
-- **Services**: Modular service architecture
-  - `ApiService`: HTTP API communication
-  - `WebRTCService`: Audio communication handling
-  - `SocketService`: Real-time messaging and signaling
-- **Models**: Data models for lectures, cohorts, materials, polls
-- **Screens**: Well-organized screen structure with navigation
-
-### Key Technologies
-- **Flutter**: Cross-platform mobile development
-- **WebRTC**: Real-time audio communication
-- **Socket.IO**: Real-time messaging and signaling
-- **HTTP**: REST API communication
-- **URL Launcher**: File downloads and external links
-
-## Setup Instructions
+## 🛠️ Setup Instructions
 
 ### Prerequisites
 - Flutter SDK (>=3.3.3)
-- Dart SDK
-- Android Studio / VS Code
-- Backend server running (see main project README)
+- Dart SDK (>=3.0.0)
+- Android Studio / VS Code with Flutter extensions
+- Git
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd digikul_student_app
+   cd Digi-Kul/digikul_student_app
    ```
 
 2. **Install dependencies**
@@ -90,190 +95,197 @@ A Flutter mobile application for students to participate in virtual classrooms w
    flutter pub get
    ```
 
-3. **Configure backend URL**
-   - Update the base URL in `lib/services/api_service.dart`
-   - Change `http://192.168.29.104:5000` to your backend server IP
+3. **Generate code (if needed)**
+   ```bash
+   flutter packages pub run build_runner build
+   ```
 
 4. **Run the app**
    ```bash
    flutter run
    ```
 
-### Device Setup
-- **Android**: Enable microphone permissions
-- **iOS**: Grant microphone access when prompted
-- **Network**: Ensure device can reach backend server
+### Configuration
 
-## Usage Guide
+1. **API Configuration**
+   - Update the API base URL in `lib/src/core/config/app_config.dart`
+   - Configure environment-specific settings
 
-### Student Login
-1. Open the app
-2. Enter your email and password
-3. Tap "Login" to access the dashboard
+2. **Dependencies**
+   - All required dependencies are included in `pubspec.yaml`
+   - Run `flutter pub get` to install them
 
-### Joining Cohorts
-1. Tap the floating action button on the home screen
-2. Enter the cohort code provided by your teacher
-3. Tap "Join" to become a member
+## 🧪 Testing
 
-### Enrolling in Lectures
-1. Browse available lectures on the home screen
-2. Tap on a lecture to view details
-3. Tap "Enroll in Course" to join
+### Running Tests
 
-### Live Sessions
-1. Look for lectures with "LIVE" indicator
-2. Tap "Join Live Session" when available
-3. Grant microphone permissions when prompted
-4. Use mute/unmute button to control your audio
-5. Participate in chat and polls during the session
+1. **Unit Tests**
+   ```bash
+   flutter test test/unit/
+   ```
 
-### Accessing Materials
-1. Go to "My Courses" tab
-2. Select a lecture or cohort
-3. View and download available materials
-4. Files will open in your device's default app
+2. **Widget Tests**
+   ```bash
+   flutter test test/widget/
+   ```
 
-## Project Structure
+3. **Integration Tests**
+   ```bash
+   flutter test integration_test/
+   ```
 
-```
-lib/
-├── main.dart                 # App entry point
-├── models/                   # Data models
-│   ├── lecture.dart
-│   ├── cohort.dart
-│   └── material.dart
-├── screens/                  # UI screens
-│   ├── login_screen.dart
-│   ├── main_layout.dart
-│   ├── home_screen.dart
-│   ├── my_courses_screen.dart
-│   ├── lecture_details_screen.dart
-│   ├── cohort_details_screen.dart
-│   ├── live_session_screen.dart
-│   ├── polls_screen.dart
-│   ├── profile_screen.dart
-│   └── settings_screen.dart
-└── services/                 # Business logic
-    ├── api_service.dart
-    ├── webrtc_service.dart
-    └── socket_service.dart
-```
+4. **All Tests**
+   ```bash
+   flutter test
+   ```
 
-## API Endpoints Used
+### Test Coverage
+The application includes comprehensive tests covering:
+- **Unit Tests**: Providers, repositories, and business logic
+- **Widget Tests**: UI components and user interactions
+- **Integration Tests**: End-to-end user flows
 
-### Authentication
-- `POST /api/login` - Student login
-- `POST /api/logout` - Logout
+## 🔧 Development
 
-### Lectures
-- `GET /api/student/lectures/available` - Get available lectures
-- `GET /api/student/enrolled_lectures` - Get enrolled lectures
-- `POST /api/student/enroll` - Enroll in lecture
-
-### Cohorts
-- `GET /api/student/cohorts` - Get student cohorts
-- `POST /api/student/cohorts/join` - Join cohort by code
-- `GET /api/student/cohort/{id}/lectures` - Get cohort lectures
-
-### Materials
-- `GET /api/student/lecture/{id}/materials` - Get lecture materials
-- `GET /api/download/{id}` - Download material
-
-### Live Sessions
-- `GET /api/session/by_lecture/{id}` - Get active session ID
-
-### Polls
-- `GET /api/lectures/{id}/polls` - Get lecture polls
-- `POST /api/polls/{id}/vote` - Vote on poll
-- `GET /api/polls/{id}/results` - Get poll results
-
-## Socket.IO Events
-
-### WebRTC Signaling
-- `webrtc_offer` - Receive WebRTC offer
-- `webrtc_answer` - Receive WebRTC answer
-- `ice_candidate` - Receive ICE candidate
-
-### Session Management
-- `join_session` - Join live session
-- `leave_session` - Leave live session
-
-### Real-time Features
-- `chat_message` - Receive chat messages
-- `new_poll` - Receive new poll
-- `content_shared` - Receive shared content
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Cannot connect to backend**
-   - Check if backend server is running
-   - Verify IP address in api_service.dart
-   - Ensure device and server are on same network
-
-2. **Audio not working in live sessions**
-   - Grant microphone permissions
-   - Check if WebRTC is properly initialized
-   - Verify network connection stability
-
-3. **Login fails**
-   - Check email/password credentials
-   - Ensure backend authentication is working
-   - Verify network connectivity
-
-4. **Materials won't download**
-   - Check internet connection
-   - Verify file permissions
-   - Ensure device has storage space
-
-### Debug Mode
-Run the app in debug mode for detailed logs:
+### Code Generation
+Some files require code generation. Run this command when you add new models or providers:
 ```bash
-flutter run --debug
+flutter packages pub run build_runner build --delete-conflicting-outputs
 ```
 
-## Performance Optimizations
+### Linting
+The project uses strict linting rules. Run:
+```bash
+flutter analyze
+```
 
-### Low Bandwidth Features
-- Audio-only WebRTC (no video)
-- Compressed file downloads
-- Efficient Socket.IO communication
-- Minimal data usage for real-time features
+### Formatting
+Format code using:
+```bash
+flutter format .
+```
 
-### Mobile Optimizations
-- Proper memory management
-- Stream subscriptions cleanup
-- Efficient UI rendering
-- Battery usage optimization
+## 📦 Dependencies
 
-## Security Features
+### Core Dependencies
+- **flutter_riverpod**: State management and dependency injection
+- **go_router**: Declarative routing
+- **dio**: HTTP client with interceptors
+- **hive**: Local storage and caching
+- **socket_io_client**: Real-time communication
+- **flutter_webrtc**: Audio communication for live sessions
 
-- Session-based authentication
-- Secure cookie handling
-- HTTPS communication (when configured)
-- Input validation and sanitization
+### UI Dependencies
+- **shimmer**: Loading animations
+- **flutter_spinkit**: Loading indicators
+- **cached_network_image**: Image caching
+- **lottie**: Vector animations
 
-## Contributing
+### Development Dependencies
+- **mocktail**: Mocking for tests
+- **build_runner**: Code generation
+- **very_good_analysis**: Strict linting rules
+
+## 🌐 API Integration
+
+The app integrates with the Digi-Kul backend API:
+- **Authentication**: Session-based authentication with cookies
+- **Lectures**: CRUD operations for lectures and enrollments
+- **Materials**: File download and management
+- **Real-time**: Socket.IO for live sessions
+- **Offline**: Intelligent caching and sync strategies
+
+## 📱 Platform Support
+
+- **Android**: Minimum SDK 21 (Android 5.0)
+- **iOS**: Minimum iOS 12.0
+- **Web**: Limited support (WebRTC limitations)
+
+## 🔒 Security Features
+
+- **Session Management**: Secure session handling with automatic expiration
+- **Input Validation**: Client-side and server-side validation
+- **Error Handling**: Graceful error handling without exposing sensitive data
+- **Offline Security**: Secure local storage with encryption
+
+## 🎨 Design System
+
+### Colors
+- **Primary**: Indigo theme for education and trust
+- **Secondary**: Orange for highlights and calls-to-action
+- **Status Colors**: Success, warning, error, and info states
+- **Accessibility**: High contrast colors for readability
+
+### Typography
+- **Material Design 3**: Modern typography scale
+- **Responsive Text**: Scales appropriately for different screen sizes
+- **Accessibility**: Proper text contrast ratios
+
+### Components
+- **Consistent Styling**: Unified design language across all components
+- **Accessibility**: Screen reader support and proper semantics
+- **Responsive**: Adaptive layouts for different screen sizes
+
+## 🚀 Performance Optimizations
+
+- **Image Caching**: Efficient image loading and caching
+- **Lazy Loading**: On-demand content loading
+- **Offline First**: Local-first data strategy
+- **Bundle Optimization**: Tree-shaking and code splitting
+- **Memory Management**: Proper disposal of resources
+
+## 📈 Monitoring and Analytics
+
+- **Error Tracking**: Comprehensive error logging
+- **Performance Monitoring**: App performance metrics
+- **User Analytics**: Privacy-focused usage analytics (optional)
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+### Development Guidelines
+- Follow the existing code style and architecture
+- Write tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting
 
-This project is part of the Digi-Kul educational platform.
+## 📄 License
 
-## Support
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-For technical support or questions:
-- Check the troubleshooting section
-- Review the backend documentation
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
 - Contact the development team
+- Check the documentation
+
+## 🔄 Version History
+
+### v1.0.0 (Current)
+- Initial release with core features
+- Authentication and session management
+- Offline capability with local storage
+- Real-time communication infrastructure
+- Comprehensive test coverage
+- Production-ready architecture
+
+## 🎯 Roadmap
+
+### Future Enhancements
+- [ ] Push notifications
+- [ ] Advanced offline synchronization
+- [ ] Video support for live sessions
+- [ ] Enhanced accessibility features
+- [ ] Multi-language support
+- [ ] Dark mode theme
+- [ ] Advanced analytics dashboard
 
 ---
 
-**Note**: This app is designed for educational purposes and is optimized for low-bandwidth environments typical in rural educational institutions.
+**Built with ❤️ for educational excellence**
