@@ -19,7 +19,7 @@ class SupabaseDatabaseManager:
     
     def init_database(self):
         """Initialize database - tables should be created via SQL schema"""
-        # This method is kept for compatibility but tables are created via SQL
+
         pass
     
     # Teacher methods

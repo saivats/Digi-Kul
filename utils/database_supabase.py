@@ -747,6 +747,110 @@ class SupabaseDatabaseManager:
         except Exception as e:
             return False, str(e)
 
+    # Session Recording Methods
+    def create_session_recording(self, recording_id: str, session_id: str, lecture_id: str, 
+                                teacher_id: str, recording_type: str, started_at: str, 
+                                stopped_at: str, duration: int, recording_path: str, 
+                                participants: Dict, stats: Dict) -> Tuple[bool, str]:
+        """Create a new session recording"""
+        try:
+            recording_data = {
+                'id': recording_id,
+                'session_id': session_id,
+                'lecture_id': lecture_id,
+                'teacher_id': teacher_id,
+                'recording_type': recording_type,
+                'started_at': started_at,
+                'stopped_at': stopped_at,
+                'duration': duration,
+                'recording_path': recording_path,
+                'participants': participants,
+                'stats': stats,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('session_recordings').insert(recording_data).execute()
+            
+            if result.data:
+                return True, "Recording saved successfully"
+            else:
+                return False, "Failed to save recording"
+                
+        except Exception as e:
+            return False, str(e)
+
+    def get_recording_by_id(self, recording_id: str) -> Optional[Dict]:
+        """Get recording by ID"""
+        try:
+            result = self.supabase.table('session_recordings').select('*').eq('id', recording_id).single().execute()
+            return result.data if result.data else None
+        except Exception:
+            return None
+
+    def get_lecture_recordings(self, lecture_id: str) -> List[Dict]:
+        """Get all recordings for a lecture"""
+        try:
+            result = self.supabase.table('session_recordings').select('*').eq('lecture_id', lecture_id).order('started_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception:
+            return []
+
+    def get_teacher_recordings(self, teacher_id: str) -> List[Dict]:
+        """Get all recordings for a teacher"""
+        try:
+            result = self.supabase.table('session_recordings').select('*').eq('teacher_id', teacher_id).order('started_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception:
+            return []
+
+    def delete_recording(self, recording_id: str) -> Tuple[bool, str]:
+        """Delete a recording"""
+        try:
+            self.supabase.table('session_recordings').delete().eq('id', recording_id).execute()
+            return True, "Recording deleted successfully"
+        except Exception as e:
+            return False, str(e)
+
+    def get_old_recordings(self, cutoff_date: str) -> List[Dict]:
+        """Get recordings older than cutoff date"""
+        try:
+            result = self.supabase.table('session_recordings').select('*').lt('started_at', cutoff_date).execute()
+            return result.data if result.data else []
+        except Exception:
+            return []
+
+    def create_recording_chunk(self, recording_id: str, user_id: str, chunk_type: str, 
+                              chunk_path: str, timestamp: str, file_size: int) -> Tuple[bool, str]:
+        """Create a recording chunk record"""
+        try:
+            chunk_data = {
+                'recording_id': recording_id,
+                'user_id': user_id,
+                'chunk_type': chunk_type,
+                'chunk_path': chunk_path,
+                'timestamp': timestamp,
+                'file_size': file_size,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('recording_chunks').insert(chunk_data).execute()
+            
+            if result.data:
+                return True, "Chunk saved successfully"
+            else:
+                return False, "Failed to save chunk"
+                
+        except Exception as e:
+            return False, str(e)
+
+    def get_recording_chunks(self, recording_id: str) -> List[Dict]:
+        """Get all chunks for a recording"""
+        try:
+            result = self.supabase.table('recording_chunks').select('*').eq('recording_id', recording_id).order('timestamp').execute()
+            return result.data if result.data else []
+        except Exception:
+            return []
+
 
 # Create a global instance for compatibility
 DatabaseManager = SupabaseDatabaseManager

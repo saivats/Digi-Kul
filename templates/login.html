@@ -1,179 +1,380 @@
 {% extends 'base.html' %}
-{% block title %}Login • Digi Kul{% endblock %}
+{% block title %}Login • Digi Kul Portal{% endblock %}
+
 {% block content %}
-<div class="login-container" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); position: relative; overflow: hidden; margin: -2rem -1rem; padding: 2rem 1rem;">
-  <!-- Background Elements -->
-  <div class="bg-elements" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 1;">
-    <div class="bg-circle" style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.1); border-radius: 50%; animation: float 6s ease-in-out infinite;"></div>
-    <div class="bg-circle" style="position: absolute; bottom: -80px; left: -80px; width: 300px; height: 300px; background: rgba(255,255,255,0.05); border-radius: 50%; animation: float 8s ease-in-out infinite reverse;"></div>
-    <div class="bg-circle" style="position: absolute; top: 50%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.08); border-radius: 50%; animation: float 4s ease-in-out infinite;"></div>
-  </div>
-  
-  <div class="card" style="max-width: 450px; margin: 2rem; position: relative; z-index: 2; backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 25px 50px rgba(0,0,0,0.15);">
-    <div class="card-header" style="text-align: center; padding: 2rem 2rem 1rem 2rem;">
-      <div class="logo-container" style="margin-bottom: 1rem;">
-        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 20px; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);">
-          <span style="font-size: 2.5rem; color: white;">🎓</span>
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-lg">
+                <div class="card-header text-center bg-primary text-white">
+                    <h3 class="mb-1">🎓 Digi Kul Portal</h3>
+                    <p class="mb-0">Sign in to your account</p>
+                </div>
+                <div class="card-body p-4">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                <i class="bi bi-envelope me-2"></i>Email Address
+                            </label>
+                            <input type="email" class="form-control" id="email" required 
+                                   placeholder="Enter your email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i class="bi bi-lock me-2"></i>Password
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" required 
+                                       placeholder="Enter your password">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
+                                    <i class="bi bi-eye" id="passwordToggleIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userType" class="form-label">
+                                <i class="bi bi-person-badge me-2"></i>Login As
+                            </label>
+                            <select class="form-select" id="userType" required>
+                                <option value="">Select user type</option>
+                                <option value="teacher">👨‍🏫 Teacher</option>
+                                <option value="student">👨‍🎓 Student</option>
+                                <option value="admin">👨‍💼 Admin</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">
+                                Remember me
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                        </button>
+                        
+                        <div class="text-center">
+                            <p class="text-muted mb-0">Don't have an account?</p>
+                            <a href="/register" class="btn btn-link">Create Account</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Additional Info Cards -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Need Help?</h6>
+                            <p class="card-text text-muted small">
+                                Contact your administrator if you're having trouble accessing your account.
+                            </p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <button class="btn btn-outline-primary btn-sm" onclick="showForgotPassword()">
+                                    <i class="bi bi-key me-1"></i>Forgot Password
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="showHelp()">
+                                    <i class="bi bi-question-circle me-1"></i>Help
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <h2 class="card-title" style="margin-bottom: 0.5rem; color: var(--gray-900);">{% if admin_mode %}Admin Login{% else %}Welcome Back{% endif %}</h2>
-      <p class="card-subtitle" style="color: var(--gray-600);">{% if admin_mode %}Access admin dashboard{% else %}Sign in to your Digi Kul account{% endif %}</p>
     </div>
-    <div class="card-body" style="padding: 1rem 2rem 2rem 2rem;">
-      <form id="loginForm" onsubmit="login(event)">
-        <div class="form-group">
-          <label for="email" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">📧</span>
-            Email Address
-          </label>
-          <input type="email" name="email" id="email" placeholder="Enter your email address" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50);" />
-        </div>
-        <div class="form-group">
-          <label for="password" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">🔒</span>
-            Password
-          </label>
-          <div style="position: relative;">
-            <input type="password" name="password" id="password" placeholder="Enter your password" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50); width: 100%;" />
-            <button type="button" onclick="togglePassword()" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--gray-500);">👁️</button>
-          </div>
-        </div>
-        {% if admin_mode %}
-          <input type="hidden" id="user_type" value="admin" />
-        {% else %}
-          <div class="form-group">
-            <label for="user_type" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-              <span style="font-size: 1.2rem;">👤</span>
-              User Type
-            </label>
-            <select id="user_type" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50); width: 100%;">
-              <option value="">Select your role</option>
-              <option value="teacher">👨‍🏫 Teacher</option>
-              <option value="student">👨‍🎓 Student</option>
-            </select>
-          </div>
-        {% endif %}
-        <div class="form-group" style="margin-top: 1.5rem;">
-          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: 600; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--secondary)); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
-            <span style="margin-right: 0.5rem;">🚀</span>
-            Sign In
-          </button>
-        </div>
-      </form>
-      <div id="loginError" class="alert error" style="display:none; margin-top: 1rem; border-radius: 12px; padding: 1rem;"></div>
-      
-      {% if not admin_mode %}
-      <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
-        <p style="color: var(--gray-600); margin-bottom: 0.5rem;">Need admin access?</p>
-        <a href="/admin_login" style="color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 8px; background: rgba(102, 126, 234, 0.1); transition: all 0.3s ease;">
-          <span>🔑</span>
-          Admin Login
-        </a>
-      </div>
-      {% endif %}
-    </div>
-  </div>
 </div>
 
-<style>
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-}
+<!-- Forgot Password Modal -->
+<div class="modal fade" id="forgotPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Forgot Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="forgotPasswordForm">
+                    <div class="mb-3">
+                        <label for="forgotEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="forgotEmail" required 
+                               placeholder="Enter your email address">
+                    </div>
+                    <div class="mb-3">
+                        <label for="forgotUserType" class="form-label">User Type</label>
+                        <select class="form-select" id="forgotUserType" required>
+                            <option value="">Select user type</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="student">Student</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="resetPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-.login-container input:focus,
-.login-container select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  background: var(--white);
-}
-
-.login-container .btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
-}
-
-.bg-elements .bg-circle {
-  animation-duration: 6s;
-}
-
-.bg-elements .bg-circle:nth-child(2) {
-  animation-duration: 8s;
-  animation-delay: -2s;
-}
-
-.bg-elements .bg-circle:nth-child(3) {
-  animation-duration: 4s;
-  animation-delay: -1s;
-}
-</style>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add fade-in animation
+    document.querySelector('.card').style.opacity = '0';
+    document.querySelector('.card').style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        document.querySelector('.card').style.transition = 'all 0.5s ease';
+        document.querySelector('.card').style.opacity = '1';
+        document.querySelector('.card').style.transform = 'translateY(0)';
+    }, 100);
+    
+    // Focus on email field
+    document.getElementById('email').focus();
+});
+
+// Toggle password visibility
 function togglePassword() {
-  const passwordInput = document.getElementById('password');
-  const toggleButton = passwordInput.nextElementSibling;
-  
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    toggleButton.textContent = '🙈';
-  } else {
-    passwordInput.type = 'password';
-    toggleButton.textContent = '👁️';
-  }
+    const passwordField = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+    
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        toggleIcon.className = 'bi bi-eye-slash';
+    } else {
+        passwordField.type = 'password';
+        toggleIcon.className = 'bi bi-eye';
+    }
 }
 
-async function login(e){
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const user_type = document.getElementById('user_type').value;
-  const errorBox = document.getElementById('loginError');
-  const submitButton = document.querySelector('button[type="submit"]');
-  
-  errorBox.style.display = 'none';
-  
-  // Add loading state
-  const originalText = submitButton.innerHTML;
-  submitButton.innerHTML = '<span style="margin-right: 0.5rem;">⏳</span>Signing In...';
-  submitButton.disabled = true;
-  
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ email, password, user_type })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success){
-      errorBox.textContent = data.error || 'Login failed';
-      errorBox.style.display = 'block';
-      return;
+// Handle form submission
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const userType = document.getElementById('userType').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
+    
+    // Basic validation
+    if (!email || !password || !userType) {
+        showToast('Please fill in all fields', 'error');
+        return;
     }
     
-    // Success animation
-    submitButton.innerHTML = '<span style="margin-right: 0.5rem;">✅</span>Success!';
-    submitButton.style.background = 'linear-gradient(135deg, var(--success), #059669)';
+    // Show loading state
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Signing In...';
+    submitBtn.disabled = true;
     
-    setTimeout(() => {
-      window.location.href = data.redirect_url || '/';
-    }, 1000);
-    
-  } catch (err){
-    errorBox.textContent = 'Network error';
-    errorBox.style.display = 'block';
-  } finally {
-    // Reset button state
-    setTimeout(() => {
-      submitButton.innerHTML = originalText;
-      submitButton.disabled = false;
-      submitButton.style.background = 'linear-gradient(135deg, var(--primary), var(--secondary))';
-    }, 2000);
-  }
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                email, 
+                password, 
+                user_type: userType,
+                remember_me: rememberMe
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Login successful! Redirecting...', 'success');
+            
+            // Add a small delay for better UX
+            setTimeout(() => {
+                window.location.href = data.redirect_url || '/dashboard';
+            }, 1000);
+        } else {
+            showToast(data.error || 'Login failed. Please check your credentials.', 'error');
+            
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            
+            // Clear password field on error
+            document.getElementById('password').value = '';
+            document.getElementById('password').focus();
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showToast('Network error. Please try again.', 'error');
+        
+        // Reset button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+// Show forgot password modal
+function showForgotPassword() {
+    const modal = new bootstrap.Modal(document.getElementById('forgotPasswordModal'));
+    modal.show();
 }
+
+// Reset password
+async function resetPassword() {
+    const email = document.getElementById('forgotEmail').value.trim();
+    const userType = document.getElementById('forgotUserType').value;
+    
+    if (!email || !userType) {
+        showToast('Please fill in all fields', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/auth/reset-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, user_type: userType })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Password reset email sent! Check your inbox.', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
+            document.getElementById('forgotPasswordForm').reset();
+        } else {
+            showToast(data.error || 'Failed to send reset email', 'error');
+        }
+    } catch (error) {
+        console.error('Reset password error:', error);
+        showToast('Network error. Please try again.', 'error');
+    }
+}
+
+// Show help
+function showHelp() {
+    showToast('Contact your system administrator for assistance with login issues.', 'info');
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// Handle Enter key for better UX
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement.form) {
+            activeElement.form.dispatchEvent(new Event('submit'));
+        }
+    }
+});
+
+// Auto-focus on user type selection
+document.getElementById('userType').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('rememberMe').focus();
+    }
+});
 </script>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+}
+
+.input-group .btn {
+    border-color: #ced4da;
+}
+
+.input-group .btn:hover {
+    background-color: #e9ecef;
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+</style>
 {% endblock %}
-
-
-
