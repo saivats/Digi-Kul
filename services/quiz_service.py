@@ -7,11 +7,13 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from utils.database_supabase import DatabaseManager
+from utils.email_service import EmailService
 
 class QuizService:
-    def __init__(self, db: DatabaseManager):
-        """Initialize quiz service with database"""
+    def __init__(self, db: DatabaseManager, email_service: EmailService = None):
+        """Initialize quiz service with database and email service"""
         self.db = db
+        self.email_service = email_service
     
     def create_quiz_set(self, title: str, description: str, cohort_id: str, 
                        teacher_id: str, time_limit: Optional[int] = None,

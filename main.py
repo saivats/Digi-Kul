@@ -3,6 +3,10 @@ Main Application Entry Point
 This is the new entry point for the Digi Kul Teachers Portal application.
 """
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, flash, make_response
 from flask_cors import CORS
 try:
@@ -41,6 +45,8 @@ from routes.auth_routes import auth_bp
 from routes.cohort_routes import cohort_bp
 from routes.lecture_routes import lecture_bp
 from routes.quiz_routes import quiz_bp
+from routes.super_admin_routes import super_admin_bp
+from routes.institution_routes import institution_bp
 # from routes.admin_routes import admin_bp  # TODO: Create admin routes
 
 # Initialize the database
@@ -120,6 +126,8 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(cohort_bp, url_prefix='/api/cohorts')
 app.register_blueprint(lecture_bp, url_prefix='/api/lectures')
 app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
+app.register_blueprint(super_admin_bp)
+app.register_blueprint(institution_bp)
 # app.register_blueprint(admin_bp, url_prefix='/api/admin')  # TODO: Create admin routes
 
 # ==================== BASIC ROUTES ====================

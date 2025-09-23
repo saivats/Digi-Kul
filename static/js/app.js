@@ -111,7 +111,10 @@ function setupEventListeners() {
 // Toast notification system
 function showToast(message, type = 'info', duration = 5000) {
     const toastContainer = document.getElementById('toastContainer');
-    if (!toastContainer) return;
+    if (!toastContainer) {
+        console.error('Toast container not found');
+        return;
+    }
     
     const toastId = 'toast-' + Date.now();
     

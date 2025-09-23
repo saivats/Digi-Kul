@@ -62,7 +62,8 @@
                         
                         <div class="text-center">
                             <p class="text-muted mb-0">Don't have an account?</p>
-                            <a href="/register" class="btn btn-link">Create Account</a>
+                            <p class="text-muted small">Contact your administrator to create an account for you.</p>
+                            <button class="btn btn-link" onclick="showContactInfo()">Contact Admin</button>
                         </div>
                     </form>
                 </div>
@@ -269,6 +270,11 @@ async function resetPassword() {
 // Show help
 function showHelp() {
     showToast('Contact your system administrator for assistance with login issues.', 'info');
+}
+
+// Show contact info
+function showContactInfo() {
+    showToast('Please contact your system administrator to create an account. Only administrators can register new users.', 'info');
 }
 
 // Toast notification function

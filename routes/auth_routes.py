@@ -38,7 +38,11 @@ def admin_login_page():
 
 @auth_bp.route('/register')
 def register_page():
-    """Registration page"""
+    """Registration page - Admin only access"""
+    # Redirect to login if not admin
+    if session.get('user_type') != 'admin':
+        flash('Only administrators can access user registration. Please contact your admin to create an account.', 'info')
+        return redirect(url_for('auth.login_page'))
     return render_template('register.html')
 
 @auth_bp.route('/api/register/teacher', methods=['POST'])

@@ -17,12 +17,12 @@
                     through interactive live sessions, comprehensive quizzes, and collaborative learning.
                 </p>
                 <div class="d-flex gap-3">
-                    <a href="/register" class="btn btn-light btn-lg">
-                        <i class="bi bi-person-plus me-2"></i>Get Started
-                    </a>
-                    <a href="/login" class="btn btn-outline-light btn-lg">
+                    <a href="/login" class="btn btn-light btn-lg">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </a>
+                    <button class="btn btn-outline-light btn-lg" onclick="showContactInfo()">
+                        <i class="bi bi-info-circle me-2"></i>Need Access?
+                    </button>
                 </div>
             </div>
             <div class="col-lg-6 text-center">
@@ -165,9 +165,9 @@
                             <li><i class="bi bi-check-circle text-success me-2"></i>Track your progress</li>
                             <li><i class="bi bi-check-circle text-success me-2"></i>Connect with peers</li>
                         </ul>
-                        <a href="/register" class="btn btn-primary">
-                            <i class="bi bi-person-plus me-2"></i>Join as Student
-                        </a>
+                        <button class="btn btn-primary" onclick="showContactInfo()">
+                            <i class="bi bi-info-circle me-2"></i>Contact Admin for Access
+                        </button>
                     </div>
                 </div>
             </div>
@@ -190,9 +190,9 @@
                             <li><i class="bi bi-check-circle text-success me-2"></i>Upload resources</li>
                             <li><i class="bi bi-check-circle text-success me-2"></i>Track student progress</li>
                         </ul>
-                        <a href="/register" class="btn btn-success">
-                            <i class="bi bi-person-plus me-2"></i>Join as Teacher
-                        </a>
+                        <button class="btn btn-success" onclick="showContactInfo()">
+                            <i class="bi bi-info-circle me-2"></i>Contact Admin for Access
+                        </button>
                     </div>
                 </div>
             </div>
@@ -270,12 +270,12 @@
                     to create engaging and effective learning experiences.
                 </p>
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    <a href="/register" class="btn btn-light btn-lg">
-                        <i class="bi bi-rocket-takeoff me-2"></i>Start Your Journey
-                    </a>
-                    <a href="/login" class="btn btn-outline-light btn-lg">
+                    <a href="/login" class="btn btn-light btn-lg">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </a>
+                    <button class="btn btn-outline-light btn-lg" onclick="showContactInfo()">
+                        <i class="bi bi-info-circle me-2"></i>Need Access?
+                    </button>
                 </div>
             </div>
         </div>
@@ -298,7 +298,13 @@
                     <a href="#" class="text-white me-3"><i class="bi bi-facebook"></i></a>
                     <a href="#" class="text-white me-3"><i class="bi bi-twitter"></i></a>
                     <a href="#" class="text-white me-3"><i class="bi bi-linkedin"></i></a>
-                    <a href="#" class="text-white"><i class="bi bi-github"></i></a>
+                    <a href="https://github.com/Abhigyan-GG" target="_blank" class="text-white me-3" title="Visit GitHub Profile">
+                        <i class="bi bi-github"></i>
+                    </a>
+                    <!-- Hidden Super Admin Access -->
+                    <button class="btn btn-outline-warning btn-sm" onclick="accessSuperAdmin()" style="opacity: 0.6;" title="Super Admin Access">
+                        <i class="bi bi-gear-fill"></i>
+                    </button>
                 </div>
                 <p class="text-muted mt-3 mb-0">
                     &copy; 2024 Digi Kul Portal. All rights reserved.
@@ -377,6 +383,16 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         }
     });
 });
+
+// Show contact info
+function showContactInfo() {
+    alert('Contact your system administrator to create an account.\n\nOnly administrators can register new users in the system.\n\nIf you need access, please reach out to your admin.');
+}
+
+function accessSuperAdmin() {
+    // Hidden super admin access - redirect directly
+    window.location.href = '/super_admin/login';
+}
 </script>
 
 <style>

@@ -737,5 +737,320 @@ class SupabaseDatabaseManager:
             return None
 
 
+    # Institution Management Methods
+    def get_all_institutions(self) -> List[Dict[str, Any]]:
+        """Get all institutions"""
+        try:
+            result = self.supabase.table('institutions').select('*').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting institutions: {e}")
+            return []
+    
+    def get_institution_by_id(self, institution_id: str) -> Optional[Dict[str, Any]]:
+        """Get institution by ID"""
+        try:
+            result = self.supabase.table('institutions').select('*').eq('id', institution_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting institution: {e}")
+            return None
+    
+    def get_institution_by_domain(self, domain: str) -> Optional[Dict[str, Any]]:
+        """Get institution by domain"""
+        try:
+            result = self.supabase.table('institutions').select('*').eq('domain', domain).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting institution by domain: {e}")
+            return None
+    
+    def create_institution(self, name: str, domain: str, subdomain: str = None, 
+                          logo_url: str = None, primary_color: str = '#007bff',
+                          secondary_color: str = '#6c757d', description: str = None,
+                          contact_email: str = None, created_by: str = None) -> Optional[str]:
+        """Create a new institution"""
+        try:
+            institution_data = {
+                'name': name,
+                'domain': domain,
+                'subdomain': subdomain,
+                'logo_url': logo_url,
+                'primary_color': primary_color,
+                'secondary_color': secondary_color,
+                'description': description,
+                'contact_email': contact_email,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('institutions').insert(institution_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating institution: {e}")
+            return None
+    
+    def update_institution(self, institution_id: str, **kwargs) -> bool:
+        """Update institution"""
+        try:
+            kwargs['updated_at'] = datetime.now().isoformat()
+            result = self.supabase.table('institutions').update(kwargs).eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating institution: {e}")
+            return False
+    
+    def delete_institution(self, institution_id: str) -> bool:
+        """Delete institution"""
+        try:
+            result = self.supabase.table('institutions').delete().eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error deleting institution: {e}")
+            return False
+    
+    def update_institution_status(self, institution_id: str, is_active: bool) -> bool:
+        """Update institution active status"""
+        try:
+            result = self.supabase.table('institutions').update({
+                'is_active': is_active,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating institution status: {e}")
+            return False
+    
+    def get_institution_stats(self, institution_id: str) -> Dict[str, Any]:
+        """Get institution statistics"""
+        try:
+            # Get user counts
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').eq('institution', institution_id).execute()
+            students_result = self.supabase.table('students').select('id', count='exact').eq('institution', institution_id).execute()
+            
+            return {
+                'total_users': (teachers_result.count or 0) + (students_result.count or 0),
+                'teachers': teachers_result.count or 0,
+                'students': students_result.count or 0
+            }
+        except Exception as e:
+            print(f"Error getting institution stats: {e}")
+            return {'total_users': 0, 'teachers': 0, 'students': 0}
+    
+    def create_institution_admin(self, institution_id: str, name: str, email: str, 
+                                password_hash: str, created_by: str = None) -> Optional[str]:
+        """Create institution admin (not super admin)"""
+        try:
+            admin_data = {
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'institution_id': institution_id,
+                'user_type': 'admin',
+                'is_active': True,
+                'created_by': created_by,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('institution_admins').insert(admin_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating institution admin: {e}")
+            return None
+    
+    def get_institution_users(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all users for an institution"""
+        try:
+            users = []
+            
+            # Get teachers
+            teachers = self.supabase.table('teachers').select('*').eq('institution', institution_id).execute()
+            if teachers.data:
+                for teacher in teachers.data:
+                    teacher['user_type'] = 'teacher'
+                    users.append(teacher)
+            
+            # Get students
+            students = self.supabase.table('students').select('*').eq('institution', institution_id).execute()
+            if students.data:
+                for student in students.data:
+                    student['user_type'] = 'student'
+                    users.append(student)
+            
+            return users
+        except Exception as e:
+            print(f"Error getting institution users: {e}")
+            return []
+    
+    # Super Admin Management Methods
+    def get_super_admin_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get super admin by email"""
+        try:
+            result = self.supabase.table('super_admins').select('*').eq('email', email).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting super admin: {e}")
+            return None
+    
+    def get_all_super_admins(self) -> List[Dict[str, Any]]:
+        """Get all super admins"""
+        try:
+            result = self.supabase.table('super_admins').select('*').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting super admins: {e}")
+            return []
+    
+    def create_super_admin(self, name: str, email: str, password_hash: str) -> Optional[str]:
+        """Create a new super admin"""
+        try:
+            admin_data = {
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('super_admins').insert(admin_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating super admin: {e}")
+            return None
+    
+    def update_super_admin_last_login(self, admin_id: str) -> bool:
+        """Update super admin last login"""
+        try:
+            result = self.supabase.table('super_admins').update({
+                'last_login': datetime.now().isoformat()
+            }).eq('id', admin_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating super admin last login: {e}")
+            return False
+    
+    def update_super_admin_status(self, admin_id: str, is_active: bool) -> bool:
+        """Update super admin status"""
+        try:
+            result = self.supabase.table('super_admins').update({
+                'is_active': is_active,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', admin_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating super admin status: {e}")
+            return False
+    
+    # Platform Statistics
+    def get_platform_stats(self) -> Dict[str, Any]:
+        """Get platform-wide statistics"""
+        try:
+            # Get institution count
+            institutions_result = self.supabase.table('institutions').select('id', count='exact').execute()
+            
+            # Get user counts
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').execute()
+            students_result = self.supabase.table('students').select('id', count='exact').execute()
+            
+            # Get lecture count
+            lectures_result = self.supabase.table('lectures').select('id', count='exact').execute()
+            
+            return {
+                'institutions': institutions_result.count or 0,
+                'total_users': (teachers_result.count or 0) + (students_result.count or 0),
+                'teachers': teachers_result.count or 0,
+                'students': students_result.count or 0,
+                'active_lectures': lectures_result.count or 0,
+                'total_quizzes': 0  # Placeholder
+            }
+        except Exception as e:
+            print(f"Error getting platform stats: {e}")
+            return {
+                'institutions': 0,
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'active_lectures': 0,
+                'total_quizzes': 0
+            }
+    
+    def get_platform_analytics(self) -> Dict[str, Any]:
+        """Get platform analytics data"""
+        try:
+            # This is a simplified version - you can expand this
+            return {
+                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'growth_data': [0, 1, 2, 3, 5, 8],
+                'user_counts': {
+                    'teachers': 0,
+                    'students': 0,
+                    'admins': 0
+                }
+            }
+        except Exception as e:
+            print(f"Error getting platform analytics: {e}")
+            return {
+                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'growth_data': [0, 1, 2, 3, 5, 8],
+                'user_counts': {'teachers': 0, 'students': 0, 'admins': 0}
+            }
+    
+    def get_activity_logs(self, page: int = 1, per_page: int = 50, 
+                         institution_id: str = None, user_type: str = None) -> Dict[str, Any]:
+        """Get activity logs (placeholder implementation)"""
+        try:
+            # This is a placeholder - implement based on your activity logging system
+            return {
+                'logs': [],
+                'total': 0,
+                'pages': 0
+            }
+        except Exception as e:
+            print(f"Error getting activity logs: {e}")
+            return {'logs': [], 'total': 0, 'pages': 0}
+    
+    def export_institution_data(self, institution_id: str) -> Dict[str, Any]:
+        """Export institution data (placeholder implementation)"""
+        try:
+            # This is a placeholder - implement based on your needs
+            return {
+                'institution': {},
+                'users': [],
+                'lectures': [],
+                'materials': []
+            }
+        except Exception as e:
+            print(f"Error exporting institution data: {e}")
+            return {'institution': {}, 'users': [], 'lectures': [], 'materials': []}
+    
+    def get_platform_settings(self) -> Dict[str, Any]:
+        """Get platform settings (placeholder implementation)"""
+        try:
+            # This is a placeholder - implement based on your settings system
+            return {
+                'platform_name': 'DigiKul Platform',
+                'session_timeout': 60,
+                'max_file_size': 100,
+                'default_settings': '{"max_cohorts": 100, "max_teachers": 50, "max_students": 1000}'
+            }
+        except Exception as e:
+            print(f"Error getting platform settings: {e}")
+            return {
+                'platform_name': 'DigiKul Platform',
+                'session_timeout': 60,
+                'max_file_size': 100,
+                'default_settings': '{"max_cohorts": 100, "max_teachers": 50, "max_students": 1000}'
+            }
+    
+    def update_platform_settings(self, settings: Dict[str, Any]) -> bool:
+        """Update platform settings (placeholder implementation)"""
+        try:
+            # This is a placeholder - implement based on your settings system
+            return True
+        except Exception as e:
+            print(f"Error updating platform settings: {e}")
+            return False
+
 # Create a global instance for compatibility
 DatabaseManager = SupabaseDatabaseManager

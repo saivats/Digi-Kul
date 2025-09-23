@@ -8,9 +8,6 @@ Werkzeug==2.3.7
 supabase==1.0.4
 psycopg2-binary==2.9.7
 
-# Email
-smtplib-ssl==1.0.0
-
 # File Processing
 Pillow==10.0.1
 PyPDF2==3.0.1
@@ -18,7 +15,6 @@ pydub==0.25.1
 
 # Utilities
 python-dotenv==1.0.0
-uuid==1.30
 python-dateutil==2.8.2
 
 # Development
@@ -34,3 +30,7 @@ eventlet==0.33.3
 # Optional: For enhanced features
 redis==4.6.0
 celery==5.3.1
+
+# Additional useful packages
+requests==2.31.0
+python-socketio==5.8.0
