@@ -1,11 +1,4 @@
 class Quiz {
-  final String id;
-  final String lectureId;
-  final String question;
-  final List<String> options;
-  final String correctAnswer;
-  final DateTime createdAt;
-  final bool isActive;
 
   const Quiz({
     required this.id,
@@ -28,6 +21,13 @@ class Quiz {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String id;
+  final String lectureId;
+  final String question;
+  final List<String> options;
+  final String correctAnswer;
+  final DateTime createdAt;
+  final bool isActive;
 
   Map<String, dynamic> toJson() {
     return {
@@ -76,12 +76,6 @@ class Quiz {
 }
 
 class QuizResponse {
-  final String id;
-  final String studentId;
-  final String quizId;
-  final String response;
-  final bool? isCorrect;
-  final DateTime submittedAt;
 
   const QuizResponse({
     required this.id,
@@ -102,6 +96,12 @@ class QuizResponse {
       submittedAt: DateTime.tryParse(json['submitted_at'] ?? '') ?? DateTime.now(),
     );
   }
+  final String id;
+  final String studentId;
+  final String quizId;
+  final String response;
+  final bool? isCorrect;
+  final DateTime submittedAt;
 
   Map<String, dynamic> toJson() {
     return {

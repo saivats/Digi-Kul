@@ -1,9 +1,4 @@
 class Enrollment {
-  final String id;
-  final String studentId;
-  final String lectureId;
-  final DateTime enrolledAt;
-  final bool isActive;
 
   const Enrollment({
     required this.id,
@@ -22,6 +17,11 @@ class Enrollment {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String id;
+  final String studentId;
+  final String lectureId;
+  final DateTime enrolledAt;
+  final bool isActive;
 
   Map<String, dynamic> toJson() {
     return {

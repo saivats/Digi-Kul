@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import '../utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
 
 class LoadingOverlay extends StatelessWidget {
-  final Widget child;
-  final bool isLoading;
-  final String? message;
-  final Color? backgroundColor;
-  final Color? spinnerColor;
 
   const LoadingOverlay({
     super.key,
@@ -17,6 +12,11 @@ class LoadingOverlay extends StatelessWidget {
     this.backgroundColor,
     this.spinnerColor,
   });
+  final Widget child;
+  final bool isLoading;
+  final String? message;
+  final Color? backgroundColor;
+  final Color? spinnerColor;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class LoadingOverlay extends StatelessWidget {
       children: [
         child,
         if (isLoading)
-          Container(
+          ColoredBox(
             color: backgroundColor ?? AppColors.overlayMedium,
             child: Center(
               child: Container(
@@ -45,7 +45,6 @@ class LoadingOverlay extends StatelessWidget {
                   children: [
                     SpinKitFadingCircle(
                       color: spinnerColor ?? AppColors.primary,
-                      size: 50,
                     ),
                     if (message != null) ...[
                       const SizedBox(height: 16),

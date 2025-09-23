@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/loading_overlay.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
+import 'package:digikul_student_app/widgets/custom_text_field.dart';
+import 'package:digikul_student_app/widgets/custom_button.dart';
+import 'package:digikul_student_app/widgets/loading_overlay.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -42,20 +42,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     );
     
     _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-    ));
+      curve: const Interval(0, 0.6, curve: Curves.easeOut),
+    ),);
     
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-    ));
+      curve: const Interval(0.3, 1, curve: Curves.easeOut),
+    ),);
     
     _animationController.forward();
   }
@@ -71,7 +71,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     super.dispose();
   }
 
-  void _handleSignup() async {
+  Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
     
     if (!_acceptTerms) {
@@ -127,7 +127,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       body: LoadingOverlay(
         isLoading: _isLoading,
         message: 'Creating your account...',
-        child: Container(
+        child: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -145,7 +145,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                 constraints: BoxConstraints(minHeight: size.height - MediaQuery.of(context).padding.top),
                 child: IntrinsicHeight(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
                         const SizedBox(height: 20),
@@ -406,7 +406,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Text(
+                                        const Text(
                                           'Already have an account? ',
                                           style: AppTextStyles.bodyMedium,
                                         ),

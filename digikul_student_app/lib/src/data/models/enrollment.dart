@@ -6,6 +6,21 @@ part 'enrollment.g.dart';
 /// Enrollment model representing student enrollment in lectures
 @JsonSerializable()
 class Enrollment extends Equatable {
+
+  const Enrollment({
+    required this.id,
+    required this.studentId,
+    required this.lectureId,
+    required this.enrolledAt,
+    this.isActive = true,
+    this.lectureTitle,
+    this.teacherName,
+    this.scheduledTime,
+    this.duration,
+  });
+
+  factory Enrollment.fromJson(Map<String, dynamic> json) =>
+      _$EnrollmentFromJson(json);
   final String id;
   @JsonKey(name: 'student_id')
   final String studentId;
@@ -25,21 +40,6 @@ class Enrollment extends Equatable {
   final DateTime? scheduledTime;
   @JsonKey(name: 'duration')
   final int? duration;
-
-  const Enrollment({
-    required this.id,
-    required this.studentId,
-    required this.lectureId,
-    required this.enrolledAt,
-    this.isActive = true,
-    this.lectureTitle,
-    this.teacherName,
-    this.scheduledTime,
-    this.duration,
-  });
-
-  factory Enrollment.fromJson(Map<String, dynamic> json) =>
-      _$EnrollmentFromJson(json);
 
   Map<String, dynamic> toJson() => _$EnrollmentToJson(this);
 
@@ -119,8 +119,6 @@ class Enrollment extends Equatable {
 /// Enrollment request model
 @JsonSerializable()
 class EnrollmentRequest extends Equatable {
-  @JsonKey(name: 'lecture_id')
-  final String lectureId;
 
   const EnrollmentRequest({
     required this.lectureId,
@@ -128,6 +126,8 @@ class EnrollmentRequest extends Equatable {
 
   factory EnrollmentRequest.fromJson(Map<String, dynamic> json) =>
       _$EnrollmentRequestFromJson(json);
+  @JsonKey(name: 'lecture_id')
+  final String lectureId;
 
   Map<String, dynamic> toJson() => _$EnrollmentRequestToJson(this);
 
@@ -138,12 +138,6 @@ class EnrollmentRequest extends Equatable {
 /// Enrollment response model
 @JsonSerializable()
 class EnrollmentResponse extends Equatable {
-  final bool success;
-  final String message;
-  @JsonKey(name: 'enrollment_id')
-  final String? enrollmentId;
-  @JsonKey(name: 'already_enrolled')
-  final bool? alreadyEnrolled;
 
   const EnrollmentResponse({
     required this.success,
@@ -154,6 +148,12 @@ class EnrollmentResponse extends Equatable {
 
   factory EnrollmentResponse.fromJson(Map<String, dynamic> json) =>
       _$EnrollmentResponseFromJson(json);
+  final bool success;
+  final String message;
+  @JsonKey(name: 'enrollment_id')
+  final String? enrollmentId;
+  @JsonKey(name: 'already_enrolled')
+  final bool? alreadyEnrolled;
 
   Map<String, dynamic> toJson() => _$EnrollmentResponseToJson(this);
 
@@ -164,16 +164,6 @@ class EnrollmentResponse extends Equatable {
 /// Enrollment summary for dashboard
 @JsonSerializable()
 class EnrollmentSummary extends Equatable {
-  @JsonKey(name: 'total_enrollments')
-  final int totalEnrollments;
-  @JsonKey(name: 'active_enrollments')
-  final int activeEnrollments;
-  @JsonKey(name: 'upcoming_lectures')
-  final int upcomingLectures;
-  @JsonKey(name: 'live_lectures')
-  final int liveLectures;
-  @JsonKey(name: 'completed_lectures')
-  final int completedLectures;
 
   const EnrollmentSummary({
     this.totalEnrollments = 0,
@@ -185,6 +175,16 @@ class EnrollmentSummary extends Equatable {
 
   factory EnrollmentSummary.fromJson(Map<String, dynamic> json) =>
       _$EnrollmentSummaryFromJson(json);
+  @JsonKey(name: 'total_enrollments')
+  final int totalEnrollments;
+  @JsonKey(name: 'active_enrollments')
+  final int activeEnrollments;
+  @JsonKey(name: 'upcoming_lectures')
+  final int upcomingLectures;
+  @JsonKey(name: 'live_lectures')
+  final int liveLectures;
+  @JsonKey(name: 'completed_lectures')
+  final int completedLectures;
 
   Map<String, dynamic> toJson() => _$EnrollmentSummaryToJson(this);
 
@@ -201,6 +201,19 @@ class EnrollmentSummary extends Equatable {
 /// Cohort enrollment model
 @JsonSerializable()
 class CohortEnrollment extends Equatable {
+
+  const CohortEnrollment({
+    required this.id,
+    required this.cohortId,
+    required this.studentId,
+    required this.joinedAt,
+    this.cohortName,
+    this.cohortSubject,
+    this.teacherName,
+  });
+
+  factory CohortEnrollment.fromJson(Map<String, dynamic> json) =>
+      _$CohortEnrollmentFromJson(json);
   final String id;
   @JsonKey(name: 'cohort_id')
   final String cohortId;
@@ -216,19 +229,6 @@ class CohortEnrollment extends Equatable {
   final String? cohortSubject;
   @JsonKey(name: 'teacher_name')
   final String? teacherName;
-
-  const CohortEnrollment({
-    required this.id,
-    required this.cohortId,
-    required this.studentId,
-    required this.joinedAt,
-    this.cohortName,
-    this.cohortSubject,
-    this.teacherName,
-  });
-
-  factory CohortEnrollment.fromJson(Map<String, dynamic> json) =>
-      _$CohortEnrollmentFromJson(json);
 
   Map<String, dynamic> toJson() => _$CohortEnrollmentToJson(this);
 

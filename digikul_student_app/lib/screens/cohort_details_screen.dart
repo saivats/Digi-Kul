@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import '../models/cohort.dart';
-import '../models/lecture.dart';
-import '../services/api_service.dart';
-import 'lecture_details_screen.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/screens/lecture_details_screen.dart';
 
 // --- Theme Colors ---
 const Color primaryColor = Color(0xFF5247eb);
 const Color backgroundLight = Color(0xFFf6f6f8);
 
 class CohortDetailsScreen extends StatefulWidget {
-  final Cohort cohort;
   
   const CohortDetailsScreen({super.key, required this.cohort});
+  final Cohort cohort;
 
   @override
   State<CohortDetailsScreen> createState() => _CohortDetailsScreenState();
@@ -65,14 +65,14 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cohort Info Card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -166,16 +166,16 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
 }
 
 class _LectureCard extends StatelessWidget {
-  final Lecture lecture;
 
   const _LectureCard({required this.lecture});
+  final Lecture lecture;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 1.0,
+      elevation: 1,
       shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
@@ -184,9 +184,9 @@ class _LectureCard extends StatelessWidget {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

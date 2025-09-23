@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/socket_service.dart';
-import '../services/audio_service.dart';
-import '../services/api_service.dart';
+import 'package:digikul_student_app/services/socket_service.dart';
+import 'package:digikul_student_app/services/audio_service.dart';
+import 'package:digikul_student_app/services/api_service.dart';
 import 'dart:async';
 
 class LiveSessionScreen extends StatefulWidget {
-  final String sessionId;
-  final String lectureId;
-  final String lectureTitle;
-  final String teacherName;
 
   const LiveSessionScreen({
     super.key,
@@ -17,6 +13,10 @@ class LiveSessionScreen extends StatefulWidget {
     required this.lectureTitle,
     required this.teacherName,
   });
+  final String sessionId;
+  final String lectureId;
+  final String lectureTitle;
+  final String teacherName;
 
   @override
   State<LiveSessionScreen> createState() => _LiveSessionScreenState();
@@ -184,8 +184,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           id: data['poll_id'] ?? '',
           question: data['question'] ?? '',
           options: List<String>.from(data['options'] ?? []),
-          hasVoted: false,
-        ));
+        ),);
         _currentPollId = data['poll_id'];
       });
     });
@@ -199,9 +198,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
 
     // Error handling
-    _errorSubscription = _socketService.errorStream.listen((error) {
-      _showError(error);
-    });
+    _errorSubscription = _socketService.errorStream.listen(_showError);
 
   }
 
@@ -223,8 +220,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             id: poll.id,
             question: poll.question,
             options: poll.options,
-            hasVoted: false,
-          ));
+          ),);
         }
       });
     } catch (e) {
@@ -375,7 +371,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
                 Text('Failed to join session', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 8),
@@ -519,7 +515,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 
                 // Chat and polls sidebar
                 if (_showChat || _showPolls)
-                  Container(
+                  SizedBox(
                     width: 300,
                     child: Column(
                       children: [
@@ -579,7 +575,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Widget _buildCurrentPoll() {
     final poll = _polls.firstWhere(
       (p) => p.id == _currentPollId,
-      orElse: () => Poll(id: '', question: '', options: [], hasVoted: false),
+      orElse: () => Poll(id: '', question: '', options: []),
     );
 
     return Card(
@@ -609,7 +605,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 ),
                 child: Text(option),
               ),
-            ).toList(),
+            ),
           ],
         ),
       ),
@@ -629,11 +625,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.chat, color: Colors.indigo),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Live Chat',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -720,11 +716,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.poll, color: Colors.indigo),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Polls',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -762,7 +758,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           child: Text('• $option'),
                         ),
-                      ).toList(),
+                      ),
                       if (poll.hasVoted)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
@@ -797,10 +793,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
 // Data models for chat and polls
 class ChatMessage {
-  final String userName;
-  final String message;
-  final bool isFromTeacher;
-  final DateTime timestamp;
 
   ChatMessage({
     required this.userName,
@@ -817,13 +809,13 @@ class ChatMessage {
       timestamp: DateTime.now(),
     );
   }
+  final String userName;
+  final String message;
+  final bool isFromTeacher;
+  final DateTime timestamp;
 }
 
 class Poll {
-  final String id;
-  final String question;
-  final List<String> options;
-  bool hasVoted;
 
   Poll({
     required this.id,
@@ -839,4 +831,8 @@ class Poll {
       options: List<String>.from(json['options'] ?? []),
     );
   }
+  final String id;
+  final String question;
+  final List<String> options;
+  bool hasVoted;
 }

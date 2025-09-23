@@ -1,15 +1,12 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../models/cohort.dart';
-import '../models/lecture.dart';
-import '../services/api_service.dart';
-import '../services/offline_storage_service.dart';
+import 'package:digikul_student_app/src/data/models/cohort.dart';
+import 'package:digikul_student_app/src/data/models/lecture.dart';
+import 'package:digikul_student_app/src/data/services/api_service.dart';
+import 'package:digikul_student_app/src/data/services/offline_storage_service.dart';
 
 /// Repository for cohort-related operations
 class CohortRepository {
-  final ApiService _apiService;
-  final OfflineStorageService _storageService;
-  final Connectivity _connectivity;
 
   CohortRepository({
     ApiService? apiService,
@@ -18,6 +15,9 @@ class CohortRepository {
   })  : _apiService = apiService ?? ApiService(),
         _storageService = storageService ?? OfflineStorageService(),
         _connectivity = connectivity ?? Connectivity();
+  final ApiService _apiService;
+  final OfflineStorageService _storageService;
+  final Connectivity _connectivity;
 
   /// Get student's cohorts (with offline fallback)
   Future<List<Cohort>> getStudentCohorts({bool forceRefresh = false}) async {
@@ -98,7 +98,7 @@ class CohortRepository {
               cohort.name.toLowerCase().contains(lowercaseQuery) ||
               cohort.subject.toLowerCase().contains(lowercaseQuery) ||
               (cohort.teacherName?.toLowerCase().contains(lowercaseQuery) ?? false) ||
-              (cohort.description?.toLowerCase().contains(lowercaseQuery) ?? false))
+              (cohort.description?.toLowerCase().contains(lowercaseQuery) ?? false),)
           .toList();
     } catch (e) {
       rethrow;
@@ -111,7 +111,7 @@ class CohortRepository {
       final cohorts = await getStudentCohorts();
       return cohorts
           .where((cohort) => 
-              cohort.subject.toLowerCase() == subject.toLowerCase())
+              cohort.subject.toLowerCase() == subject.toLowerCase(),)
           .toList();
     } catch (e) {
       rethrow;
@@ -164,7 +164,7 @@ class CohortRepository {
               lastActivity: recentLectures
                   .map((l) => l.scheduledTime)
                   .reduce((a, b) => a.isAfter(b) ? a : b),
-            ));
+            ),);
           }
         } catch (e) {
           // Skip this cohort if we can't get its lectures
@@ -187,7 +187,7 @@ class CohortRepository {
       final cohorts = await getStudentCohorts();
       final subjects = cohorts.map((c) => c.subject).toSet();
       
-      int totalLectures = 0;
+      var totalLectures = 0;
       for (final cohort in cohorts) {
         try {
           final lectures = await getCohortLectures(cohort.id);
@@ -233,11 +233,6 @@ class CohortRepository {
 
 /// Cohort activity model
 class CohortActivity {
-  final String cohortId;
-  final String cohortName;
-  final CohortActivityType activityType;
-  final int activityCount;
-  final DateTime lastActivity;
 
   const CohortActivity({
     required this.cohortId,
@@ -246,6 +241,11 @@ class CohortActivity {
     required this.activityCount,
     required this.lastActivity,
   });
+  final String cohortId;
+  final String cohortName;
+  final CohortActivityType activityType;
+  final int activityCount;
+  final DateTime lastActivity;
 
   String get description {
     switch (activityType) {
@@ -273,10 +273,6 @@ enum CohortActivityType {
 
 /// Cohort statistics model
 class CohortStatistics {
-  final int totalCohorts;
-  final int totalSubjects;
-  final int totalLectures;
-  final List<String> subjects;
 
   const CohortStatistics({
     required this.totalCohorts,
@@ -284,6 +280,10 @@ class CohortStatistics {
     required this.totalLectures,
     required this.subjects,
   });
+  final int totalCohorts;
+  final int totalSubjects;
+  final int totalLectures;
+  final List<String> subjects;
 
   Map<String, dynamic> toJson() => {
         'total_cohorts': totalCohorts,

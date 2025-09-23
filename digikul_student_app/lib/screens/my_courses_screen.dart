@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/cohort.dart';
-import '../models/lecture.dart';
-import '../services/api_service.dart';
-import 'cohort_details_screen.dart'; // We will navigate here
-import 'lecture_details_screen.dart'; // We will navigate here
-import 'live_session_screen.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/screens/cohort_details_screen.dart'; // We will navigate here
+import 'package:digikul_student_app/screens/lecture_details_screen.dart'; // We will navigate here
+import 'package:digikul_student_app/screens/live_session_screen.dart';
 
 class MyCoursesScreen extends StatefulWidget {
   const MyCoursesScreen({super.key});
@@ -32,7 +32,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
     });
   }
 
-  void _showJoinLiveClassDialog() async {
+  Future<void> _showJoinLiveClassDialog() async {
     try {
       // Get all enrolled lectures
       final enrolledLectures = await ApiService.getEnrolledLectures();
@@ -98,13 +98,13 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: Colors.red,
-                            content: Text('Failed to join live class: ${e.toString()}'),
+                            content: Text('Failed to join live class: ${e}'),
                           ),
                         );
                       }
                     }
                   },
-                )),
+                ),),
               ],
             ),
             actions: [
@@ -121,7 +121,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red,
-            content: Text('Failed to load live classes: ${e.toString()}'),
+            content: Text('Failed to load live classes: ${e}'),
           ),
         );
       }
@@ -141,7 +141,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -160,7 +160,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),

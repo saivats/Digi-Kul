@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../models/poll.dart';
-import '../providers/poll_provider.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/models/poll.dart';
+import 'package:digikul_student_app/providers/poll_provider.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class PollCard extends ConsumerStatefulWidget {
-  final Poll poll;
-  final Function(String option)? onVote;
 
   const PollCard({
     super.key,
     required this.poll,
     this.onVote,
   });
+  final Poll poll;
+  final Function(String option)? onVote;
 
   @override
   ConsumerState<PollCard> createState() => _PollCardState();
@@ -273,7 +273,7 @@ class _PollCardState extends ConsumerState<PollCard> {
                     ),
                     if (isUserChoice) ...[
                       const SizedBox(width: 8),
-                      Icon(
+                      const Icon(
                         Icons.check_circle,
                         size: 16,
                         color: AppColors.primary,

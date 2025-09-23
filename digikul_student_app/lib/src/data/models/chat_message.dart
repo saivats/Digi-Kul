@@ -6,6 +6,25 @@ part 'chat_message.g.dart';
 /// Chat message model for live session discussions
 @JsonSerializable()
 class ChatMessage extends Equatable {
+
+  const ChatMessage({
+    required this.id,
+    this.sessionId,
+    this.lectureId,
+    required this.userId,
+    required this.userType,
+    required this.userName,
+    required this.message,
+    this.messageType = MessageType.text,
+    required this.createdAt,
+    this.isActive = true,
+    this.metadata,
+    this.status = MessageStatus.sent,
+    this.tempId,
+  });
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      _$ChatMessageFromJson(json);
   final String id;
   @JsonKey(name: 'session_id')
   final String? sessionId;
@@ -33,25 +52,6 @@ class ChatMessage extends Equatable {
   final MessageStatus status;
   @JsonKey(includeFromJson: false, includeToJson: false)
   final String? tempId;
-
-  const ChatMessage({
-    required this.id,
-    this.sessionId,
-    this.lectureId,
-    required this.userId,
-    required this.userType,
-    required this.userName,
-    required this.message,
-    this.messageType = MessageType.text,
-    required this.createdAt,
-    this.isActive = true,
-    this.metadata,
-    this.status = MessageStatus.sent,
-    this.tempId,
-  });
-
-  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
-      _$ChatMessageFromJson(json);
 
   Map<String, dynamic> toJson() => _$ChatMessageToJson(this);
 
@@ -183,14 +183,6 @@ enum MessageStatus {
 /// Chat message request for sending messages
 @JsonSerializable()
 class ChatMessageRequest extends Equatable {
-  @JsonKey(name: 'session_id')
-  final String? sessionId;
-  @JsonKey(name: 'lecture_id')
-  final String? lectureId;
-  final String message;
-  @JsonKey(name: 'message_type')
-  final MessageType messageType;
-  final Map<String, dynamic>? metadata;
 
   const ChatMessageRequest({
     this.sessionId,
@@ -202,6 +194,14 @@ class ChatMessageRequest extends Equatable {
 
   factory ChatMessageRequest.fromJson(Map<String, dynamic> json) =>
       _$ChatMessageRequestFromJson(json);
+  @JsonKey(name: 'session_id')
+  final String? sessionId;
+  @JsonKey(name: 'lecture_id')
+  final String? lectureId;
+  final String message;
+  @JsonKey(name: 'message_type')
+  final MessageType messageType;
+  final Map<String, dynamic>? metadata;
 
   Map<String, dynamic> toJson() => _$ChatMessageRequestToJson(this);
 
@@ -265,7 +265,7 @@ class SystemMessage {
       message: 'Live session has started',
       messageType: MessageType.system,
       createdAt: DateTime.now(),
-      metadata: {
+      metadata: const {
         'system_type': 'session_started',
       },
     );
@@ -280,7 +280,7 @@ class SystemMessage {
       message: 'Live session has ended',
       messageType: MessageType.system,
       createdAt: DateTime.now(),
-      metadata: {
+      metadata: const {
         'system_type': 'session_ended',
       },
     );
@@ -322,18 +322,6 @@ class SystemMessage {
 /// Chat statistics for session management
 @JsonSerializable()
 class ChatStatistics extends Equatable {
-  @JsonKey(name: 'total_messages')
-  final int totalMessages;
-  @JsonKey(name: 'student_messages')
-  final int studentMessages;
-  @JsonKey(name: 'teacher_messages')
-  final int teacherMessages;
-  @JsonKey(name: 'system_messages')
-  final int systemMessages;
-  @JsonKey(name: 'active_participants')
-  final int activeParticipants;
-  @JsonKey(name: 'last_activity')
-  final DateTime? lastActivity;
 
   const ChatStatistics({
     this.totalMessages = 0,
@@ -346,6 +334,18 @@ class ChatStatistics extends Equatable {
 
   factory ChatStatistics.fromJson(Map<String, dynamic> json) =>
       _$ChatStatisticsFromJson(json);
+  @JsonKey(name: 'total_messages')
+  final int totalMessages;
+  @JsonKey(name: 'student_messages')
+  final int studentMessages;
+  @JsonKey(name: 'teacher_messages')
+  final int teacherMessages;
+  @JsonKey(name: 'system_messages')
+  final int systemMessages;
+  @JsonKey(name: 'active_participants')
+  final int activeParticipants;
+  @JsonKey(name: 'last_activity')
+  final DateTime? lastActivity;
 
   Map<String, dynamic> toJson() => _$ChatStatisticsToJson(this);
 

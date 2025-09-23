@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/cohort.dart';
-import '../models/lecture.dart';
-import '../models/material.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/models/material.dart';
 
 // Dynamic base URL - can be configured based on environment
 String getBaseUrl() {
@@ -24,9 +24,9 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      final String? rawCookie = response.headers['set-cookie'];
+      final rawCookie = response.headers['set-cookie'];
       if (rawCookie != null) {
-        int index = rawCookie.indexOf(';');
+        final var index = rawCookie.indexOf(';');
         _sessionCookie = (index == -1) ? rawCookie : rawCookie.substring(0, index);
         return true;
       }
@@ -277,10 +277,6 @@ class ApiService {
 
 // Poll model
 class Poll {
-  final String id;
-  final String question;
-  final List<String> options;
-  final DateTime createdAt;
 
   Poll({
     required this.id,
@@ -297,14 +293,14 @@ class Poll {
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     );
   }
+  final String id;
+  final String question;
+  final List<String> options;
+  final DateTime createdAt;
 }
 
 // Poll results model
 class PollResults {
-  final String pollId;
-  final String question;
-  final int totalVotes;
-  final List<PollOptionResult> results;
 
   PollResults({
     required this.pollId,
@@ -323,12 +319,13 @@ class PollResults {
           .toList(),
     );
   }
+  final String pollId;
+  final String question;
+  final int totalVotes;
+  final List<PollOptionResult> results;
 }
 
 class PollOptionResult {
-  final String option;
-  final int votes;
-  final double percentage;
 
   PollOptionResult({
     required this.option,
@@ -343,4 +340,7 @@ class PollOptionResult {
       percentage: (json['percentage'] ?? 0.0).toDouble(),
     );
   }
+  final String option;
+  final int votes;
+  final double percentage;
 }

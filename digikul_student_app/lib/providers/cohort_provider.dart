@@ -1,15 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/cohort.dart';
-import '../models/lecture.dart';
-import '../services/api_service_new.dart';
-import 'auth_provider.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/services/api_service_new.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
 
 // Cohorts state
 class CohortsState {
-  final List<Cohort> studentCohorts;
-  final Map<String, List<Lecture>> cohortLectures;
-  final bool isLoading;
-  final String? error;
 
   const CohortsState({
     this.studentCohorts = const [],
@@ -17,6 +13,10 @@ class CohortsState {
     this.isLoading = false,
     this.error,
   });
+  final List<Cohort> studentCohorts;
+  final Map<String, List<Lecture>> cohortLectures;
+  final bool isLoading;
+  final String? error;
 
   CohortsState copyWith({
     List<Cohort>? studentCohorts,
@@ -44,7 +44,7 @@ class CohortsNotifier extends StateNotifier<CohortsState> {
   final ApiService _apiService;
 
   Future<void> loadStudentCohorts() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final cohorts = await _apiService.getStudentCohorts();
@@ -61,7 +61,7 @@ class CohortsNotifier extends StateNotifier<CohortsState> {
   }
 
   Future<void> loadCohortLectures(String cohortId) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final lectures = await _apiService.getCohortLectures(cohortId);
@@ -81,7 +81,7 @@ class CohortsNotifier extends StateNotifier<CohortsState> {
   }
 
   Future<void> joinCohortByCode(String cohortCode) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       await _apiService.joinCohortByCode(cohortCode);
@@ -97,7 +97,7 @@ class CohortsNotifier extends StateNotifier<CohortsState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 

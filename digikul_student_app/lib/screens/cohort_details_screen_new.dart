@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class CohortDetailsScreen extends ConsumerStatefulWidget {
-  final String cohortId;
   
   const CohortDetailsScreen({
     super.key,
     required this.cohortId,
   });
+  final String cohortId;
 
   @override
   ConsumerState<CohortDetailsScreen> createState() => _CohortDetailsScreenState();

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/loading_overlay.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
+import 'package:digikul_student_app/widgets/custom_text_field.dart';
+import 'package:digikul_student_app/widgets/custom_button.dart';
+import 'package:digikul_student_app/widgets/loading_overlay.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -38,20 +38,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
     
     _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-    ));
+      curve: const Interval(0, 0.6, curve: Curves.easeOut),
+    ),);
     
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-    ));
+      curve: const Interval(0.3, 1, curve: Curves.easeOut),
+    ),);
     
     _animationController.forward();
   }
@@ -64,7 +64,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  void _handleLogin() async {
+  Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     
     ref.read(authProvider.notifier).clearError();
@@ -91,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Scaffold(
       body: LoadingOverlay(
         isLoading: authState.isLoading,
-        child: Container(
+        child: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -109,10 +109,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 constraints: BoxConstraints(minHeight: size.height - MediaQuery.of(context).padding.top),
                 child: IntrinsicHeight(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        const Spacer(flex: 1),
+                        const Spacer(),
                         
                         // Logo and Welcome Section
                         FadeTransition(
@@ -158,7 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ),
                         ),
                         
-                        const Spacer(flex: 1),
+                        const Spacer(),
                         
                         // Login Form
                         SlideTransition(
@@ -256,7 +256,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                           },
                                           activeColor: AppColors.primary,
                                         ),
-                                        Text(
+                                        const Text(
                                           'Remember me',
                                           style: AppTextStyles.bodyMedium,
                                         ),
@@ -285,7 +285,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         ),
                                         child: Row(
                                           children: [
-                                            Icon(
+                                            const Icon(
                                               Icons.error_outline,
                                               color: AppColors.error,
                                               size: 20,
@@ -317,8 +317,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          'Don\'t have an account? ',
+                                        const Text(
+                                          "Don't have an account? ",
                                           style: AppTextStyles.bodyMedium,
                                         ),
                                         CustomTextButton(

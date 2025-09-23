@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import 'main_layout.dart'; // Navigate to MainLayout instead of HomePage directly
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/screens/main_layout.dart'; // Navigate to MainLayout instead of HomePage directly
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Colors.red, content: Text('Login Failed: ${e.toString()}')),
+        SnackBar(backgroundColor: Colors.red, content: Text('Login Failed: ${e}')),
       );
     } finally {
       if (mounted) {
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -78,9 +78,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
+              if (_isLoading) const CircularProgressIndicator() else ElevatedButton(
                       onPressed: _login,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 50),

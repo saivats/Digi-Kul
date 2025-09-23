@@ -1,16 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/poll.dart';
-import '../services/api_service_new.dart';
-import 'auth_provider.dart';
+import 'package:digikul_student_app/models/poll.dart';
+import 'package:digikul_student_app/services/api_service_new.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
 
 // Polls state
 class PollsState {
-  final List<Poll> studentPolls;
-  final Map<String, List<Poll>> lecturePolls;
-  final Map<String, PollResults> pollResults;
-  final Map<String, String> userVotes; // pollId -> selectedOption
-  final bool isLoading;
-  final String? error;
 
   const PollsState({
     this.studentPolls = const [],
@@ -20,6 +14,12 @@ class PollsState {
     this.isLoading = false,
     this.error,
   });
+  final List<Poll> studentPolls;
+  final Map<String, List<Poll>> lecturePolls;
+  final Map<String, PollResults> pollResults;
+  final Map<String, String> userVotes; // pollId -> selectedOption
+  final bool isLoading;
+  final String? error;
 
   PollsState copyWith({
     List<Poll>? studentPolls,
@@ -63,7 +63,7 @@ class PollsNotifier extends StateNotifier<PollsState> {
   final ApiService _apiService;
 
   Future<void> loadStudentPolls() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final polls = await _apiService.getStudentPolls();
@@ -80,7 +80,7 @@ class PollsNotifier extends StateNotifier<PollsState> {
   }
 
   Future<void> loadLecturePolls(String lectureId) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final polls = await _apiService.getLecturePolls(lectureId);
@@ -156,7 +156,7 @@ class PollsNotifier extends StateNotifier<PollsState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 

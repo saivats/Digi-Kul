@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/lecture.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class LectureCard extends StatelessWidget {
-  final Lecture lecture;
-  final VoidCallback? onTap;
-  final bool showLiveIndicator;
 
   const LectureCard({
     super.key,
@@ -15,6 +12,9 @@ class LectureCard extends StatelessWidget {
     this.onTap,
     this.showLiveIndicator = false,
   });
+  final Lecture lecture;
+  final VoidCallback? onTap;
+  final bool showLiveIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +91,7 @@ class LectureCard extends StatelessWidget {
               // Lecture details
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.person_outline,
                     size: 16,
                     color: AppColors.textSecondary,
@@ -111,7 +111,7 @@ class LectureCard extends StatelessWidget {
               
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.schedule_outlined,
                     size: 16,
                     color: AppColors.textSecondary,
@@ -122,7 +122,7 @@ class LectureCard extends StatelessWidget {
                     style: AppTextStyles.caption,
                   ),
                   const Spacer(),
-                  Icon(
+                  const Icon(
                     Icons.timer_outlined,
                     size: 16,
                     color: AppColors.textSecondary,

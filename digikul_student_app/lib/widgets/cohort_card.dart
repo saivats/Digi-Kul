@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/cohort.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class CohortCard extends StatelessWidget {
-  final Cohort cohort;
-  final VoidCallback? onTap;
 
   const CohortCard({
     super.key,
     required this.cohort,
     this.onTap,
   });
+  final Cohort cohort;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +98,7 @@ class CohortCard extends StatelessWidget {
               // Footer with teacher info and join date
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.person_outline,
                     size: 16,
                     color: AppColors.textSecondary,
@@ -112,7 +112,7 @@ class CohortCard extends StatelessWidget {
                     ),
                   ),
                   if (cohort.joinedAt != null) ...[
-                    Icon(
+                    const Icon(
                       Icons.calendar_today_outlined,
                       size: 16,
                       color: AppColors.textSecondary,

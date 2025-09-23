@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
-import '../screens/login_screen_new.dart';
-import '../screens/signup_screen.dart';
-import '../screens/dashboard_screen_new.dart';
-import '../screens/explore_screen.dart';
-import '../screens/cohort_details_screen_new.dart';
-import '../screens/lecture_details_screen_new.dart';
-import '../screens/live_session_screen_new.dart';
-import '../screens/downloads_screen.dart';
-import '../screens/profile_screen_new.dart';
-import '../screens/settings_screen_new.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
+import 'package:digikul_student_app/screens/login_screen_new.dart';
+import 'package:digikul_student_app/screens/signup_screen.dart';
+import 'package:digikul_student_app/screens/dashboard_screen_new.dart';
+import 'package:digikul_student_app/screens/explore_screen.dart';
+import 'package:digikul_student_app/screens/cohort_details_screen_new.dart';
+import 'package:digikul_student_app/screens/lecture_details_screen_new.dart';
+import 'package:digikul_student_app/screens/live_session_screen_new.dart';
+import 'package:digikul_student_app/screens/downloads_screen.dart';
+import 'package:digikul_student_app/screens/profile_screen_new.dart';
+import 'package:digikul_student_app/screens/settings_screen_new.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);

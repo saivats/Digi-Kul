@@ -6,6 +6,23 @@ part 'cohort.g.dart';
 /// Cohort model representing a group of students and their associated content
 @JsonSerializable()
 class Cohort extends Equatable {
+
+  const Cohort({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.subject,
+    required this.teacherId,
+    required this.code,
+    required this.createdAt,
+    this.isActive = true,
+    this.teacherName,
+    this.joinedAt,
+    this.studentCount,
+    this.lectureCount,
+  });
+
+  factory Cohort.fromJson(Map<String, dynamic> json) => _$CohortFromJson(json);
   final String id;
   final String name;
   final String? description;
@@ -27,23 +44,6 @@ class Cohort extends Equatable {
   final int? studentCount;
   @JsonKey(name: 'lecture_count')
   final int? lectureCount;
-
-  const Cohort({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.subject,
-    required this.teacherId,
-    required this.code,
-    required this.createdAt,
-    this.isActive = true,
-    this.teacherName,
-    this.joinedAt,
-    this.studentCount,
-    this.lectureCount,
-  });
-
-  factory Cohort.fromJson(Map<String, dynamic> json) => _$CohortFromJson(json);
 
   Map<String, dynamic> toJson() => _$CohortToJson(this);
 
@@ -119,14 +119,6 @@ class Cohort extends Equatable {
 /// Cohort summary for list views
 @JsonSerializable()
 class CohortSummary extends Equatable {
-  final String id;
-  final String name;
-  final String subject;
-  final String code;
-  final String? teacherName;
-  final int studentCount;
-  final int lectureCount;
-  final bool isJoined;
 
   const CohortSummary({
     required this.id,
@@ -142,8 +134,6 @@ class CohortSummary extends Equatable {
   factory CohortSummary.fromJson(Map<String, dynamic> json) =>
       _$CohortSummaryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$CohortSummaryToJson(this);
-
   factory CohortSummary.fromCohort(Cohort cohort) {
     return CohortSummary(
       id: cohort.id,
@@ -156,6 +146,16 @@ class CohortSummary extends Equatable {
       isJoined: cohort.isJoined,
     );
   }
+  final String id;
+  final String name;
+  final String subject;
+  final String code;
+  final String? teacherName;
+  final int studentCount;
+  final int lectureCount;
+  final bool isJoined;
+
+  Map<String, dynamic> toJson() => _$CohortSummaryToJson(this);
 
   @override
   List<Object?> get props => [
@@ -173,10 +173,6 @@ class CohortSummary extends Equatable {
 /// Cohort details with additional information
 @JsonSerializable()
 class CohortDetails extends Cohort {
-  final List<String>? studentIds;
-  final List<String>? lectureIds;
-  final List<String>? recentLectures;
-  final DateTime? lastActivity;
 
   const CohortDetails({
     required String id,
@@ -212,6 +208,10 @@ class CohortDetails extends Cohort {
 
   factory CohortDetails.fromJson(Map<String, dynamic> json) =>
       _$CohortDetailsFromJson(json);
+  final List<String>? studentIds;
+  final List<String>? lectureIds;
+  final List<String>? recentLectures;
+  final DateTime? lastActivity;
 
   @override
   Map<String, dynamic> toJson() => _$CohortDetailsToJson(this);
@@ -268,8 +268,6 @@ class CohortDetails extends Cohort {
 /// Model for joining a cohort by code
 @JsonSerializable()
 class CohortJoinRequest extends Equatable {
-  @JsonKey(name: 'cohort_code')
-  final String cohortCode;
 
   const CohortJoinRequest({
     required this.cohortCode,
@@ -277,6 +275,8 @@ class CohortJoinRequest extends Equatable {
 
   factory CohortJoinRequest.fromJson(Map<String, dynamic> json) =>
       _$CohortJoinRequestFromJson(json);
+  @JsonKey(name: 'cohort_code')
+  final String cohortCode;
 
   Map<String, dynamic> toJson() => _$CohortJoinRequestToJson(this);
 
@@ -287,10 +287,6 @@ class CohortJoinRequest extends Equatable {
 /// Response when joining a cohort
 @JsonSerializable()
 class CohortJoinResponse extends Equatable {
-  final bool success;
-  final String message;
-  final String? cohortId;
-  final String? cohortName;
 
   const CohortJoinResponse({
     required this.success,
@@ -301,6 +297,10 @@ class CohortJoinResponse extends Equatable {
 
   factory CohortJoinResponse.fromJson(Map<String, dynamic> json) =>
       _$CohortJoinResponseFromJson(json);
+  final bool success;
+  final String message;
+  final String? cohortId;
+  final String? cohortName;
 
   Map<String, dynamic> toJson() => _$CohortJoinResponseToJson(this);
 

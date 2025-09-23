@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../domain/providers/auth_provider.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/signup_screen.dart';
-import '../screens/dashboard/dashboard_screen.dart';
-import '../screens/explore/explore_screen.dart';
-import '../screens/downloads/downloads_screen.dart';
-import '../screens/settings/settings_screen.dart';
-import '../screens/profile/profile_screen.dart';
-import '../screens/cohort/cohort_details_screen.dart';
-import '../screens/lecture/lecture_details_screen.dart';
-import '../screens/live_session/live_session_screen.dart';
-import '../screens/splash/splash_screen.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
+import 'package:digikul_student_app/src/presentation/screens/auth/login_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/auth/signup_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/dashboard/dashboard_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/explore/explore_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/downloads/downloads_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/settings/settings_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/profile/profile_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/cohort/cohort_details_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/lecture/lecture_details_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/live_session/live_session_screen.dart';
+import 'package:digikul_student_app/src/presentation/screens/splash/splash_screen.dart';
 
 // Router provider
 final appRouterProvider = Provider<GoRouter>((ref) {

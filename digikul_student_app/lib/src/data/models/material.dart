@@ -6,6 +6,28 @@ part 'material.g.dart';
 /// Material model representing educational content files
 @JsonSerializable()
 class MaterialItem extends Equatable {
+
+  const MaterialItem({
+    required this.id,
+    required this.lectureId,
+    required this.title,
+    this.description,
+    required this.filePath,
+    required this.compressedPath,
+    required this.fileSize,
+    required this.fileType,
+    required this.uploadedAt,
+    this.isActive = true,
+    this.downloadUrl,
+    this.fileSizeMb,
+    this.localPath,
+    this.isDownloaded = false,
+    this.downloadedAt,
+    this.downloadStatus = DownloadStatus.notDownloaded,
+  });
+
+  factory MaterialItem.fromJson(Map<String, dynamic> json) =>
+      _$MaterialItemFromJson(json);
   final String id;
   @JsonKey(name: 'lecture_id')
   final String lectureId;
@@ -39,28 +61,6 @@ class MaterialItem extends Equatable {
   final DateTime? downloadedAt;
   @JsonKey(includeFromJson: false, includeToJson: false)
   final DownloadStatus downloadStatus;
-
-  const MaterialItem({
-    required this.id,
-    required this.lectureId,
-    required this.title,
-    this.description,
-    required this.filePath,
-    required this.compressedPath,
-    required this.fileSize,
-    required this.fileType,
-    required this.uploadedAt,
-    this.isActive = true,
-    this.downloadUrl,
-    this.fileSizeMb,
-    this.localPath,
-    this.isDownloaded = false,
-    this.downloadedAt,
-    this.downloadStatus = DownloadStatus.notDownloaded,
-  });
-
-  factory MaterialItem.fromJson(Map<String, dynamic> json) =>
-      _$MaterialItemFromJson(json);
 
   Map<String, dynamic> toJson() => _$MaterialItemToJson(this);
 
@@ -203,14 +203,6 @@ enum DownloadStatus {
 /// Download progress information
 @JsonSerializable()
 class DownloadProgress extends Equatable {
-  final String materialId;
-  final int received;
-  final int total;
-  final double progress;
-  final DownloadStatus status;
-  final String? error;
-  final DateTime? startedAt;
-  final DateTime? completedAt;
 
   const DownloadProgress({
     required this.materialId,
@@ -225,6 +217,14 @@ class DownloadProgress extends Equatable {
 
   factory DownloadProgress.fromJson(Map<String, dynamic> json) =>
       _$DownloadProgressFromJson(json);
+  final String materialId;
+  final int received;
+  final int total;
+  final double progress;
+  final DownloadStatus status;
+  final String? error;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
 
   Map<String, dynamic> toJson() => _$DownloadProgressToJson(this);
 
@@ -309,10 +309,6 @@ class DownloadProgress extends Equatable {
 /// Material download request
 @JsonSerializable()
 class MaterialDownloadRequest extends Equatable {
-  @JsonKey(name: 'material_id')
-  final String materialId;
-  @JsonKey(name: 'save_path')
-  final String savePath;
 
   const MaterialDownloadRequest({
     required this.materialId,
@@ -321,6 +317,10 @@ class MaterialDownloadRequest extends Equatable {
 
   factory MaterialDownloadRequest.fromJson(Map<String, dynamic> json) =>
       _$MaterialDownloadRequestFromJson(json);
+  @JsonKey(name: 'material_id')
+  final String materialId;
+  @JsonKey(name: 'save_path')
+  final String savePath;
 
   Map<String, dynamic> toJson() => _$MaterialDownloadRequestToJson(this);
 

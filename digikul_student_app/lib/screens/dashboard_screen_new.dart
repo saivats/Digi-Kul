@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../providers/auth_provider.dart';
-import '../providers/lecture_provider.dart';
-import '../providers/cohort_provider.dart';
-import '../providers/poll_provider.dart';
-import '../models/lecture.dart';
-import '../models/cohort.dart';
-import '../models/poll.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/loading_overlay.dart';
-import '../widgets/lecture_card.dart';
-import '../widgets/cohort_card.dart';
-import '../widgets/poll_card.dart';
-import '../widgets/network_status_indicator.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
+import 'package:digikul_student_app/providers/lecture_provider.dart';
+import 'package:digikul_student_app/providers/cohort_provider.dart';
+import 'package:digikul_student_app/providers/poll_provider.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/poll.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
+import 'package:digikul_student_app/widgets/custom_button.dart';
+import 'package:digikul_student_app/widgets/loading_overlay.dart';
+import 'package:digikul_student_app/widgets/lecture_card.dart';
+import 'package:digikul_student_app/widgets/cohort_card.dart';
+import 'package:digikul_student_app/widgets/poll_card.dart';
+import 'package:digikul_student_app/widgets/network_status_indicator.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -138,10 +138,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           return [
             SliverAppBar(
               expandedHeight: 200,
-              floating: false,
               pinned: true,
               flexibleSpace: FlexibleSpaceBar(
-                background: Container(
+                background: DecoratedBox(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -151,7 +150,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -161,7 +160,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                 radius: 24,
                                 backgroundColor: Colors.white,
                                 child: Text(
-                                  user?.name.isNotEmpty == true 
+                                  user?.name.isNotEmpty ?? false 
                                       ? user!.name[0].toUpperCase()
                                       : 'S',
                                   style: AppTextStyles.heading4.copyWith(
@@ -336,12 +335,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 onTap: () => context.push('/lecture/${lecture.id}'),
                 showLiveIndicator: true,
               ),
-            )),
+            ),),
             const SizedBox(height: 24),
           ],
           
           // Upcoming Lectures Section
-          Text(
+          const Text(
             'Upcoming Lectures',
             style: AppTextStyles.heading4,
           ),
@@ -349,7 +348,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           if (upcomingLectures.isEmpty)
             _buildEmptyState(
               'No upcoming lectures',
-              'You don\'t have any lectures scheduled. Browse available lectures to enroll.',
+              "You don't have any lectures scheduled. Browse available lectures to enroll.",
               Icons.schedule,
               () => context.push('/explore'),
               'Browse Lectures',
@@ -361,7 +360,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 lecture: lecture,
                 onTap: () => context.push('/lecture/${lecture.id}'),
               ),
-            )),
+            ),),
           
           if (upcomingLectures.length > 3) ...[
             const SizedBox(height: 8),
@@ -378,7 +377,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           const SizedBox(height: 24),
           
           // Quick Actions
-          Text(
+          const Text(
             'Quick Actions',
             style: AppTextStyles.heading4,
           ),
@@ -607,7 +606,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               CustomButton(
                 onPressed: onAction,
                 text: actionText,
-                size: ButtonSize.medium,
                 isFullWidth: false,
               ),
             ],

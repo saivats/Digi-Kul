@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import 'login_screen.dart';
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/screens/login_screen.dart';
 
 // --- Theme Colors ---
 const Color primaryColor = Color(0xFF5247eb);
@@ -32,13 +32,13 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             // Profile Header
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     const CircleAvatar(
@@ -132,7 +132,7 @@ class ProfileScreen extends StatelessWidget {
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Icon(icon, color: color, size: 32),
@@ -292,7 +292,7 @@ class ProfileScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         backgroundColor: Colors.red,
-                        content: Text('Logout failed: ${e.toString()}'),
+                        content: Text('Logout failed: ${e}'),
                       ),
                     );
                   }

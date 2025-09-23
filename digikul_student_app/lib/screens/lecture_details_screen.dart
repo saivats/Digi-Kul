@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // You will need to import these from their new, separate files
-import '../services/api_service.dart';
-import '../models/lecture.dart';
-import '../models/material.dart';
-import 'live_session_screen.dart';
-import 'polls_screen.dart';
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/models/material.dart';
+import 'package:digikul_student_app/screens/live_session_screen.dart';
+import 'package:digikul_student_app/screens/polls_screen.dart';
 
 // --- THEME COLORS ---
 const Color primaryColor = Color(0xFF5247eb);
 const Color backgroundLight = Color(0xFFf6f6f8);
 
 class LectureDetailsScreen extends StatefulWidget {
-  final Lecture lecture;
   const LectureDetailsScreen({super.key, required this.lecture});
+  final Lecture lecture;
 
   @override
   State<LectureDetailsScreen> createState() => _LectureDetailsScreenState();
@@ -39,14 +39,14 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             backgroundColor: Colors.green,
-            content: Text('Successfully Enrolled!')),
+            content: Text('Successfully Enrolled!'),),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             backgroundColor: Colors.red,
-            content: Text('Enrollment Error: ${e.toString()}')),
+            content: Text('Enrollment Error: ${e}'),),
       );
     } finally {
       if (mounted) {
@@ -85,7 +85,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red,
-          content: Text('Failed to join session: ${e.toString()}'),
+          content: Text('Failed to join session: ${e}'),
         ),
       );
     } finally {
@@ -120,12 +120,12 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         title: const Text(
           'Lecture Details',
           style: TextStyle(
-              color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18),
+              color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18,),
         ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -135,7 +135,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
               style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87),
+                  color: Colors.black87,),
             ),
             const SizedBox(height: 16),
             _buildLecturerInfo(),
@@ -172,7 +172,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
               style: const TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 16,
-                  color: Colors.black87),
+                  color: Colors.black87,),
             ),
             const SizedBox(height: 4),
             Text(
@@ -235,9 +235,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         const SizedBox(height: 12),
         
         // Enrollment button
-        _isEnrolling
-          ? const Center(child: CircularProgressIndicator())
-          : ElevatedButton(
+        if (_isEnrolling) const Center(child: CircularProgressIndicator()) else ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor.withOpacity(0.2),
                 foregroundColor: primaryColor,
@@ -262,7 +260,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         const Text(
           'Study Materials (for Offline Use)',
           style: TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87,),
         ),
         const SizedBox(height: 12),
         FutureBuilder<List<MaterialItem>>(
@@ -295,8 +293,8 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
 }
 
 class _StudyMaterialCard extends StatelessWidget {
-  final MaterialItem material;
   const _StudyMaterialCard({required this.material});
+  final MaterialItem material;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +323,7 @@ class _StudyMaterialCard extends StatelessWidget {
                 Text(
                   material.title,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w500, color: Colors.black87),
+                      fontWeight: FontWeight.w500, color: Colors.black87,),
                 ),
                 const SizedBox(height: 4),
                 Text(

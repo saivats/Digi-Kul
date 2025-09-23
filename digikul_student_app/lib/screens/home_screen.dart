@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/lecture.dart';
-import '../services/api_service.dart';
-import 'lecture_details_screen.dart';
-import 'live_session_screen.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/services/api_service.dart';
+import 'package:digikul_student_app/screens/lecture_details_screen.dart';
+import 'package:digikul_student_app/screens/live_session_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -27,8 +27,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showJoinCohortDialog() {
-    final TextEditingController codeController = TextEditingController();
-    bool isLoading = false;
+    final codeController = TextEditingController();
+    var isLoading = false;
 
     showDialog(
       context: context,
@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           backgroundColor: Colors.red,
-                          content: Text('Failed to join cohort: ${e.toString()}'),
+                          content: Text('Failed to join cohort: ${e}'),
                         ),
                       );
                     } finally {
@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showJoinLiveClassDialog() async {
+  Future<void> _showJoinLiveClassDialog() async {
     try {
       // Get all enrolled lectures
       final enrolledLectures = await ApiService.getEnrolledLectures();
@@ -183,13 +183,13 @@ class _HomePageState extends State<HomePage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: Colors.red,
-                            content: Text('Failed to join live class: ${e.toString()}'),
+                            content: Text('Failed to join live class: ${e}'),
                           ),
                         );
                       }
                     }
                   },
-                )),
+                ),),
               ],
             ),
             actions: [
@@ -206,7 +206,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red,
-            content: Text('Failed to load live classes: ${e.toString()}'),
+            content: Text('Failed to load live classes: ${e}'),
           ),
         );
       }
@@ -246,7 +246,7 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: const Icon(Icons.school_outlined, color: Colors.indigo, size: 40),
                   title: Text(lecture.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("By: ${lecture.teacherName}"),
+                  subtitle: Text('By: ${lecture.teacherName}'),
                   trailing: lecture.sessionActive
                       ? Chip(
                           label: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -276,7 +276,7 @@ class _HomePageState extends State<HomePage> {
             label: const Text('Join Live Class'),
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,
-            heroTag: "live_class",
+            heroTag: 'live_class',
           ),
           const SizedBox(height: 16),
           FloatingActionButton.extended(
@@ -285,7 +285,7 @@ class _HomePageState extends State<HomePage> {
             label: const Text('Join Cohort'),
             backgroundColor: Colors.indigo,
             foregroundColor: Colors.white,
-            heroTag: "join_cohort",
+            heroTag: 'join_cohort',
           ),
         ],
       ),

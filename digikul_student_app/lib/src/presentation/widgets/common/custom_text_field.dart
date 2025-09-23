@@ -1,35 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
 
 class CustomTextField extends StatelessWidget {
-  final TextEditingController? controller;
-  final String? labelText;
-  final String? hintText;
-  final String? helperText;
-  final String? errorText;
-  final IconData? prefixIcon;
-  final Widget? suffixIcon;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-  final TextCapitalization textCapitalization;
-  final bool enabled;
-  final bool readOnly;
-  final int? maxLines;
-  final int? minLines;
-  final int? maxLength;
-  final List<TextInputFormatter>? inputFormatters;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-  final void Function()? onTap;
-  final void Function(String)? onFieldSubmitted;
-  final FocusNode? focusNode;
-  final bool autofocus;
-  final Color? fillColor;
-  final EdgeInsetsGeometry? contentPadding;
 
   const CustomTextField({
     super.key,
@@ -59,6 +34,31 @@ class CustomTextField extends StatelessWidget {
     this.fillColor,
     this.contentPadding,
   });
+  final TextEditingController? controller;
+  final String? labelText;
+  final String? hintText;
+  final String? helperText;
+  final String? errorText;
+  final IconData? prefixIcon;
+  final Widget? suffixIcon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
+  final bool enabled;
+  final bool readOnly;
+  final int? maxLines;
+  final int? minLines;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+  final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
+  final void Function()? onTap;
+  final void Function(String)? onFieldSubmitted;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  final Color? fillColor;
+  final EdgeInsetsGeometry? contentPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -105,14 +105,12 @@ class CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
             color: AppColors.outline,
-            width: 1,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
             color: AppColors.outline,
-            width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -126,7 +124,6 @@ class CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
             color: AppColors.error,
-            width: 1,
           ),
         ),
         focusedErrorBorder: OutlineInputBorder(
@@ -140,7 +137,6 @@ class CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
             color: AppColors.disabled,
-            width: 1,
           ),
         ),
         labelStyle: enabled ? AppTextStyles.inputLabel : AppTextStyles.inputLabel.copyWith(
@@ -157,12 +153,6 @@ class CustomTextField extends StatelessWidget {
 
 /// A specialized text field for search functionality
 class SearchTextField extends StatelessWidget {
-  final TextEditingController? controller;
-  final String? hintText;
-  final void Function(String)? onChanged;
-  final void Function(String)? onSubmitted;
-  final VoidCallback? onClear;
-  final bool autofocus;
 
   const SearchTextField({
     super.key,
@@ -173,6 +163,12 @@ class SearchTextField extends StatelessWidget {
     this.onClear,
     this.autofocus = false,
   });
+  final TextEditingController? controller;
+  final String? hintText;
+  final void Function(String)? onChanged;
+  final void Function(String)? onSubmitted;
+  final VoidCallback? onClear;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +176,7 @@ class SearchTextField extends StatelessWidget {
       controller: controller,
       hintText: hintText,
       prefixIcon: Icons.search,
-      suffixIcon: controller?.text.isNotEmpty == true
+      suffixIcon: controller?.text.isNotEmpty ?? false
           ? IconButton(
               icon: const Icon(Icons.clear),
               onPressed: () {
@@ -199,15 +195,6 @@ class SearchTextField extends StatelessWidget {
 
 /// A text field for numeric input
 class NumericTextField extends StatelessWidget {
-  final TextEditingController? controller;
-  final String? labelText;
-  final String? hintText;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-  final bool allowDecimals;
-  final bool allowNegative;
-  final double? min;
-  final double? max;
 
   const NumericTextField({
     super.key,
@@ -221,6 +208,15 @@ class NumericTextField extends StatelessWidget {
     this.min,
     this.max,
   });
+  final TextEditingController? controller;
+  final String? labelText;
+  final String? hintText;
+  final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
+  final bool allowDecimals;
+  final bool allowNegative;
+  final double? min;
+  final double? max;
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +243,7 @@ class NumericTextField extends StatelessWidget {
         final customError = validator?.call(value);
         if (customError != null) return customError;
 
-        if (value?.isNotEmpty == true) {
+        if (value?.isNotEmpty ?? false) {
           final number = double.tryParse(value!);
           if (number == null) return 'Please enter a valid number';
           

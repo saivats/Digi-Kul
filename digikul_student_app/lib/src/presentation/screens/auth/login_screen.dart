@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../domain/providers/auth_provider.dart';
-import '../../widgets/common/custom_text_field.dart';
-import '../../widgets/common/loading_button.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
+import 'package:digikul_student_app/src/presentation/widgets/common/custom_text_field.dart';
+import 'package:digikul_student_app/src/presentation/widgets/common/loading_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});

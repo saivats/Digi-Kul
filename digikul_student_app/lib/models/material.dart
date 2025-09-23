@@ -1,19 +1,4 @@
 class MaterialItem {
-  final String id;
-  final String title;
-  final String fileName;
-  final String lectureId;
-  final String? description;
-  final String? filePath;
-  final String? compressedPath;
-  final int? fileSize;
-  final DateTime uploadedAt;
-  final bool isActive;
-  
-  // Additional fields from API responses
-  final String? downloadUrl;
-  final String? lectureTitle;
-  final String? teacherId;
 
   const MaterialItem({
     required this.id,
@@ -48,6 +33,21 @@ class MaterialItem {
       teacherId: json['teacher_id'],
     );
   }
+  final String id;
+  final String title;
+  final String fileName;
+  final String lectureId;
+  final String? description;
+  final String? filePath;
+  final String? compressedPath;
+  final int? fileSize;
+  final DateTime uploadedAt;
+  final bool isActive;
+  
+  // Additional fields from API responses
+  final String? downloadUrl;
+  final String? lectureTitle;
+  final String? teacherId;
 
   Map<String, dynamic> toJson() {
     return {

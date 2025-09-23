@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
 
 class AppTextStyles {
   // Heading styles

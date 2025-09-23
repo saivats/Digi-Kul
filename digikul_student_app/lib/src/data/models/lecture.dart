@@ -6,6 +6,24 @@ part 'lecture.g.dart';
 /// Lecture model representing a scheduled educational session
 @JsonSerializable()
 class Lecture extends Equatable {
+
+  const Lecture({
+    required this.id,
+    required this.teacherId,
+    required this.title,
+    this.description,
+    required this.scheduledTime,
+    required this.duration,
+    required this.createdAt,
+    this.isActive = true,
+    this.teacherName,
+    this.teacherInstitution,
+    this.sessionActive,
+    this.canJoin,
+    this.enrolledAt,
+  });
+
+  factory Lecture.fromJson(Map<String, dynamic> json) => _$LectureFromJson(json);
   final String id;
   @JsonKey(name: 'teacher_id')
   final String teacherId;
@@ -30,24 +48,6 @@ class Lecture extends Equatable {
   final bool? canJoin;
   @JsonKey(name: 'enrolled_at')
   final DateTime? enrolledAt;
-
-  const Lecture({
-    required this.id,
-    required this.teacherId,
-    required this.title,
-    this.description,
-    required this.scheduledTime,
-    required this.duration,
-    required this.createdAt,
-    this.isActive = true,
-    this.teacherName,
-    this.teacherInstitution,
-    this.sessionActive,
-    this.canJoin,
-    this.enrolledAt,
-  });
-
-  factory Lecture.fromJson(Map<String, dynamic> json) => _$LectureFromJson(json);
 
   Map<String, dynamic> toJson() => _$LectureToJson(this);
 
@@ -87,7 +87,7 @@ class Lecture extends Equatable {
   bool get isLive {
     final now = DateTime.now();
     final endTime = scheduledTime.add(Duration(minutes: duration));
-    return sessionActive == true && 
+    return sessionActive ?? false && 
            now.isAfter(scheduledTime) && 
            now.isBefore(endTime);
   }
@@ -153,13 +153,6 @@ class Lecture extends Equatable {
 /// Lecture summary for list views
 @JsonSerializable()
 class LectureSummary extends Equatable {
-  final String id;
-  final String title;
-  final String? teacherName;
-  final DateTime scheduledTime;
-  final int duration;
-  final bool isLive;
-  final bool isEnrolled;
 
   const LectureSummary({
     required this.id,
@@ -174,8 +167,6 @@ class LectureSummary extends Equatable {
   factory LectureSummary.fromJson(Map<String, dynamic> json) =>
       _$LectureSummaryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$LectureSummaryToJson(this);
-
   factory LectureSummary.fromLecture(Lecture lecture) {
     return LectureSummary(
       id: lecture.id,
@@ -187,6 +178,15 @@ class LectureSummary extends Equatable {
       isEnrolled: lecture.enrolledAt != null,
     );
   }
+  final String id;
+  final String title;
+  final String? teacherName;
+  final DateTime scheduledTime;
+  final int duration;
+  final bool isLive;
+  final bool isEnrolled;
+
+  Map<String, dynamic> toJson() => _$LectureSummaryToJson(this);
 
   @override
   List<Object?> get props => [
@@ -203,10 +203,6 @@ class LectureSummary extends Equatable {
 /// Lecture details with additional information
 @JsonSerializable()
 class LectureDetails extends Lecture {
-  final int enrolledStudents;
-  final List<String>? materials;
-  final List<String>? polls;
-  final String? sessionId;
 
   const LectureDetails({
     required String id,
@@ -244,6 +240,10 @@ class LectureDetails extends Lecture {
 
   factory LectureDetails.fromJson(Map<String, dynamic> json) =>
       _$LectureDetailsFromJson(json);
+  final int enrolledStudents;
+  final List<String>? materials;
+  final List<String>? polls;
+  final String? sessionId;
 
   @override
   Map<String, dynamic> toJson() => _$LectureDetailsToJson(this);

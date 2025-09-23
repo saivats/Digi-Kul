@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:digikul_student_app/services/api_service.dart';
 
 class PollsScreen extends StatefulWidget {
-  final String lectureId;
-  final String lectureTitle;
 
   const PollsScreen({
     super.key,
     required this.lectureId,
     required this.lectureTitle,
   });
+  final String lectureId;
+  final String lectureTitle;
 
   @override
   State<PollsScreen> createState() => _PollsScreenState();
@@ -63,7 +63,7 @@ class _PollsScreenState extends State<PollsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to vote: ${e.toString()}'),
+            content: Text('Failed to vote: ${e}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -81,7 +81,7 @@ class _PollsScreenState extends State<PollsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load results: ${e.toString()}'),
+            content: Text('Failed to load results: ${e}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -128,7 +128,7 @@ class _PollsScreenState extends State<PollsScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
-              )).toList(),
+              ),),
             ],
           ),
         ),
@@ -315,7 +315,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                         ),
                                       ),
                                     );
-                                  }).toList(),
+                                  }),
                                 ],
                               ),
                             ),

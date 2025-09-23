@@ -4,53 +4,46 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/constants/app_constants.dart';
-import '../models/user.dart';
-import '../models/lecture.dart';
-import '../models/cohort.dart';
-import '../models/material.dart';
-import '../models/poll.dart';
-import '../models/quiz.dart';
-import '../models/enrollment.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/data/models/user.dart';
+import 'package:digikul_student_app/src/data/models/lecture.dart';
+import 'package:digikul_student_app/src/data/models/cohort.dart';
+import 'package:digikul_student_app/src/data/models/material.dart';
+import 'package:digikul_student_app/src/data/models/poll.dart';
+import 'package:digikul_student_app/src/data/models/quiz.dart';
+import 'package:digikul_student_app/src/data/models/enrollment.dart';
 
 /// Custom exceptions for API errors
 class ApiException implements Exception {
+
+  const ApiException(this.message, {this.statusCode, this.errorCode});
   final String message;
   final int? statusCode;
   final String? errorCode;
-
-  const ApiException(this.message, {this.statusCode, this.errorCode});
 
   @override
   String toString() => 'ApiException: $message';
 }
 
 class NetworkException extends ApiException {
-  const NetworkException(String message) : super(message);
+  const NetworkException(super.message);
 }
 
 class AuthenticationException extends ApiException {
-  const AuthenticationException(String message) : super(message, statusCode: 401);
+  const AuthenticationException(super.message) : super(statusCode: 401);
 }
 
 class ServerException extends ApiException {
-  const ServerException(String message, int statusCode) : super(message, statusCode: statusCode);
+  const ServerException(super.message, int statusCode) : super(statusCode: statusCode);
 }
 
 class ValidationException extends ApiException {
-  const ValidationException(String message) : super(message, statusCode: 400);
+  const ValidationException(super.message) : super(statusCode: 400);
 }
 
 /// Main API service for all network operations
 class ApiService {
-  late final Dio _dio;
-  late final Logger _logger;
-  String? _sessionCookie;
-  UserSession? _currentSession;
-
-  // Singleton pattern
-  static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
   ApiService._internal() {
@@ -67,6 +60,13 @@ class ApiService {
 
     _initializeDio();
   }
+  late final Dio _dio;
+  late final Logger _logger;
+  String? _sessionCookie;
+  UserSession? _currentSession;
+
+  // Singleton pattern
+  static final ApiService _instance = ApiService._internal();
 
   void _initializeDio() {
     _dio = Dio(BaseOptions(
@@ -80,7 +80,7 @@ class ApiService {
         'User-Agent': 'DigiKul-Student-App/${AppConfig.isDebug ? 'debug' : 'release'}',
       },
       validateStatus: (status) => status != null && status < 500,
-    ));
+    ),);
 
     _setupInterceptors();
   }
@@ -91,7 +91,7 @@ class ApiService {
       onRequest: (options, handler) {
         // Add session cookie if available
         if (_sessionCookie != null) {
-          options.headers['Cookie'] = _sessionCookie!;
+          options.headers['Cookie'] = _sessionCookie;
         }
 
         // Add request ID for tracking
@@ -133,7 +133,7 @@ class ApiService {
 
         handler.next(error);
       },
-    ));
+    ),);
 
     // Logging interceptor for debug mode
     if (EnvironmentConfig.enableLogging) {
@@ -142,9 +142,8 @@ class ApiService {
         responseBody: true,
         requestHeader: false,
         responseHeader: false,
-        error: true,
         logPrint: (obj) => _logger.d(obj.toString()),
-      ));
+      ),);
     }
 
     // Retry interceptor for network failures
@@ -169,7 +168,7 @@ class ApiService {
         }
         handler.next(error);
       },
-    ));
+    ),);
   }
 
   bool _shouldRetry(DioException error) {
@@ -241,7 +240,7 @@ class ApiService {
         'email': email,
         'password': password,
         'user_type': userType,
-      });
+      },);
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
@@ -339,7 +338,7 @@ class ApiService {
     try {
       final response = await _dio.post(AppConstants.enrollEndpoint, data: {
         'lecture_id': lectureId,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       return EnrollmentResponse.fromJson(data);
@@ -368,7 +367,7 @@ class ApiService {
     try {
       final response = await _dio.post(AppConstants.joinCohortEndpoint, data: {
         'cohort_code': cohortCode,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       return CohortJoinResponse.fromJson(data);
@@ -421,7 +420,7 @@ class ApiService {
         savePath,
         onReceiveProgress: onReceiveProgress,
         options: Options(
-          headers: _sessionCookie != null ? {'Cookie': _sessionCookie!} : null,
+          headers: _sessionCookie != null ? {'Cookie': _sessionCookie} : null,
           receiveTimeout: AppConfig.downloadTimeout,
         ),
       );
@@ -465,7 +464,7 @@ class ApiService {
     try {
       await _dio.post('/api/polls/$pollId/vote', data: {
         'response': response,
-      });
+      },);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -517,7 +516,7 @@ class ApiService {
     try {
       final result = await _dio.post('/api/quizzes/$quizId/submit', data: {
         'response': response,
-      });
+      },);
 
       final data = result.data as Map<String, dynamic>;
       return QuizSubmissionResponse.fromJson(data);
@@ -561,16 +560,12 @@ class ApiService {
       switch (method.toUpperCase()) {
         case 'GET':
           response = await _dio.get(endpoint, queryParameters: queryParameters, options: options);
-          break;
         case 'POST':
           response = await _dio.post(endpoint, data: data, queryParameters: queryParameters, options: options);
-          break;
         case 'PUT':
           response = await _dio.put(endpoint, data: data, queryParameters: queryParameters, options: options);
-          break;
         case 'DELETE':
           response = await _dio.delete(endpoint, data: data, queryParameters: queryParameters, options: options);
-          break;
         default:
           throw ArgumentError('Unsupported HTTP method: $method');
       }

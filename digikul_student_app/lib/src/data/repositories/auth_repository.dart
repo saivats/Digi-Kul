@@ -1,18 +1,18 @@
-import '../../core/constants/app_constants.dart';
-import '../models/user.dart';
-import '../services/api_service.dart';
-import '../services/offline_storage_service.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/data/models/user.dart';
+import 'package:digikul_student_app/src/data/services/api_service.dart';
+import 'package:digikul_student_app/src/data/services/offline_storage_service.dart';
 
 /// Repository for authentication-related operations
 class AuthRepository {
-  final ApiService _apiService;
-  final OfflineStorageService _storageService;
 
   AuthRepository({
     ApiService? apiService,
     OfflineStorageService? storageService,
   })  : _apiService = apiService ?? ApiService(),
         _storageService = storageService ?? OfflineStorageService();
+  final ApiService _apiService;
+  final OfflineStorageService _storageService;
 
   /// Login with email and password
   Future<UserSession> login(String email, String password) async {
@@ -20,7 +20,6 @@ class AuthRepository {
       final session = await _apiService.login(
         email,
         password,
-        userType: AppConstants.userTypeStudent,
       );
       
       // Save session locally

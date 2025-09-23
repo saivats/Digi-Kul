@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
 
 // Network status provider
 final networkStatusProvider = StreamProvider<ConnectivityResult>((ref) {
@@ -16,7 +16,7 @@ class NetworkStatusIndicator extends ConsumerWidget {
     final networkStatus = ref.watch(networkStatusProvider);
 
     return networkStatus.when(
-      data: (status) => _buildIndicator(status),
+      data: _buildIndicator,
       loading: () => _buildIndicator(ConnectivityResult.none),
       error: (_, __) => _buildIndicator(ConnectivityResult.none),
     );
@@ -32,38 +32,31 @@ class NetworkStatusIndicator extends ConsumerWidget {
         color = AppColors.networkGood;
         icon = Icons.wifi;
         tooltip = 'Connected via WiFi';
-        break;
       case ConnectivityResult.mobile:
         color = AppColors.networkPoor;
         icon = Icons.signal_cellular_4_bar;
         tooltip = 'Connected via Mobile Data';
-        break;
       case ConnectivityResult.ethernet:
         color = AppColors.networkGood;
         icon = Icons.cable;
         tooltip = 'Connected via Ethernet';
-        break;
       case ConnectivityResult.bluetooth:
         color = AppColors.networkPoor;
         icon = Icons.bluetooth;
         tooltip = 'Connected via Bluetooth';
-        break;
       case ConnectivityResult.vpn:
         color = AppColors.networkGood;
         icon = Icons.vpn_key;
         tooltip = 'Connected via VPN';
-        break;
       case ConnectivityResult.other:
         color = AppColors.networkPoor;
         icon = Icons.device_unknown;
         tooltip = 'Connected via Other';
-        break;
       case ConnectivityResult.none:
       default:
         color = AppColors.networkOffline;
         icon = Icons.wifi_off;
         tooltip = 'No Internet Connection';
-        break;
     }
 
     return Tooltip(

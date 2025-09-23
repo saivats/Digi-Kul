@@ -2,15 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import '../models/chat_message.dart';
-import '../models/poll.dart';
+import 'package:digikul_student_app/models/chat_message.dart';
+import 'package:digikul_student_app/models/poll.dart';
 
 enum ConnectionStatus { disconnected, connecting, connected, error }
 
 class SocketService {
-  static final SocketService _instance = SocketService._internal();
   factory SocketService() => _instance;
   SocketService._internal();
+  static final SocketService _instance = SocketService._internal();
 
   io.Socket? _socket;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
@@ -88,7 +88,7 @@ class SocketService {
           .enableReconnection()
           .setReconnectionAttempts(5)
           .setReconnectionDelay(1000)
-          .build());
+          .build(),);
 
       _setupEventListeners();
       _socket!.connect();

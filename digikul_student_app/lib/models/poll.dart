@@ -1,11 +1,4 @@
 class Poll {
-  final String id;
-  final String? lectureId;
-  final String teacherId;
-  final String question;
-  final List<String> options;
-  final DateTime createdAt;
-  final bool isActive;
 
   const Poll({
     required this.id,
@@ -28,6 +21,13 @@ class Poll {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String id;
+  final String? lectureId;
+  final String teacherId;
+  final String question;
+  final List<String> options;
+  final DateTime createdAt;
+  final bool isActive;
 
   Map<String, dynamic> toJson() {
     return {
@@ -76,11 +76,6 @@ class Poll {
 }
 
 class PollResults {
-  final String pollId;
-  final String question;
-  final int totalVotes;
-  final List<PollOptionResult> results;
-  final DateTime createdAt;
 
   const PollResults({
     required this.pollId,
@@ -101,6 +96,11 @@ class PollResults {
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }
+  final String pollId;
+  final String question;
+  final int totalVotes;
+  final List<PollOptionResult> results;
+  final DateTime createdAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -119,9 +119,6 @@ class PollResults {
 }
 
 class PollOptionResult {
-  final String option;
-  final int votes;
-  final double percentage;
 
   const PollOptionResult({
     required this.option,
@@ -136,6 +133,9 @@ class PollOptionResult {
       percentage: (json['percentage'] ?? 0.0).toDouble(),
     );
   }
+  final String option;
+  final int votes;
+  final double percentage;
 
   Map<String, dynamic> toJson() {
     return {

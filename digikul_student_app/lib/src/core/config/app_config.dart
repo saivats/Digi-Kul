@@ -66,7 +66,7 @@ class AppConfig {
   
   // Environment Detection
   static bool get isDebug {
-    bool debug = false;
+    var debug = false;
     assert(debug = true);
     return debug;
   }

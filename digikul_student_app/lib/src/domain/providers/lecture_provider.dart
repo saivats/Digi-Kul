@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
-import '../../data/models/lecture.dart';
-import '../../data/models/enrollment.dart';
-import '../../data/repositories/lecture_repository.dart';
-import 'auth_provider.dart';
+import 'package:digikul_student_app/src/data/models/lecture.dart';
+import 'package:digikul_student_app/src/data/models/enrollment.dart';
+import 'package:digikul_student_app/src/data/repositories/lecture_repository.dart';
+import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
 
 // Repository provider
 final lectureRepositoryProvider = Provider<LectureRepository>((ref) {
@@ -67,14 +67,14 @@ final searchLecturesProvider = FutureProvider.family<List<Lecture>, String>((ref
 
 /// Available lectures state notifier
 class AvailableLecturesNotifier extends StateNotifier<AsyncValue<List<Lecture>>> {
-  final LectureRepository _repository;
-  final Logger _logger;
 
   AvailableLecturesNotifier(this._repository)
       : _logger = Logger(),
         super(const AsyncValue.loading()) {
     _loadLectures();
   }
+  final LectureRepository _repository;
+  final Logger _logger;
 
   Future<void> _loadLectures() async {
     try {
@@ -128,14 +128,14 @@ class AvailableLecturesNotifier extends StateNotifier<AsyncValue<List<Lecture>>>
 
 /// Enrolled lectures state notifier
 class EnrolledLecturesNotifier extends StateNotifier<AsyncValue<List<Lecture>>> {
-  final LectureRepository _repository;
-  final Logger _logger;
 
   EnrolledLecturesNotifier(this._repository)
       : _logger = Logger(),
         super(const AsyncValue.loading()) {
     _loadLectures();
   }
+  final LectureRepository _repository;
+  final Logger _logger;
 
   Future<void> _loadLectures() async {
     try {
@@ -196,15 +196,15 @@ final enrollmentProvider = StateNotifierProvider<EnrollmentNotifier, EnrollmentS
 });
 
 class EnrollmentState {
-  final bool isLoading;
-  final String? error;
-  final String? successMessage;
 
   const EnrollmentState({
     this.isLoading = false,
     this.error,
     this.successMessage,
   });
+  final bool isLoading;
+  final String? error;
+  final String? successMessage;
 
   EnrollmentState copyWith({
     bool? isLoading,
@@ -222,13 +222,13 @@ class EnrollmentState {
 }
 
 class EnrollmentNotifier extends StateNotifier<EnrollmentState> {
-  final LectureRepository _repository;
-  final Ref _ref;
-  final Logger _logger;
 
   EnrollmentNotifier(this._repository, this._ref)
       : _logger = Logger(),
         super(const EnrollmentState());
+  final LectureRepository _repository;
+  final Ref _ref;
+  final Logger _logger;
 
   Future<bool> enrollInLecture(String lectureId) async {
     if (state.isLoading) return false;
@@ -261,7 +261,7 @@ class EnrollmentNotifier extends StateNotifier<EnrollmentState> {
     } catch (e) {
       _logger.e('Error enrolling in lecture: $e');
       
-      String errorMessage = 'Failed to enroll in lecture';
+      var errorMessage = 'Failed to enroll in lecture';
       if (e.toString().contains('already enrolled')) {
         errorMessage = 'You are already enrolled in this lecture';
       } else if (e.toString().contains('Network')) {
@@ -288,12 +288,6 @@ final lectureFilterProvider = StateProvider<LectureFilter>((ref) {
 });
 
 class LectureFilter {
-  final String? subject;
-  final String? teacherId;
-  final DateTime? fromDate;
-  final DateTime? toDate;
-  final LectureSortOption sortBy;
-  final bool ascending;
 
   const LectureFilter({
     this.subject,
@@ -303,6 +297,12 @@ class LectureFilter {
     this.sortBy = LectureSortOption.scheduledTime,
     this.ascending = true,
   });
+  final String? subject;
+  final String? teacherId;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+  final LectureSortOption sortBy;
+  final bool ascending;
 
   LectureFilter copyWith({
     String? subject,
@@ -340,7 +340,7 @@ final filteredLecturesProvider = Provider<List<Lecture>>((ref) {
   final lectures = ref.watch(availableLecturesProvider).value ?? [];
   final filter = ref.watch(lectureFilterProvider);
   
-  List<Lecture> filtered = lectures.where((lecture) {
+  var filtered = lectures.where((lecture) {
     // Apply filters
     if (filter.teacherId != null && lecture.teacherId != filter.teacherId) {
       return false;
@@ -359,24 +359,19 @@ final filteredLecturesProvider = Provider<List<Lecture>>((ref) {
   
   // Apply sorting
   filtered.sort((a, b) {
-    int comparison = 0;
+    var comparison = 0;
     
     switch (filter.sortBy) {
       case LectureSortOption.scheduledTime:
         comparison = a.scheduledTime.compareTo(b.scheduledTime);
-        break;
       case LectureSortOption.title:
         comparison = a.title.compareTo(b.title);
-        break;
       case LectureSortOption.teacherName:
         comparison = (a.teacherName ?? '').compareTo(b.teacherName ?? '');
-        break;
       case LectureSortOption.duration:
         comparison = a.duration.compareTo(b.duration);
-        break;
       case LectureSortOption.createdAt:
         comparison = a.createdAt.compareTo(b.createdAt);
-        break;
     }
     
     return filter.ascending ? comparison : -comparison;

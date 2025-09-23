@@ -1,15 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/lecture.dart';
-import '../models/material.dart';
-import '../services/api_service_new.dart';
-import 'auth_provider.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/models/material.dart';
+import 'package:digikul_student_app/services/api_service_new.dart';
+import 'package:digikul_student_app/providers/auth_provider.dart';
 
 // Lectures state
 class LecturesState {
-  final List<Lecture> availableLectures;
-  final List<Lecture> enrolledLectures;
-  final bool isLoading;
-  final String? error;
 
   const LecturesState({
     this.availableLectures = const [],
@@ -17,6 +13,10 @@ class LecturesState {
     this.isLoading = false,
     this.error,
   });
+  final List<Lecture> availableLectures;
+  final List<Lecture> enrolledLectures;
+  final bool isLoading;
+  final String? error;
 
   LecturesState copyWith({
     List<Lecture>? availableLectures,
@@ -40,7 +40,7 @@ class LecturesNotifier extends StateNotifier<LecturesState> {
   final ApiService _apiService;
 
   Future<void> loadAvailableLectures() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final lectures = await _apiService.getAvailableLectures();
@@ -57,7 +57,7 @@ class LecturesNotifier extends StateNotifier<LecturesState> {
   }
 
   Future<void> loadEnrolledLectures() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final lectures = await _apiService.getEnrolledLectures();
@@ -101,21 +101,21 @@ class LecturesNotifier extends StateNotifier<LecturesState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 
 // Materials state
 class MaterialsState {
-  final Map<String, List<MaterialItem>> lectureMaterials;
-  final bool isLoading;
-  final String? error;
 
   const MaterialsState({
     this.lectureMaterials = const {},
     this.isLoading = false,
     this.error,
   });
+  final Map<String, List<MaterialItem>> lectureMaterials;
+  final bool isLoading;
+  final String? error;
 
   MaterialsState copyWith({
     Map<String, List<MaterialItem>>? lectureMaterials,
@@ -141,7 +141,7 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
   final ApiService _apiService;
 
   Future<void> loadLectureMaterials(String lectureId) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final materials = await _apiService.getLectureMaterials(lectureId);
@@ -184,7 +184,7 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 

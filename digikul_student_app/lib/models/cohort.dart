@@ -1,16 +1,4 @@
 class Cohort {
-  final String id;
-  final String name;
-  final String description;
-  final String subject;
-  final String teacherId;
-  final String code;
-  final DateTime createdAt;
-  final bool isActive;
-  
-  // Additional fields from API responses
-  final String? teacherName;
-  final DateTime? joinedAt;
 
   const Cohort({
     required this.id,
@@ -39,6 +27,18 @@ class Cohort {
       joinedAt: json['joined_at'] != null ? DateTime.tryParse(json['joined_at']) : null,
     );
   }
+  final String id;
+  final String name;
+  final String description;
+  final String subject;
+  final String teacherId;
+  final String code;
+  final DateTime createdAt;
+  final bool isActive;
+  
+  // Additional fields from API responses
+  final String? teacherName;
+  final DateTime? joinedAt;
 
   Map<String, dynamic> toJson() {
     return {

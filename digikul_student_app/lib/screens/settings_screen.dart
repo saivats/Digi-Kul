@@ -28,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -61,7 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
         style: const TextStyle(
@@ -271,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showLanguageDialog() {
-    final List<String> languages = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu'];
+    final languages = <String>['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu'];
     
     showDialog(
       context: context,
@@ -300,7 +300,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showQualityDialog() {
-    final List<String> qualities = ['Low', 'Medium', 'High'];
+    final qualities = <String>['Low', 'Medium', 'High'];
     
     showDialog(
       context: context,

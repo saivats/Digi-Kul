@@ -1,13 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mocktail/mocktail.dart';
-
 import 'package:digikul_student_app/main.dart' as app;
 import 'package:digikul_student_app/src/data/models/user.dart';
 import 'package:digikul_student_app/src/data/repositories/auth_repository.dart';
 import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:mocktail/mocktail.dart';
 
 // Mock classes
 class MockAuthRepository extends Mock implements AuthRepository {}

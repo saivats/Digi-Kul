@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
 
 class LoadingButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final Widget child;
-  final bool isLoading;
-  final ButtonStyle? style;
-  final bool isElevated;
 
   const LoadingButton({
     super.key,
@@ -18,10 +13,15 @@ class LoadingButton extends StatelessWidget {
     this.style,
     this.isElevated = true,
   });
+  final VoidCallback? onPressed;
+  final Widget child;
+  final bool isLoading;
+  final ButtonStyle? style;
+  final bool isElevated;
 
   @override
   Widget build(BuildContext context) {
-    final Widget buttonChild = isLoading
+    final buttonChild = isLoading
         ? const SizedBox(
             height: 20,
             width: 20,
@@ -50,10 +50,6 @@ class LoadingButton extends StatelessWidget {
 }
 
 class LoadingTextButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final Widget child;
-  final bool isLoading;
-  final ButtonStyle? style;
 
   const LoadingTextButton({
     super.key,
@@ -62,10 +58,14 @@ class LoadingTextButton extends StatelessWidget {
     this.isLoading = false,
     this.style,
   });
+  final VoidCallback? onPressed;
+  final Widget child;
+  final bool isLoading;
+  final ButtonStyle? style;
 
   @override
   Widget build(BuildContext context) {
-    final Widget buttonChild = isLoading
+    final buttonChild = isLoading
         ? const SizedBox(
             height: 16,
             width: 16,
@@ -86,12 +86,6 @@ class LoadingTextButton extends StatelessWidget {
 }
 
 class LoadingIconButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final bool isLoading;
-  final double? iconSize;
-  final Color? color;
-  final String? tooltip;
 
   const LoadingIconButton({
     super.key,
@@ -102,10 +96,16 @@ class LoadingIconButton extends StatelessWidget {
     this.color,
     this.tooltip,
   });
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final bool isLoading;
+  final double? iconSize;
+  final Color? color;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    final Widget iconWidget = isLoading
+    final iconWidget = isLoading
         ? SizedBox(
             height: iconSize ?? 24,
             width: iconSize ?? 24,
@@ -130,12 +130,6 @@ class LoadingIconButton extends StatelessWidget {
 }
 
 class LoadingFloatingActionButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final Widget? child;
-  final bool isLoading;
-  final String? tooltip;
-  final Color? backgroundColor;
-  final Color? foregroundColor;
 
   const LoadingFloatingActionButton({
     super.key,
@@ -146,10 +140,16 @@ class LoadingFloatingActionButton extends StatelessWidget {
     this.backgroundColor,
     this.foregroundColor,
   });
+  final VoidCallback? onPressed;
+  final Widget? child;
+  final bool isLoading;
+  final String? tooltip;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final Widget buttonChild = isLoading
+    final buttonChild = isLoading
         ? const SpinKitRing(
             color: AppColors.textOnPrimary,
             size: 24,

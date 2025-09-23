@@ -6,16 +6,6 @@ part 'user.g.dart';
 /// Base User model representing common user fields
 @JsonSerializable()
 class User extends Equatable {
-  final String id;
-  final String name;
-  final String email;
-  final String institution;
-  @JsonKey(name: 'created_at')
-  final DateTime createdAt;
-  @JsonKey(name: 'last_login')
-  final DateTime? lastLogin;
-  @JsonKey(name: 'is_active')
-  final bool isActive;
 
   const User({
     required this.id,
@@ -28,6 +18,16 @@ class User extends Equatable {
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  final String id;
+  final String name;
+  final String email;
+  final String institution;
+  @JsonKey(name: 'created_at')
+  final DateTime createdAt;
+  @JsonKey(name: 'last_login')
+  final DateTime? lastLogin;
+  @JsonKey(name: 'is_active')
+  final bool isActive;
 
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
@@ -72,22 +72,14 @@ class User extends Equatable {
 @JsonSerializable()
 class Student extends User {
   const Student({
-    required String id,
-    required String name,
-    required String email,
-    required String institution,
-    required DateTime createdAt,
-    DateTime? lastLogin,
-    bool isActive = true,
-  }) : super(
-          id: id,
-          name: name,
-          email: email,
-          institution: institution,
-          createdAt: createdAt,
-          lastLogin: lastLogin,
-          isActive: isActive,
-        );
+    required super.id,
+    required super.name,
+    required super.email,
+    required super.institution,
+    required super.createdAt,
+    super.lastLogin,
+    super.isActive,
+  });
 
   factory Student.fromJson(Map<String, dynamic> json) => _$StudentFromJson(json);
 
@@ -119,7 +111,6 @@ class Student extends User {
 /// Teacher model extending User with subject field
 @JsonSerializable()
 class Teacher extends User {
-  final String subject;
 
   const Teacher({
     required String id,
@@ -141,6 +132,7 @@ class Teacher extends User {
         );
 
   factory Teacher.fromJson(Map<String, dynamic> json) => _$TeacherFromJson(json);
+  final String subject;
 
   @override
   Map<String, dynamic> toJson() => _$TeacherToJson(this);
@@ -183,13 +175,6 @@ class Teacher extends User {
 /// Current user session information
 @JsonSerializable()
 class UserSession extends Equatable {
-  final String userId;
-  final String userType;
-  final String userName;
-  final String userEmail;
-  final String? sessionToken;
-  final DateTime loginTime;
-  final DateTime? lastActivity;
 
   const UserSession({
     required this.userId,
@@ -203,6 +188,13 @@ class UserSession extends Equatable {
 
   factory UserSession.fromJson(Map<String, dynamic> json) =>
       _$UserSessionFromJson(json);
+  final String userId;
+  final String userType;
+  final String userName;
+  final String userEmail;
+  final String? sessionToken;
+  final DateTime loginTime;
+  final DateTime? lastActivity;
 
   Map<String, dynamic> toJson() => _$UserSessionToJson(this);
 

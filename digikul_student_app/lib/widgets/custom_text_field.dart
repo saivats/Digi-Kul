@@ -1,31 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class CustomTextField extends StatefulWidget {
-  final TextEditingController? controller;
-  final String? label;
-  final String? hintText;
-  final String? helperText;
-  final IconData? prefixIcon;
-  final Widget? suffixIcon;
-  final bool obscureText;
-  final TextInputType keyboardType;
-  final TextInputAction textInputAction;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-  final void Function()? onTap;
-  final void Function(String)? onSubmitted;
-  final bool enabled;
-  final bool readOnly;
-  final int? maxLines;
-  final int? minLines;
-  final int? maxLength;
-  final List<TextInputFormatter>? inputFormatters;
-  final FocusNode? focusNode;
-  final bool autofocus;
-  final TextCapitalization textCapitalization;
 
   const CustomTextField({
     super.key,
@@ -52,6 +30,28 @@ class CustomTextField extends StatefulWidget {
     this.autofocus = false,
     this.textCapitalization = TextCapitalization.none,
   });
+  final TextEditingController? controller;
+  final String? label;
+  final String? hintText;
+  final String? helperText;
+  final IconData? prefixIcon;
+  final Widget? suffixIcon;
+  final bool obscureText;
+  final TextInputType keyboardType;
+  final TextInputAction textInputAction;
+  final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
+  final void Function()? onTap;
+  final void Function(String)? onSubmitted;
+  final bool enabled;
+  final bool readOnly;
+  final int? maxLines;
+  final int? minLines;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  final TextCapitalization textCapitalization;
 
   @override
   State<CustomTextField> createState() => _CustomTextFieldState();
@@ -186,16 +186,14 @@ class _CustomTextFieldState extends State<CustomTextField>
                       : AppColors.disabledBackground,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
+                    borderSide: const BorderSide(
                       color: AppColors.outline,
-                      width: 1,
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
+                    borderSide: const BorderSide(
                       color: AppColors.outline,
-                      width: 1,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -209,7 +207,6 @@ class _CustomTextFieldState extends State<CustomTextField>
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(
                       color: AppColors.error,
-                      width: 1,
                     ),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
@@ -223,7 +220,6 @@ class _CustomTextFieldState extends State<CustomTextField>
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(
                       color: AppColors.disabled,
-                      width: 1,
                     ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(

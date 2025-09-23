@@ -1,22 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 enum ButtonVariant { primary, secondary, outline, text }
 enum ButtonSize { small, medium, large }
 
 class CustomButton extends StatefulWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final ButtonVariant variant;
-  final ButtonSize size;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
-  final Color? backgroundColor;
-  final Color? foregroundColor;
-  final Color? borderColor;
 
   const CustomButton({
     super.key,
@@ -31,6 +21,16 @@ class CustomButton extends StatefulWidget {
     this.foregroundColor,
     this.borderColor,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final ButtonVariant variant;
+  final ButtonSize size;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isFullWidth;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Color? borderColor;
 
   @override
   State<CustomButton> createState() => _CustomButtonState();
@@ -49,12 +49,12 @@ class _CustomButtonState extends State<CustomButton>
       vsync: this,
     );
     _scaleAnimation = Tween<double>(
-      begin: 1.0,
+      begin: 1,
       end: 0.95,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -170,7 +170,7 @@ class _CustomButtonState extends State<CustomButton>
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
-            child: Container(
+            child: SizedBox(
               width: widget.isFullWidth ? double.infinity : null,
               height: _getHeight(),
               child: ElevatedButton(
@@ -189,7 +189,6 @@ class _CustomButtonState extends State<CustomButton>
                             color: isEnabled 
                                 ? _getBorderColor()! 
                                 : AppColors.disabled,
-                            width: 1,
                           )
                         : BorderSide.none,
                   ),
@@ -232,12 +231,6 @@ class _CustomButtonState extends State<CustomButton>
 
 // Specialized button variants for common use cases
 class PrimaryButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final ButtonSize size;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
 
   const PrimaryButton({
     super.key,
@@ -248,13 +241,18 @@ class PrimaryButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = true,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final ButtonSize size;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isFullWidth;
 
   @override
   Widget build(BuildContext context) {
     return CustomButton(
       text: text,
       onPressed: onPressed,
-      variant: ButtonVariant.primary,
       size: size,
       icon: icon,
       isLoading: isLoading,
@@ -264,12 +262,6 @@ class PrimaryButton extends StatelessWidget {
 }
 
 class SecondaryButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final ButtonSize size;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
 
   const SecondaryButton({
     super.key,
@@ -280,6 +272,12 @@ class SecondaryButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = true,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final ButtonSize size;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isFullWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -296,12 +294,6 @@ class SecondaryButton extends StatelessWidget {
 }
 
 class OutlineButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final ButtonSize size;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
 
   const OutlineButton({
     super.key,
@@ -312,6 +304,12 @@ class OutlineButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = true,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final ButtonSize size;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isFullWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -328,12 +326,6 @@ class OutlineButton extends StatelessWidget {
 }
 
 class CustomTextButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final ButtonSize size;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
 
   const CustomTextButton({
     super.key,
@@ -344,6 +336,12 @@ class CustomTextButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = false,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final ButtonSize size;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isFullWidth;
 
   @override
   Widget build(BuildContext context) {

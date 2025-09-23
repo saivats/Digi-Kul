@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/lecture.dart';
-import '../services/api_service.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/services/api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -56,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           final lectures = snapshot.data!;
           return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8),
             itemCount: lectures.length,
             itemBuilder: (context, index) {
               return LectureCard(lecture: lectures[index]);
@@ -69,21 +69,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class LectureCard extends StatelessWidget {
-  final Lecture lecture;
 
   const LectureCard({required this.lecture, super.key});
+  final Lecture lecture;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-      elevation: 2.0,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      elevation: 2,
       child: InkWell(
         onTap: () {
           // TODO: Navigate to Lecture Details screen
         },
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

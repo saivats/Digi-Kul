@@ -1,9 +1,9 @@
 import 'dart:async';
 
 class AudioService {
-  static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
   AudioService._internal();
+  static final AudioService _instance = AudioService._internal();
 
   bool _isRecording = false;
   bool _isPlaying = false;

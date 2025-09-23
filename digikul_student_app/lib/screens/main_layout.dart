@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 // Import the screens that the layout will manage
-import 'home_screen.dart';
-import 'my_courses_screen.dart';
-import 'profile_screen.dart';
-import 'settings_screen.dart';
+import 'package:digikul_student_app/screens/home_screen.dart';
+import 'package:digikul_student_app/screens/my_courses_screen.dart';
+import 'package:digikul_student_app/screens/profile_screen.dart';
+import 'package:digikul_student_app/screens/settings_screen.dart';
 
 // --- THEME COLORS ---
 const Color primaryColor = Color(0xFF5247eb);

@@ -1,19 +1,4 @@
 class Lecture {
-  final String id;
-  final String title;
-  final String description;
-  final String teacherId;
-  final DateTime scheduledAt;
-  final int duration; // in minutes
-  final DateTime createdAt;
-  final bool isActive;
-  
-  // Additional fields from API responses
-  final String? teacherName;
-  final String? teacherInstitution;
-  final bool sessionActive;
-  final bool canJoin;
-  final DateTime? enrolledAt;
 
   const Lecture({
     required this.id,
@@ -48,6 +33,21 @@ class Lecture {
       enrolledAt: json['enrolled_at'] != null ? DateTime.tryParse(json['enrolled_at']) : null,
     );
   }
+  final String id;
+  final String title;
+  final String description;
+  final String teacherId;
+  final DateTime scheduledAt;
+  final int duration; // in minutes
+  final DateTime createdAt;
+  final bool isActive;
+  
+  // Additional fields from API responses
+  final String? teacherName;
+  final String? teacherInstitution;
+  final bool sessionActive;
+  final bool canJoin;
+  final DateTime? enrolledAt;
 
   Map<String, dynamic> toJson() {
     return {

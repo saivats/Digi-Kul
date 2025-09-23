@@ -4,18 +4,32 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/constants/app_constants.dart';
-import '../models/user.dart';
-import '../models/lecture.dart';
-import '../models/cohort.dart';
-import '../models/material.dart';
-import '../models/poll.dart';
-import '../models/quiz.dart';
-import '../models/enrollment.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/data/models/user.dart';
+import 'package:digikul_student_app/src/data/models/lecture.dart';
+import 'package:digikul_student_app/src/data/models/cohort.dart';
+import 'package:digikul_student_app/src/data/models/material.dart';
+import 'package:digikul_student_app/src/data/models/poll.dart';
+import 'package:digikul_student_app/src/data/models/quiz.dart';
+import 'package:digikul_student_app/src/data/models/enrollment.dart';
 
 /// Offline storage service using Hive for caching and offline functionality
 class OfflineStorageService {
+  factory OfflineStorageService() => _instance;
+
+  OfflineStorageService._internal() {
+    _logger = Logger(
+      printer: PrettyPrinter(
+        methodCount: 2,
+        errorMethodCount: 8,
+        lineLength: 120,
+        colors: true,
+        printEmojis: true,
+        printTime: true,
+      ),
+    );
+  }
   late Logger _logger;
   
   // Hive boxes
@@ -31,20 +45,6 @@ class OfflineStorageService {
 
   // Singleton pattern
   static final OfflineStorageService _instance = OfflineStorageService._internal();
-  factory OfflineStorageService() => _instance;
-
-  OfflineStorageService._internal() {
-    _logger = Logger(
-      printer: PrettyPrinter(
-        methodCount: 2,
-        errorMethodCount: 8,
-        lineLength: 120,
-        colors: true,
-        printEmojis: true,
-        printTime: true,
-      ),
-    );
-  }
 
   bool get isInitialized => _isInitialized;
 
@@ -478,7 +478,7 @@ class OfflineStorageService {
       final usedSpace = totalSpace - freeSpace;
       
       // Calculate cache size
-      int cacheSize = 0;
+      var cacheSize = 0;
       for (final box in [_userBox, _lecturesBox, _cohortsBox, _materialsBox, _pollsBox, _settingsBox, _cacheBox]) {
         if (box != null) {
           cacheSize += await _getBoxSize(box);
@@ -493,7 +493,7 @@ class OfflineStorageService {
       );
     } catch (e) {
       _logger.e('Failed to get storage info: $e');
-      return StorageInfo(totalSpace: 0, freeSpace: 0, usedSpace: 0, cacheSize: 0);
+      return const StorageInfo(totalSpace: 0, freeSpace: 0, usedSpace: 0, cacheSize: 0);
     }
   }
 
@@ -509,7 +509,7 @@ class OfflineStorageService {
   }
 
   Future<int> _getBoxSize(Box<String> box) async {
-    int size = 0;
+    var size = 0;
     for (final value in box.values) {
       size += value.length * 2; // Rough estimate (UTF-16)
     }
@@ -569,10 +569,6 @@ class OfflineStorageService {
 
 /// Storage information model
 class StorageInfo {
-  final int totalSpace;
-  final int freeSpace;
-  final int usedSpace;
-  final int cacheSize;
 
   const StorageInfo({
     required this.totalSpace,
@@ -580,6 +576,10 @@ class StorageInfo {
     required this.usedSpace,
     required this.cacheSize,
   });
+  final int totalSpace;
+  final int freeSpace;
+  final int usedSpace;
+  final int cacheSize;
 
   String get formattedTotalSpace => _formatBytes(totalSpace);
   String get formattedFreeSpace => _formatBytes(freeSpace);

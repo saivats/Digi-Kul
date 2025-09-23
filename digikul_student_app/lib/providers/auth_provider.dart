@@ -1,18 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/user.dart';
-import '../services/api_service_new.dart';
+import 'package:digikul_student_app/models/user.dart';
+import 'package:digikul_student_app/services/api_service_new.dart';
 
 // Auth state
 class AuthState {
-  final User? user;
-  final bool isLoading;
-  final String? error;
 
   const AuthState({
     this.user,
     this.isLoading = false,
     this.error,
   });
+  final User? user;
+  final bool isLoading;
+  final String? error;
 
   AuthState copyWith({
     User? user,
@@ -44,7 +44,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true);
     
     try {
       final user = await _apiService.login(email, password);
@@ -71,7 +71,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 

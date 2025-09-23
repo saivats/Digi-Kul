@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
-  static final SocketService _instance = SocketService._internal();
   factory SocketService() => _instance;
   SocketService._internal();
+  static final SocketService _instance = SocketService._internal();
 
   io.Socket? _socket;
   bool _isConnected = false;
@@ -48,7 +48,7 @@ class SocketService {
       _socket = io.io(serverUrl, io.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
-          .build());
+          .build(),);
 
       _setupEventListeners();
       

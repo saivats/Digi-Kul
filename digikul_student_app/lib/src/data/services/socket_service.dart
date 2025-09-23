@@ -3,13 +3,27 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-import '../../core/config/app_config.dart';
-import '../../core/constants/app_constants.dart';
-import '../models/chat_message.dart';
-import '../models/user.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/data/models/chat_message.dart';
+import 'package:digikul_student_app/src/data/models/user.dart';
 
 /// Socket service for real-time communication during live sessions
 class SocketService {
+  factory SocketService() => _instance;
+
+  SocketService._internal() {
+    _logger = Logger(
+      printer: PrettyPrinter(
+        methodCount: 2,
+        errorMethodCount: 8,
+        lineLength: 120,
+        colors: true,
+        printEmojis: true,
+        printTime: true,
+      ),
+    );
+  }
   late IO.Socket _socket;
   late Logger _logger;
   
@@ -36,20 +50,6 @@ class SocketService {
 
   // Singleton pattern
   static final SocketService _instance = SocketService._internal();
-  factory SocketService() => _instance;
-
-  SocketService._internal() {
-    _logger = Logger(
-      printer: PrettyPrinter(
-        methodCount: 2,
-        errorMethodCount: 8,
-        lineLength: 120,
-        colors: true,
-        printEmojis: true,
-        printTime: true,
-      ),
-    );
-  }
 
   // Getters
   bool get isConnected => _isConnected;
@@ -419,7 +419,7 @@ class SocketService {
       final endTime = DateTime.now().millisecondsSinceEpoch;
       final latency = endTime - startTime;
       completer.complete(latency);
-    });
+    },);
 
     try {
       return await completer.future.timeout(const Duration(seconds: 5));

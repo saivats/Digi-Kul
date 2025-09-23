@@ -143,11 +143,11 @@ class AppConstants {
   static const String cohortCodeRegex = r'^[A-Z0-9]{6,8}$';
   
   // Dimensions
-  static const double defaultPadding = 16.0;
-  static const double smallPadding = 8.0;
-  static const double largePadding = 24.0;
-  static const double defaultBorderRadius = 12.0;
-  static const double cardElevation = 2.0;
+  static const double defaultPadding = 16;
+  static const double smallPadding = 8;
+  static const double largePadding = 24;
+  static const double defaultBorderRadius = 12;
+  static const double cardElevation = 2;
   static const double bottomSheetMaxHeight = 0.9;
   
   // Animation Durations

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
 
 /// Application text styles following Material Design 3 typography system
 /// Optimized for readability and accessibility

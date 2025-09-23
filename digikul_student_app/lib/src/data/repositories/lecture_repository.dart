@@ -1,15 +1,12 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../models/lecture.dart';
-import '../models/enrollment.dart';
-import '../services/api_service.dart';
-import '../services/offline_storage_service.dart';
+import 'package:digikul_student_app/src/data/models/lecture.dart';
+import 'package:digikul_student_app/src/data/models/enrollment.dart';
+import 'package:digikul_student_app/src/data/services/api_service.dart';
+import 'package:digikul_student_app/src/data/services/offline_storage_service.dart';
 
 /// Repository for lecture-related operations
 class LectureRepository {
-  final ApiService _apiService;
-  final OfflineStorageService _storageService;
-  final Connectivity _connectivity;
 
   LectureRepository({
     ApiService? apiService,
@@ -18,6 +15,9 @@ class LectureRepository {
   })  : _apiService = apiService ?? ApiService(),
         _storageService = storageService ?? OfflineStorageService(),
         _connectivity = connectivity ?? Connectivity();
+  final ApiService _apiService;
+  final OfflineStorageService _storageService;
+  final Connectivity _connectivity;
 
   /// Get available lectures (with offline fallback)
   Future<List<Lecture>> getAvailableLectures({bool forceRefresh = false}) async {
@@ -194,7 +194,7 @@ class LectureRepository {
           .where((lecture) =>
               lecture.title.toLowerCase().contains(lowercaseQuery) ||
               (lecture.teacherName?.toLowerCase().contains(lowercaseQuery) ?? false) ||
-              (lecture.description?.toLowerCase().contains(lowercaseQuery) ?? false))
+              (lecture.description?.toLowerCase().contains(lowercaseQuery) ?? false),)
           .toList();
     } catch (e) {
       rethrow;
@@ -245,9 +245,9 @@ class LectureRepository {
       final enrolledLectures = await getEnrolledLectures();
       final now = DateTime.now();
       
-      int upcoming = 0;
-      int live = 0;
-      int completed = 0;
+      var upcoming = 0;
+      var live = 0;
+      var completed = 0;
       
       for (final lecture in enrolledLectures) {
         final endTime = lecture.scheduledTime.add(Duration(minutes: lecture.duration));
@@ -300,10 +300,6 @@ class LectureRepository {
 
 /// Lecture statistics model
 class LectureStatistics {
-  final int totalEnrolled;
-  final int upcoming;
-  final int live;
-  final int completed;
 
   const LectureStatistics({
     required this.totalEnrolled,
@@ -311,6 +307,10 @@ class LectureStatistics {
     required this.live,
     required this.completed,
   });
+  final int totalEnrolled;
+  final int upcoming;
+  final int live;
+  final int completed;
 
   Map<String, dynamic> toJson() => {
         'total_enrolled': totalEnrolled,

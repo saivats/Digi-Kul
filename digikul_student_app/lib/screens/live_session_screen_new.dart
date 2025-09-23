@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_colors.dart';
-import '../utils/app_text_styles.dart';
+import 'package:digikul_student_app/utils/app_colors.dart';
+import 'package:digikul_student_app/utils/app_text_styles.dart';
 
 class LiveSessionScreen extends ConsumerStatefulWidget {
-  final String sessionId;
-  final String? lectureId;
   
   const LiveSessionScreen({
     super.key,
     required this.sessionId,
     this.lectureId,
   });
+  final String sessionId;
+  final String? lectureId;
 
   @override
   ConsumerState<LiveSessionScreen> createState() => _LiveSessionScreenState();

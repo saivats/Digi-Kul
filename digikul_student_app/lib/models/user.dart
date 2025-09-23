@@ -1,11 +1,4 @@
 class User {
-  final String id;
-  final String name;
-  final String email;
-  final String institution;
-  final DateTime createdAt;
-  final DateTime? lastLogin;
-  final bool isActive;
 
   const User({
     required this.id,
@@ -28,6 +21,13 @@ class User {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String id;
+  final String name;
+  final String email;
+  final String institution;
+  final DateTime createdAt;
+  final DateTime? lastLogin;
+  final bool isActive;
 
   Map<String, dynamic> toJson() {
     return {
@@ -76,7 +76,6 @@ class User {
 }
 
 class Teacher extends User {
-  final String subject;
 
   const Teacher({
     required String id,
@@ -109,6 +108,7 @@ class Teacher extends User {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String subject;
   
   @override
   Map<String, dynamic> toJson() {

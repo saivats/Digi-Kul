@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
 
 class LectureDetailsScreen extends StatelessWidget {
-  final String lectureId;
   
   const LectureDetailsScreen({
     super.key,
     required this.lectureId,
   });
+  final String lectureId;
 
   @override
   Widget build(BuildContext context) {

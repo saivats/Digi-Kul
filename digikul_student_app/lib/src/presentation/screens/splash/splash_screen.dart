@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
-import '../../../core/config/app_config.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../domain/providers/auth_provider.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -33,20 +33,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-    ));
+      curve: const Interval(0, 0.6, curve: Curves.easeOut),
+    ),);
 
     _scaleAnimation = Tween<double>(
       begin: 0.8,
-      end: 1.0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
-    ));
+      curve: const Interval(0, 0.6, curve: Curves.elasticOut),
+    ),);
 
     _animationController.forward();
   }
@@ -66,7 +66,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     return Scaffold(
       backgroundColor: AppColors.primary,
-      body: Container(
+      body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,

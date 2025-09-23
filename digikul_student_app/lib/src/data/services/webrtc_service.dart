@@ -4,12 +4,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:logger/logger.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/constants/app_constants.dart';
-import 'socket_service.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/data/services/socket_service.dart';
 
 /// WebRTC service for audio communication in live sessions
 class WebRTCService {
+  factory WebRTCService() => _instance;
+
+  WebRTCService._internal() {
+    _logger = Logger(
+      printer: PrettyPrinter(
+        methodCount: 2,
+        errorMethodCount: 8,
+        lineLength: 120,
+        colors: true,
+        printEmojis: true,
+        printTime: true,
+      ),
+    );
+    _socketService = SocketService();
+  }
   late Logger _logger;
   late SocketService _socketService;
   
@@ -35,7 +50,7 @@ class WebRTCService {
   
   // Audio level monitoring
   Timer? _audioLevelTimer;
-  double _currentAudioLevel = 0.0;
+  double _currentAudioLevel = 0;
   
   // Network quality monitoring
   Timer? _qualityTimer;
@@ -43,21 +58,6 @@ class WebRTCService {
 
   // Singleton pattern
   static final WebRTCService _instance = WebRTCService._internal();
-  factory WebRTCService() => _instance;
-
-  WebRTCService._internal() {
-    _logger = Logger(
-      printer: PrettyPrinter(
-        methodCount: 2,
-        errorMethodCount: 8,
-        lineLength: 120,
-        colors: true,
-        printEmojis: true,
-        printTime: true,
-      ),
-    );
-    _socketService = SocketService();
-  }
 
   // Getters
   bool get isInitialized => _isInitialized;
@@ -425,7 +425,7 @@ class WebRTCService {
       final stats = await _peerConnection!.getStats();
       
       // Analyze stats to determine network quality
-      NetworkQuality quality = _analyzeNetworkStats(stats);
+      var quality = _analyzeNetworkStats(stats);
       
       if (quality != _currentQuality) {
         _currentQuality = quality;

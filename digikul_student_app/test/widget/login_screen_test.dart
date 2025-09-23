@@ -136,7 +136,7 @@ void main() {
       final checkbox = find.byType(Checkbox);
       
       // Initially unchecked
-      Checkbox checkboxWidget = tester.widget<Checkbox>(checkbox);
+      var checkboxWidget = tester.widget<Checkbox>(checkbox);
       expect(checkboxWidget.value, false);
 
       // Tap checkbox

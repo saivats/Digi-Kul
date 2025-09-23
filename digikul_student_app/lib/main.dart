@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'src/core/config/app_config.dart';
-import 'src/core/theme/app_colors.dart';
-import 'src/core/theme/app_text_styles.dart';
-import 'src/data/services/offline_storage_service.dart';
-import 'src/presentation/router/app_router.dart';
+import 'package:digikul_student_app/src/core/config/app_config.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/data/services/offline_storage_service.dart';
+import 'package:digikul_student_app/src/presentation/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +54,6 @@ class DigiKulApp extends ConsumerWidget {
         // Color scheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
-          brightness: Brightness.light,
           surface: AppColors.surface,
           background: AppColors.background,
           primary: AppColors.primary,
@@ -99,7 +98,6 @@ class DigiKulApp extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
               color: AppColors.outline.withOpacity(0.2),
-              width: 1,
             ),
           ),
           margin: const EdgeInsets.all(8),
@@ -129,7 +127,6 @@ class DigiKulApp extends ConsumerWidget {
             foregroundColor: AppColors.primary,
             side: const BorderSide(
               color: AppColors.primary,
-              width: 1,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -169,14 +166,12 @@ class DigiKulApp extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
               color: AppColors.outline,
-              width: 1,
             ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
               color: AppColors.outline,
-              width: 1,
             ),
           ),
           focusedBorder: OutlineInputBorder(
@@ -190,7 +185,6 @@ class DigiKulApp extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
               color: AppColors.error,
-              width: 1,
             ),
           ),
           focusedErrorBorder: OutlineInputBorder(

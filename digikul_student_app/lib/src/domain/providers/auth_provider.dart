@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
-import '../../data/models/user.dart';
-import '../../data/repositories/auth_repository.dart';
-import '../../data/services/api_service.dart';
-import '../../data/services/offline_storage_service.dart';
+import 'package:digikul_student_app/src/data/models/user.dart';
+import 'package:digikul_student_app/src/data/repositories/auth_repository.dart';
+import 'package:digikul_student_app/src/data/services/api_service.dart';
+import 'package:digikul_student_app/src/data/services/offline_storage_service.dart';
 
 // Repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -50,10 +50,6 @@ final authErrorProvider = Provider<String?>((ref) {
 
 /// Authentication state model
 class AuthState {
-  final UserSession? user;
-  final bool isLoading;
-  final String? error;
-  final bool isInitialized;
 
   const AuthState({
     this.user,
@@ -61,6 +57,10 @@ class AuthState {
     this.error,
     this.isInitialized = false,
   });
+  final UserSession? user;
+  final bool isLoading;
+  final String? error;
+  final bool isInitialized;
 
   bool get isAuthenticated => user != null;
 
@@ -88,14 +88,14 @@ class AuthState {
 
 /// Authentication state notifier
 class AuthNotifier extends StateNotifier<AuthState> {
-  final AuthRepository _authRepository;
-  final Logger _logger;
 
   AuthNotifier(this._authRepository) 
       : _logger = Logger(),
         super(const AuthState()) {
     _initialize();
   }
+  final AuthRepository _authRepository;
+  final Logger _logger;
 
   /// Initialize authentication state
   Future<void> _initialize() async {
@@ -157,7 +157,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       _logger.e('Login failed: $e');
       
-      String errorMessage = 'Login failed';
+      var errorMessage = 'Login failed';
       if (e.toString().contains('Invalid credentials')) {
         errorMessage = 'Invalid email or password';
       } else if (e.toString().contains('Network')) {

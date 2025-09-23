@@ -1,13 +1,4 @@
 class ChatMessage {
-  final String id;
-  final String? lectureId;
-  final String? sessionId;
-  final String userId;
-  final String userName;
-  final String userType;
-  final String message;
-  final DateTime timestamp;
-  final bool isActive;
 
   const ChatMessage({
     required this.id,
@@ -34,6 +25,15 @@ class ChatMessage {
       isActive: json['is_active'] ?? true,
     );
   }
+  final String id;
+  final String? lectureId;
+  final String? sessionId;
+  final String userId;
+  final String userName;
+  final String userType;
+  final String message;
+  final DateTime timestamp;
+  final bool isActive;
 
   Map<String, dynamic> toJson() {
     return {

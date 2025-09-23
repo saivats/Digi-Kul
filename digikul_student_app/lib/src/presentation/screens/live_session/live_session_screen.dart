@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
 
 class LiveSessionScreen extends StatelessWidget {
-  final String sessionId;
   
   const LiveSessionScreen({
     super.key,
     required this.sessionId,
   });
+  final String sessionId;
 
   @override
   Widget build(BuildContext context) {

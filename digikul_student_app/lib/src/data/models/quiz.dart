@@ -6,6 +6,23 @@ part 'quiz.g.dart';
 /// Quiz model representing assessment questions
 @JsonSerializable()
 class Quiz extends Equatable {
+
+  const Quiz({
+    required this.id,
+    required this.lectureId,
+    required this.question,
+    required this.options,
+    required this.correctAnswer,
+    required this.createdAt,
+    this.isActive = true,
+    this.lectureTitle,
+    this.teacherName,
+    this.userResponse,
+    this.isCorrect,
+    this.hasAnswered,
+  });
+
+  factory Quiz.fromJson(Map<String, dynamic> json) => _$QuizFromJson(json);
   final String id;
   @JsonKey(name: 'lecture_id')
   final String lectureId;
@@ -29,23 +46,6 @@ class Quiz extends Equatable {
   final bool? isCorrect;
   @JsonKey(name: 'has_answered')
   final bool? hasAnswered;
-
-  const Quiz({
-    required this.id,
-    required this.lectureId,
-    required this.question,
-    required this.options,
-    required this.correctAnswer,
-    required this.createdAt,
-    this.isActive = true,
-    this.lectureTitle,
-    this.teacherName,
-    this.userResponse,
-    this.isCorrect,
-    this.hasAnswered,
-  });
-
-  factory Quiz.fromJson(Map<String, dynamic> json) => _$QuizFromJson(json);
 
   Map<String, dynamic> toJson() => _$QuizToJson(this);
 
@@ -80,7 +80,7 @@ class Quiz extends Equatable {
   }
 
   /// Check if the user has answered this quiz
-  bool get isAnswered => hasAnswered == true || userResponse != null;
+  bool get isAnswered => hasAnswered ?? false || userResponse != null;
 
   /// Get the index of the correct answer
   int get correctAnswerIndex {
@@ -118,16 +118,6 @@ class Quiz extends Equatable {
 /// Quiz response model
 @JsonSerializable()
 class QuizResponse extends Equatable {
-  final String id;
-  @JsonKey(name: 'student_id')
-  final String studentId;
-  @JsonKey(name: 'quiz_id')
-  final String quizId;
-  final String response;
-  @JsonKey(name: 'is_correct')
-  final bool isCorrect;
-  @JsonKey(name: 'submitted_at')
-  final DateTime submittedAt;
 
   const QuizResponse({
     required this.id,
@@ -140,6 +130,16 @@ class QuizResponse extends Equatable {
 
   factory QuizResponse.fromJson(Map<String, dynamic> json) =>
       _$QuizResponseFromJson(json);
+  final String id;
+  @JsonKey(name: 'student_id')
+  final String studentId;
+  @JsonKey(name: 'quiz_id')
+  final String quizId;
+  final String response;
+  @JsonKey(name: 'is_correct')
+  final bool isCorrect;
+  @JsonKey(name: 'submitted_at')
+  final DateTime submittedAt;
 
   Map<String, dynamic> toJson() => _$QuizResponseToJson(this);
 
@@ -157,7 +157,6 @@ class QuizResponse extends Equatable {
 /// Request to submit a quiz answer
 @JsonSerializable()
 class QuizSubmissionRequest extends Equatable {
-  final String response;
 
   const QuizSubmissionRequest({
     required this.response,
@@ -165,6 +164,7 @@ class QuizSubmissionRequest extends Equatable {
 
   factory QuizSubmissionRequest.fromJson(Map<String, dynamic> json) =>
       _$QuizSubmissionRequestFromJson(json);
+  final String response;
 
   Map<String, dynamic> toJson() => _$QuizSubmissionRequestToJson(this);
 
@@ -175,14 +175,6 @@ class QuizSubmissionRequest extends Equatable {
 /// Quiz submission response
 @JsonSerializable()
 class QuizSubmissionResponse extends Equatable {
-  final bool success;
-  final String message;
-  @JsonKey(name: 'is_correct')
-  final bool? isCorrect;
-  @JsonKey(name: 'correct_answer')
-  final String? correctAnswer;
-  @JsonKey(name: 'response_id')
-  final String? responseId;
 
   const QuizSubmissionResponse({
     required this.success,
@@ -194,6 +186,14 @@ class QuizSubmissionResponse extends Equatable {
 
   factory QuizSubmissionResponse.fromJson(Map<String, dynamic> json) =>
       _$QuizSubmissionResponseFromJson(json);
+  final bool success;
+  final String message;
+  @JsonKey(name: 'is_correct')
+  final bool? isCorrect;
+  @JsonKey(name: 'correct_answer')
+  final String? correctAnswer;
+  @JsonKey(name: 'response_id')
+  final String? responseId;
 
   Map<String, dynamic> toJson() => _$QuizSubmissionResponseToJson(this);
 
@@ -210,14 +210,6 @@ class QuizSubmissionResponse extends Equatable {
 /// Quiz summary for list views
 @JsonSerializable()
 class QuizSummary extends Equatable {
-  final String id;
-  final String question;
-  final int optionCount;
-  final String? lectureTitle;
-  final String? teacherName;
-  final DateTime createdAt;
-  final bool hasAnswered;
-  final bool? isCorrect;
 
   const QuizSummary({
     required this.id,
@@ -233,8 +225,6 @@ class QuizSummary extends Equatable {
   factory QuizSummary.fromJson(Map<String, dynamic> json) =>
       _$QuizSummaryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$QuizSummaryToJson(this);
-
   factory QuizSummary.fromQuiz(Quiz quiz) {
     return QuizSummary(
       id: quiz.id,
@@ -247,6 +237,16 @@ class QuizSummary extends Equatable {
       isCorrect: quiz.isCorrect,
     );
   }
+  final String id;
+  final String question;
+  final int optionCount;
+  final String? lectureTitle;
+  final String? teacherName;
+  final DateTime createdAt;
+  final bool hasAnswered;
+  final bool? isCorrect;
+
+  Map<String, dynamic> toJson() => _$QuizSummaryToJson(this);
 
   /// Get truncated question for display
   String get truncatedQuestion {
@@ -257,7 +257,7 @@ class QuizSummary extends Equatable {
   /// Get result status
   String get resultStatus {
     if (!hasAnswered) return 'Not answered';
-    if (isCorrect == true) return 'Correct';
+    if (isCorrect ?? false) return 'Correct';
     if (isCorrect == false) return 'Incorrect';
     return 'Submitted';
   }
@@ -278,18 +278,6 @@ class QuizSummary extends Equatable {
 /// Quiz results and statistics
 @JsonSerializable()
 class QuizResults extends Equatable {
-  @JsonKey(name: 'quiz_id')
-  final String quizId;
-  final String question;
-  @JsonKey(name: 'correct_answer')
-  final String correctAnswer;
-  @JsonKey(name: 'total_responses')
-  final int totalResponses;
-  @JsonKey(name: 'correct_responses')
-  final int correctResponses;
-  @JsonKey(name: 'accuracy_percentage')
-  final double accuracyPercentage;
-  final List<QuizOptionResult> results;
 
   const QuizResults({
     required this.quizId,
@@ -303,6 +291,18 @@ class QuizResults extends Equatable {
 
   factory QuizResults.fromJson(Map<String, dynamic> json) =>
       _$QuizResultsFromJson(json);
+  @JsonKey(name: 'quiz_id')
+  final String quizId;
+  final String question;
+  @JsonKey(name: 'correct_answer')
+  final String correctAnswer;
+  @JsonKey(name: 'total_responses')
+  final int totalResponses;
+  @JsonKey(name: 'correct_responses')
+  final int correctResponses;
+  @JsonKey(name: 'accuracy_percentage')
+  final double accuracyPercentage;
+  final List<QuizOptionResult> results;
 
   Map<String, dynamic> toJson() => _$QuizResultsToJson(this);
 
@@ -326,11 +326,6 @@ class QuizResults extends Equatable {
 /// Individual quiz option result
 @JsonSerializable()
 class QuizOptionResult extends Equatable {
-  final String option;
-  final int responses;
-  final double percentage;
-  @JsonKey(name: 'is_correct')
-  final bool isCorrect;
 
   const QuizOptionResult({
     required this.option,
@@ -341,6 +336,11 @@ class QuizOptionResult extends Equatable {
 
   factory QuizOptionResult.fromJson(Map<String, dynamic> json) =>
       _$QuizOptionResultFromJson(json);
+  final String option;
+  final int responses;
+  final double percentage;
+  @JsonKey(name: 'is_correct')
+  final bool isCorrect;
 
   Map<String, dynamic> toJson() => _$QuizOptionResultToJson(this);
 

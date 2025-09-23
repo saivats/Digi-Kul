@@ -6,6 +6,23 @@ part 'poll.g.dart';
 /// Poll model representing interactive questions during lectures
 @JsonSerializable()
 class Poll extends Equatable {
+
+  const Poll({
+    required this.id,
+    this.lectureId,
+    required this.teacherId,
+    required this.question,
+    required this.options,
+    required this.createdAt,
+    this.isActive = true,
+    this.teacherName,
+    this.lectureTitle,
+    this.totalVotes,
+    this.userResponse,
+    this.hasVoted,
+  });
+
+  factory Poll.fromJson(Map<String, dynamic> json) => _$PollFromJson(json);
   final String id;
   @JsonKey(name: 'lecture_id')
   final String? lectureId;
@@ -29,23 +46,6 @@ class Poll extends Equatable {
   final String? userResponse;
   @JsonKey(name: 'has_voted')
   final bool? hasVoted;
-
-  const Poll({
-    required this.id,
-    this.lectureId,
-    required this.teacherId,
-    required this.question,
-    required this.options,
-    required this.createdAt,
-    this.isActive = true,
-    this.teacherName,
-    this.lectureTitle,
-    this.totalVotes,
-    this.userResponse,
-    this.hasVoted,
-  });
-
-  factory Poll.fromJson(Map<String, dynamic> json) => _$PollFromJson(json);
 
   Map<String, dynamic> toJson() => _$PollToJson(this);
 
@@ -80,7 +80,7 @@ class Poll extends Equatable {
   }
 
   /// Check if the user has voted on this poll
-  bool get isVoted => hasVoted == true || userResponse != null;
+  bool get isVoted => hasVoted ?? false || userResponse != null;
 
   /// Check if this is a general poll (not associated with a specific lecture)
   bool get isGeneralPoll => lectureId == null;
@@ -117,14 +117,6 @@ class Poll extends Equatable {
 /// Poll response model
 @JsonSerializable()
 class PollResponse extends Equatable {
-  final String id;
-  @JsonKey(name: 'student_id')
-  final String studentId;
-  @JsonKey(name: 'poll_id')
-  final String pollId;
-  final String response;
-  @JsonKey(name: 'submitted_at')
-  final DateTime submittedAt;
 
   const PollResponse({
     required this.id,
@@ -136,6 +128,14 @@ class PollResponse extends Equatable {
 
   factory PollResponse.fromJson(Map<String, dynamic> json) =>
       _$PollResponseFromJson(json);
+  final String id;
+  @JsonKey(name: 'student_id')
+  final String studentId;
+  @JsonKey(name: 'poll_id')
+  final String pollId;
+  final String response;
+  @JsonKey(name: 'submitted_at')
+  final DateTime submittedAt;
 
   Map<String, dynamic> toJson() => _$PollResponseToJson(this);
 
@@ -146,14 +146,6 @@ class PollResponse extends Equatable {
 /// Poll results with vote counts and percentages
 @JsonSerializable()
 class PollResults extends Equatable {
-  @JsonKey(name: 'poll_id')
-  final String pollId;
-  final String question;
-  @JsonKey(name: 'total_votes')
-  final int totalVotes;
-  final List<PollOptionResult> results;
-  @JsonKey(name: 'created_at')
-  final DateTime createdAt;
 
   const PollResults({
     required this.pollId,
@@ -165,6 +157,14 @@ class PollResults extends Equatable {
 
   factory PollResults.fromJson(Map<String, dynamic> json) =>
       _$PollResultsFromJson(json);
+  @JsonKey(name: 'poll_id')
+  final String pollId;
+  final String question;
+  @JsonKey(name: 'total_votes')
+  final int totalVotes;
+  final List<PollOptionResult> results;
+  @JsonKey(name: 'created_at')
+  final DateTime createdAt;
 
   Map<String, dynamic> toJson() => _$PollResultsToJson(this);
 
@@ -172,7 +172,7 @@ class PollResults extends Equatable {
   PollOptionResult? get winningOption {
     if (results.isEmpty) return null;
     
-    PollOptionResult winner = results.first;
+    var winner = results.first;
     for (final result in results) {
       if (result.votes > winner.votes) {
         winner = result;
@@ -199,9 +199,6 @@ class PollResults extends Equatable {
 /// Individual poll option result
 @JsonSerializable()
 class PollOptionResult extends Equatable {
-  final String option;
-  final int votes;
-  final double percentage;
 
   const PollOptionResult({
     required this.option,
@@ -211,6 +208,9 @@ class PollOptionResult extends Equatable {
 
   factory PollOptionResult.fromJson(Map<String, dynamic> json) =>
       _$PollOptionResultFromJson(json);
+  final String option;
+  final int votes;
+  final double percentage;
 
   Map<String, dynamic> toJson() => _$PollOptionResultToJson(this);
 
@@ -237,7 +237,6 @@ class PollOptionResult extends Equatable {
 /// Request to vote on a poll
 @JsonSerializable()
 class PollVoteRequest extends Equatable {
-  final String response;
 
   const PollVoteRequest({
     required this.response,
@@ -245,6 +244,7 @@ class PollVoteRequest extends Equatable {
 
   factory PollVoteRequest.fromJson(Map<String, dynamic> json) =>
       _$PollVoteRequestFromJson(json);
+  final String response;
 
   Map<String, dynamic> toJson() => _$PollVoteRequestToJson(this);
 
@@ -255,14 +255,6 @@ class PollVoteRequest extends Equatable {
 /// Poll summary for list views
 @JsonSerializable()
 class PollSummary extends Equatable {
-  final String id;
-  final String question;
-  final int optionCount;
-  final String? lectureTitle;
-  final String? teacherName;
-  final DateTime createdAt;
-  final bool hasVoted;
-  final int totalVotes;
 
   const PollSummary({
     required this.id,
@@ -278,8 +270,6 @@ class PollSummary extends Equatable {
   factory PollSummary.fromJson(Map<String, dynamic> json) =>
       _$PollSummaryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$PollSummaryToJson(this);
-
   factory PollSummary.fromPoll(Poll poll) {
     return PollSummary(
       id: poll.id,
@@ -292,6 +282,16 @@ class PollSummary extends Equatable {
       totalVotes: poll.totalVotes ?? 0,
     );
   }
+  final String id;
+  final String question;
+  final int optionCount;
+  final String? lectureTitle;
+  final String? teacherName;
+  final DateTime createdAt;
+  final bool hasVoted;
+  final int totalVotes;
+
+  Map<String, dynamic> toJson() => _$PollSummaryToJson(this);
 
   /// Get truncated question for display
   String get truncatedQuestion {

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../domain/providers/auth_provider.dart';
-import '../../../domain/providers/lecture_provider.dart';
-import '../../widgets/common/loading_button.dart';
+import 'package:digikul_student_app/src/core/constants/app_constants.dart';
+import 'package:digikul_student_app/src/core/theme/app_colors.dart';
+import 'package:digikul_student_app/src/core/theme/app_text_styles.dart';
+import 'package:digikul_student_app/src/domain/providers/auth_provider.dart';
+import 'package:digikul_student_app/src/domain/providers/lecture_provider.dart';
+import 'package:digikul_student_app/src/presentation/widgets/common/loading_button.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -70,7 +70,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   title: Text('Logout'),
                   contentPadding: EdgeInsets.zero,
                 ),
-                onTap: () => _handleLogout(),
+                onTap: _handleLogout,
               ),
             ],
           ),
@@ -138,7 +138,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
 
-    if (shouldLogout == true) {
+    if (shouldLogout ?? false) {
       await ref.read(authStateProvider.notifier).logout();
     }
   }
@@ -340,13 +340,13 @@ class _HomeTab extends ConsumerWidget {
 }
 
 class _LecturesList extends StatelessWidget {
-  final List lectures;
-  final bool isLive;
 
   const _LecturesList({
     required this.lectures,
     this.isLive = false,
   });
+  final List lectures;
+  final bool isLive;
 
   @override
   Widget build(BuildContext context) {
@@ -354,19 +354,19 @@ class _LecturesList extends StatelessWidget {
       children: lectures.map((lecture) => _LectureCard(
         lecture: lecture,
         isLive: isLive,
-      )).toList(),
+      ),).toList(),
     );
   }
 }
 
 class _LectureCard extends StatelessWidget {
-  final dynamic lecture;
-  final bool isLive;
 
   const _LectureCard({
     required this.lecture,
     this.isLive = false,
   });
+  final dynamic lecture;
+  final bool isLive;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +414,7 @@ class _LectureCard extends StatelessWidget {
               ),
           ],
         ),
-        trailing: Icon(
+        trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 16,
           color: AppColors.textSecondary,
@@ -431,9 +431,9 @@ class _LectureCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  final String message;
 
   const _EmptyState({required this.message});
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -475,9 +475,9 @@ class _LoadingWidget extends StatelessWidget {
 }
 
 class _ErrorWidget extends StatelessWidget {
-  final String error;
 
   const _ErrorWidget({required this.error});
+  final String error;
 
   @override
   Widget build(BuildContext context) {
@@ -485,7 +485,7 @@ class _ErrorWidget extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             color: AppColors.error,
             size: 32,

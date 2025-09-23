@@ -2,46 +2,38 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import '../models/user.dart';
-import '../models/lecture.dart';
-import '../models/cohort.dart';
-import '../models/material.dart';
-import '../models/poll.dart';
-import '../models/quiz.dart';
-import '../models/enrollment.dart';
+import 'package:digikul_student_app/models/user.dart';
+import 'package:digikul_student_app/models/lecture.dart';
+import 'package:digikul_student_app/models/cohort.dart';
+import 'package:digikul_student_app/models/material.dart';
+import 'package:digikul_student_app/models/poll.dart';
+import 'package:digikul_student_app/models/quiz.dart';
+import 'package:digikul_student_app/models/enrollment.dart';
 
 class ApiException implements Exception {
+
+  const ApiException(this.message, {this.statusCode, this.errorCode});
   final String message;
   final int? statusCode;
   final String? errorCode;
-
-  const ApiException(this.message, {this.statusCode, this.errorCode});
 
   @override
   String toString() => 'ApiException: $message';
 }
 
 class NetworkException extends ApiException {
-  const NetworkException(String message) : super(message);
+  const NetworkException(super.message);
 }
 
 class AuthenticationException extends ApiException {
-  const AuthenticationException(String message) : super(message, statusCode: 401);
+  const AuthenticationException(super.message) : super(statusCode: 401);
 }
 
 class ServerException extends ApiException {
-  const ServerException(String message, int statusCode) : super(message, statusCode: statusCode);
+  const ServerException(super.message, int statusCode) : super(statusCode: statusCode);
 }
 
 class ApiService {
-  static const String _defaultBaseUrl = 'http://192.168.29.104:5000';
-  
-  late final Dio _dio;
-  String? _sessionCookie;
-  User? _currentUser;
-
-  // Singleton pattern
-  static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   
   ApiService._internal() {
@@ -92,6 +84,14 @@ class ApiService {
       },
     ));
   }
+  static const String _defaultBaseUrl = 'http://192.168.29.104:5000';
+  
+  late final Dio _dio;
+  String? _sessionCookie;
+  User? _currentUser;
+
+  // Singleton pattern
+  static final ApiService _instance = ApiService._internal();
 
   // Getters
   bool get isAuthenticated => _sessionCookie != null && _currentUser != null;
@@ -129,7 +129,7 @@ class ApiService {
         
         return ServerException(message, statusCode);
       } catch (_) {
-        return ServerException('Server error (${statusCode})', statusCode);
+        return ServerException('Server error ($statusCode)', statusCode);
       }
     }
 
@@ -143,7 +143,7 @@ class ApiService {
         'email': email,
         'password': password,
         'user_type': userType,
-      });
+      },);
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
@@ -251,7 +251,7 @@ class ApiService {
     try {
       await _dio.post('/api/student/enroll', data: {
         'lecture_id': lectureId,
-      });
+      },);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -277,7 +277,7 @@ class ApiService {
     try {
       await _dio.post('/api/student/cohorts/join', data: {
         'cohort_code': cohortCode,
-      });
+      },);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -327,7 +327,7 @@ class ApiService {
         savePath,
         onReceiveProgress: onReceiveProgress,
         options: Options(
-          headers: _sessionCookie != null ? {'Cookie': _sessionCookie!} : null,
+          headers: _sessionCookie != null ? {'Cookie': _sessionCookie} : null,
         ),
       );
     } on DioException catch (e) {
@@ -370,7 +370,7 @@ class ApiService {
     try {
       await _dio.post('/api/polls/$pollId/vote', data: {
         'response': response,
-      });
+      },);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -422,7 +422,7 @@ class ApiService {
     try {
       await _dio.post('/api/quizzes/$quizId/submit', data: {
         'response': response,
-      });
+      },);
     } on DioException catch (e) {
       throw _handleError(e);
     }
