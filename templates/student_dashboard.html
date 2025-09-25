@@ -1,643 +1,838 @@
-{% extends 'base.html' %}
-{% block title %}Student Dashboard • Digi Kul{% endblock %}
-{% block header_title %}Student Dashboard{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Digi Kul</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+    <style>
+        .chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .chatbot-toggle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .chatbot-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .chatbot-window {
+            position: absolute;
+            bottom: 80px;
+            right: 0;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chatbot-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .chatbot-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+        }
+        
+        .message.user .message-avatar {
+            background: #007bff;
+        }
+        
+        .message.asha .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .message-content {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+        }
+        
+        .message.asha .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e9ecef;
+        }
+        
+        .chatbot-input {
+            padding: 15px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chatbot-input input {
+            flex: 1;
+            border: 1px solid #e9ecef;
+            border-radius: 20px;
+            padding: 10px 15px;
+            outline: none;
+        }
+        
+        .chatbot-input button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+        }
+        
+        .welcome-message {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .welcome-message .asha-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            margin: 0 auto 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-mortarboard me-2"></i>
+                Digi Kul - Student Portal
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    Welcome, <strong id="studentName">Student</strong>
+                </span>
+                <button class="btn btn-outline-light" onclick="logout()">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </button>
+            </div>
+        </div>
+    </nav>
 
-{% block content %}
-<!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <!-- Dashboard Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Enrolled Cohorts</h6>
+                                <h3 id="enrolledCohorts">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-people-fill fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Upcoming Lectures</h6>
+                                <h3 id="upcomingLectures">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-calendar-event fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Available Quizzes</h6>
+                                <h3 id="availableQuizzes">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-question-circle fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Materials</h6>
+                                <h3 id="availableMaterials">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-file-earmark-text fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<div class="container-fluid py-4">
-    <!-- Dashboard Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
+        <!-- Main Content Tabs -->
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
+                    <i class="bi bi-people me-2"></i>My Cohorts
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
+                    <i class="bi bi-calendar-event me-2"></i>Lectures
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab">
+                    <i class="bi bi-file-earmark-text me-2"></i>Materials
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
+                    <i class="bi bi-question-circle me-2"></i>Quizzes
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabContent">
+            <!-- Cohorts Tab -->
+            <div class="tab-pane fade show active" id="cohorts" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">My Cohorts</h5>
+                        <button class="btn btn-primary" onclick="showEnrollModal()">
+                            <i class="bi bi-plus-circle me-2"></i>Enroll in Cohort
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="cohortsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-people fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No cohorts enrolled yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lectures Tab -->
+            <div class="tab-pane fade" id="lectures" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Upcoming Lectures</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="lecturesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No upcoming lectures</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Materials Tab -->
+            <div class="tab-pane fade" id="materials" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Available Materials</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="materialsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No materials available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quizzes Tab -->
+            <div class="tab-pane fade" id="quizzes" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Available Quizzes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="quizzesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-question-circle fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No quizzes available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enroll in Cohort Modal -->
+    <div class="modal fade" id="enrollModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Enroll in Cohort</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="enrollForm">
+                        <div class="mb-3">
+                            <label class="form-label">Enrollment Code</label>
+                            <input type="text" class="form-control" id="enrollmentCode" placeholder="Enter cohort enrollment code" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="enrollInCohort()">Enroll</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asha Chatbot -->
+    <div class="chatbot-container">
+        <div class="chatbot-window" id="chatbotWindow">
+            <div class="chatbot-header">
+                <div class="chatbot-avatar">
+                    <i class="bi bi-robot"></i>
+                </div>
                 <div>
-                    <h1 class="h3 mb-1">Student Dashboard</h1>
-                    <p class="text-muted">Welcome back, {{ session.get('user_name') }}!</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" onclick="showJoinCohortModal()">
-                        <i class="bi bi-people me-2"></i>Join Cohort
-                    </button>
+                    <h6 class="mb-0">Asha - Your AI Assistant</h6>
+                    <small>Online</small>
                 </div>
             </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <div class="welcome-message">
+                    <div class="asha-avatar">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <h6>Hi! I'm Asha 👋</h6>
+                    <p>Your AI learning assistant. I'm here to help you with:</p>
+                    <ul class="list-unstyled">
+                        <li>📚 Study questions</li>
+                        <li>💡 Learning tips</li>
+                        <li>🔍 Course content help</li>
+                        <li>📝 Assignment guidance</li>
+                    </ul>
+                    <p>How can I help you today?</p>
+                </div>
+            </div>
+            <div class="chatbot-input">
+                <input type="text" id="chatbotInput" placeholder="Ask me anything..." onkeypress="handleChatbotKeypress(event)">
+                <button onclick="sendMessage()">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
         </div>
+        <button class="chatbot-toggle" onclick="toggleChatbot()">
+            <i class="bi bi-chat-dots"></i>
+        </button>
     </div>
 
-    <!-- Dashboard Stats -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar-check fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalLectures">0</h3>
-                    <p class="mb-0">Available Lectures</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-people-fill fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalCohorts">0</h3>
-                    <p class="mb-0">My Cohorts</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-question-circle-fill fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalQuizzes">0</h3>
-                    <p class="mb-0">Available Quizzes</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-file-earmark-text fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalMaterials">0</h3>
-                    <p class="mb-0">Materials</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
 
-    <!-- Main Content Tabs -->
-    <div class="row">
-        <div class="col-12">
-            <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
-                        <i class="bi bi-calendar-event me-2"></i>Available Lectures
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
-                        <i class="bi bi-question-circle me-2"></i>Quizzes
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab">
-                        <i class="bi bi-file-earmark-text me-2"></i>Materials
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
-                        <i class="bi bi-people me-2"></i>My Cohorts
-                    </button>
-                </li>
-            </ul>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
-            <div class="tab-content" id="dashboardTabsContent">
-                <!-- Lectures Tab -->
-                <div class="tab-pane fade show active" id="lectures" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="mb-0">Available Lectures</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="lecturesList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading lectures...</p>
-                                </div>
-                            </div>
+    <script>
+        // Global variables
+        let chatbotOpen = false;
+        let studentData = {};
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStudentData();
+            loadDashboardData();
+        });
+
+        async function loadStudentData() {
+            try {
+                const response = await fetch('/api/student/profile');
+                const data = await response.json();
+                
+                if (data.success) {
+                    studentData = data.student;
+                    document.getElementById('studentName').textContent = studentData.name;
+                }
+            } catch (error) {
+                console.error('Error loading student data:', error);
+            }
+        }
+
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadCohorts(),
+                    loadLectures(),
+                    loadMaterials(),
+                    loadQuizzes()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        async function loadCohorts() {
+            try {
+                const response = await fetch('/api/student/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohorts = data.cohorts;
+                    document.getElementById('enrolledCohorts').textContent = cohorts.length;
+                    renderCohorts(cohorts);
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+            }
+        }
+
+        async function loadLectures() {
+            try {
+                const response = await fetch('/api/student/lectures');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const lectures = data.lectures;
+                    document.getElementById('upcomingLectures').textContent = lectures.length;
+                    renderLectures(lectures);
+                }
+            } catch (error) {
+                console.error('Error loading lectures:', error);
+            }
+        }
+
+        async function loadMaterials() {
+            try {
+                const response = await fetch('/api/student/materials');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const materials = data.materials;
+                    document.getElementById('availableMaterials').textContent = materials.length;
+                    renderMaterials(materials);
+                }
+            } catch (error) {
+                console.error('Error loading materials:', error);
+            }
+        }
+
+        async function loadQuizzes() {
+            try {
+                const response = await fetch('/api/student/quizzes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const quizSets = data.quiz_sets;
+                    document.getElementById('availableQuizzes').textContent = quizSets.length;
+                    renderQuizzes(quizSets);
+                }
+            } catch (error) {
+                console.error('Error loading quizzes:', error);
+            }
+        }
+
+        function renderCohorts(cohorts) {
+            const container = document.getElementById('cohortsList');
+            
+            if (cohorts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-people fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No cohorts enrolled yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = cohorts.map(cohort => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${cohort.name}</h6>
+                        <p class="card-text text-muted">${cohort.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar me-1"></i>
+                                ${cohort.academic_year || 'N/A'}
+                            </small>
+                            <span class="badge bg-success">Enrolled</span>
                         </div>
                     </div>
                 </div>
+            `).join('');
+        }
 
-                <!-- Quizzes Tab -->
-                <div class="tab-pane fade" id="quizzes" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="mb-0">Available Quizzes</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="quizzesList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-success" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading quizzes...</p>
-                                </div>
-                            </div>
+        function renderLectures(lectures) {
+            const container = document.getElementById('lecturesList');
+            
+            if (lectures.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No upcoming lectures</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = lectures.map(lecture => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${lecture.title}</h6>
+                        <p class="card-text text-muted">${lecture.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${new Date(lecture.scheduled_time).toLocaleString()}
+                            </small>
+                            <span class="badge bg-primary">${lecture.duration} min</span>
                         </div>
                     </div>
                 </div>
+            `).join('');
+        }
 
-                <!-- Materials Tab -->
-                <div class="tab-pane fade" id="materials" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="mb-0">Learning Materials</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="materialsList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-info" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading materials...</p>
-                                </div>
-                            </div>
-                        </div>
+        function renderMaterials(materials) {
+            const container = document.getElementById('materialsList');
+            
+            if (materials.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No materials available</p>
                     </div>
-                </div>
-
-                <!-- Cohorts Tab -->
-                <div class="tab-pane fade" id="cohorts" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">My Cohorts</h5>
-                            <button class="btn btn-primary btn-sm" onclick="showJoinCohortModal()">
-                                <i class="bi bi-plus-circle me-1"></i>Join Cohort
+                `;
+                return;
+            }
+            
+            container.innerHTML = materials.map(material => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${material.title}</h6>
+                        <p class="card-text text-muted">${material.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-file-earmark me-1"></i>
+                                ${material.file_name}
+                            </small>
+                            <button class="btn btn-sm btn-outline-primary" onclick="downloadMaterial('${material.id}')">
+                                <i class="bi bi-download me-1"></i>Download
                             </button>
                         </div>
-                        <div class="card-body">
-                            <div id="cohortsList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-warning" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading cohorts...</p>
-                                </div>
-                            </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderQuizzes(quizSets) {
+            const container = document.getElementById('quizzesList');
+            
+            if (quizSets.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-question-circle fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No quizzes available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = quizSets.map(quiz => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${quiz.title}</h6>
+                        <p class="card-text text-muted">${quiz.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${quiz.time_limit ? quiz.time_limit + ' min' : 'No time limit'}
+                            </small>
+                            <button class="btn btn-sm btn-primary" onclick="startQuiz('${quiz.id}')">
+                                <i class="bi bi-play me-1"></i>Start Quiz
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Join Cohort Modal -->
-<div class="modal fade" id="joinCohortModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Join a Cohort</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="joinCohortForm">
-                    <div class="mb-3">
-                        <label for="cohortCode" class="form-label">Cohort Code</label>
-                        <input type="text" class="form-control" id="cohortCode" placeholder="Enter cohort code" required>
-                        <div class="form-text">Ask your teacher for the cohort code to join</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="joinCohort()">Join Cohort</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-// Global variables
-let lectures = [];
-let quizzes = [];
-let materials = [];
-let cohorts = [];
-
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    loadStudentData();
-});
-
-// Load student data
-async function loadStudentData() {
-    try {
-        await loadLectures();
-        await loadQuizzes();
-        await loadMaterials();
-        await loadCohorts();
-        updateStats();
-    } catch (error) {
-        console.error('Error loading student data:', error);
-        showToast('Failed to load dashboard data', 'error');
-    }
-}
-
-// Load lectures
-async function loadLectures() {
-    try {
-        const response = await fetch('/api/lectures/student');
-        const data = await response.json();
-        
-        if (data.success) {
-            lectures = data.lectures;
-            displayLectures(lectures);
+            `).join('');
         }
-    } catch (error) {
-        console.error('Error loading lectures:', error);
-    }
-}
 
-// Display lectures
-function displayLectures(lecturesList) {
-    const container = document.getElementById('lecturesList');
-    
-    if (lecturesList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No lectures available</h5>
-                <p class="text-muted">Join a cohort to see available lectures</p>
-                <button class="btn btn-primary" onclick="showJoinCohortModal()">
-                    <i class="bi bi-people me-2"></i>Join Cohort
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = lecturesList.map(lecture => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card lecture-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="card-title mb-0">${lecture.title}</h6>
-                        <span class="badge ${getLectureStatusBadge(lecture)}">${getLectureStatus(lecture)}</span>
-                    </div>
-                    <p class="card-text text-muted small">${lecture.description || 'No description'}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            ${new Date(lecture.scheduled_time).toLocaleDateString()}
-                        </small>
-                        <small class="text-muted">
-                            <i class="bi bi-clock me-1"></i>
-                            ${lecture.duration} min
-                        </small>
-                    </div>
-                    <div class="mt-3 d-flex gap-2">
-                        ${getLectureActions(lecture)}
+        function showEnrollModal() {
+            new bootstrap.Modal(document.getElementById('enrollModal')).show();
+        }
+
+        async function enrollInCohort() {
+            const enrollmentCode = document.getElementById('enrollmentCode').value;
+            
+            if (!enrollmentCode) {
+                showToast('Please enter an enrollment code', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/student/enroll', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ enrollment_code: enrollmentCode })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Successfully enrolled in cohort!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('enrollModal')).hide();
+                    document.getElementById('enrollForm').reset();
+                    loadCohorts();
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error enrolling in cohort:', error);
+                showToast('Error enrolling in cohort', 'error');
+            }
+        }
+
+        // Chatbot Functions
+        function toggleChatbot() {
+            const chatbotWindow = document.getElementById('chatbotWindow');
+            chatbotOpen = !chatbotOpen;
+            
+            if (chatbotOpen) {
+                chatbotWindow.style.display = 'flex';
+            } else {
+                chatbotWindow.style.display = 'none';
+            }
+        }
+
+        function handleChatbotKeypress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatbotInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                // Simulate AI response (replace with actual AI integration)
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    const response = generateAshaResponse(message);
+                    addMessage(response, 'asha');
+                }, 1000 + Math.random() * 2000);
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('Sorry, I encountered an error. Please try again.', 'asha');
+            }
+        }
+
+        function addMessage(content, sender) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = sender === 'user' ? 
+                '<i class="bi bi-person-fill"></i>' : 
+                '<i class="bi bi-robot"></i>';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message asha';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar"><i class="bi bi-robot"></i></div>
+                <div class="message-content">
+                    <div class="typing-dots">
+                        <span></span><span></span><span></span>
                     </div>
                 </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Get lecture status
-function getLectureStatus(lecture) {
-    const now = new Date();
-    const scheduled = new Date(lecture.scheduled_time);
-    const endTime = new Date(scheduled.getTime() + lecture.duration * 60000);
-    
-    if (now < scheduled) return 'Scheduled';
-    if (now >= scheduled && now <= endTime) return 'Live Now';
-    return 'Expired';
-}
-
-// Get lecture status badge class
-function getLectureStatusBadge(lecture) {
-    const status = getLectureStatus(lecture);
-    switch (status) {
-        case 'Live Now': return 'bg-success';
-        case 'Scheduled': return 'bg-warning';
-        case 'Expired': return 'bg-secondary';
-        default: return 'bg-primary';
-    }
-}
-
-// Get lecture actions
-function getLectureActions(lecture) {
-    const status = getLectureStatus(lecture);
-    let actions = '';
-    
-    if (status === 'Live Now') {
-        actions += `<button class="btn btn-success btn-sm" onclick="joinLiveSession('${lecture.id}')">
-            <i class="bi bi-play-circle me-1"></i>Join Live
-        </button>`;
-    }
-    
-    actions += `<button class="btn btn-outline-primary btn-sm" onclick="viewLectureMaterials('${lecture.id}')">
-        <i class="bi bi-file-earmark me-1"></i>Materials
-    </button>`;
-    
-    return actions;
-}
-
-// Load quizzes
-async function loadQuizzes() {
-    try {
-        const response = await fetch('/api/quiz/student/available');
-        const data = await response.json();
-        
-        if (data.success) {
-            quizzes = data.quiz_sets;
-            displayQuizzes(quizzes);
+            `;
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
-    } catch (error) {
-        console.error('Error loading quizzes:', error);
-    }
-}
 
-// Display quizzes
-function displayQuizzes(quizzesList) {
-    const container = document.getElementById('quizzesList');
-    
-    if (quizzesList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-question-circle text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No quizzes available</h5>
-                <p class="text-muted">Join a cohort to see available quizzes</p>
-                <button class="btn btn-primary" onclick="showJoinCohortModal()">
-                    <i class="bi bi-people me-2"></i>Join Cohort
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = quizzesList.map(quiz => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card quiz-card">
-                <div class="card-body">
-                    <h6 class="card-title">${quiz.title}</h6>
-                    <p class="card-text text-muted small">${quiz.description || 'No description'}</p>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <small class="text-muted">
-                            <i class="bi bi-question-circle me-1"></i>
-                            ${quiz.question_count || 0} questions
-                        </small>
-                        <small class="text-muted">
-                            <i class="bi bi-clock me-1"></i>
-                            ${quiz.time_limit ? quiz.time_limit + ' min' : 'No limit'}
-                        </small>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary btn-sm" onclick="startQuiz('${quiz.id}')">
-                            <i class="bi bi-play-circle me-1"></i>Start Quiz
-                        </button>
-                        <button class="btn btn-outline-primary btn-sm" onclick="viewQuizHistory('${quiz.id}')">
-                            <i class="bi bi-clock-history me-1"></i>History
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Load materials
-async function loadMaterials() {
-    try {
-        const response = await fetch('/api/materials/student');
-        const data = await response.json();
-        
-        if (data.success) {
-            materials = data.materials;
-            displayMaterials(materials);
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
         }
-    } catch (error) {
-        console.error('Error loading materials:', error);
-    }
-}
 
-// Display materials
-function displayMaterials(materialsList) {
-    const container = document.getElementById('materialsList');
-    
-    if (materialsList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No materials available</h5>
-                <p class="text-muted">Join a cohort to access learning materials</p>
-                <button class="btn btn-primary" onclick="showJoinCohortModal()">
-                    <i class="bi bi-people me-2"></i>Join Cohort
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = materialsList.map(material => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card material-card">
-                <div class="card-body">
-                    <div class="d-flex align-items-start mb-2">
-                        <i class="bi ${getFileIcon(material.file_type)} text-primary fs-4 me-3"></i>
-                        <div class="flex-grow-1">
-                            <h6 class="card-title mb-1">${material.title}</h6>
-                            <p class="card-text text-muted small">${material.description || 'No description'}</p>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            ${new Date(material.uploaded_at).toLocaleDateString()}
-                        </small>
-                        <small class="text-muted">
-                            <i class="bi bi-download me-1"></i>
-                            ${formatFileSize(material.file_size)}
-                        </small>
-                    </div>
-                    <div class="mt-3">
-                        <button class="btn btn-primary btn-sm" onclick="downloadMaterial('${material.id}')">
-                            <i class="bi bi-download me-1"></i>Download
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Load cohorts
-async function loadCohorts() {
-    try {
-        const response = await fetch('/api/cohorts/student');
-        const data = await response.json();
-        
-        if (data.success) {
-            cohorts = data.cohorts;
-            displayCohorts(cohorts);
+        function generateAshaResponse(userMessage) {
+            const message = userMessage.toLowerCase();
+            
+            // Simple response patterns
+            if (message.includes('hello') || message.includes('hi')) {
+                return "Hello! 👋 I'm Asha, your AI learning assistant. How can I help you with your studies today?";
+            }
+            
+            if (message.includes('help') || message.includes('assist')) {
+                return "I'm here to help! I can assist you with:\n• Explaining course concepts\n• Study tips and strategies\n• Assignment guidance\n• Quiz preparation\n• General learning questions\n\nWhat would you like to know?";
+            }
+            
+            if (message.includes('study') || message.includes('learn')) {
+                return "Great! Here are some effective study tips:\n\n📚 **Active Learning**:\n• Take notes while reading\n• Summarize in your own words\n• Teach others what you've learned\n\n⏰ **Time Management**:\n• Use the Pomodoro Technique (25 min focus, 5 min break)\n• Create a study schedule\n• Prioritize difficult topics\n\n🧠 **Memory Techniques**:\n• Use spaced repetition\n• Create mind maps\n• Practice retrieval\n\nWould you like me to elaborate on any of these techniques?";
+            }
+            
+            if (message.includes('quiz') || message.includes('test') || message.includes('exam')) {
+                return "Quiz preparation tips! 🎯\n\n**Before the Quiz**:\n• Review all course materials\n• Practice with sample questions\n• Get a good night's sleep\n• Eat a healthy meal\n\n**During the Quiz**:\n• Read questions carefully\n• Answer easy questions first\n• Manage your time wisely\n• Stay calm and focused\n\n**After the Quiz**:\n• Review your answers if time permits\n• Learn from mistakes\n• Ask for feedback\n\nNeed help with specific quiz topics?";
+            }
+            
+            if (message.includes('assignment') || message.includes('homework')) {
+                return "Assignment help! 📝\n\n**Getting Started**:\n• Read instructions carefully\n• Break down into smaller tasks\n• Create a timeline\n• Gather resources\n\n**Writing Tips**:\n• Start with an outline\n• Use clear, concise language\n• Support arguments with evidence\n• Proofread before submitting\n\n**Common Pitfalls to Avoid**:\n• Procrastination\n• Plagiarism\n• Poor time management\n• Not following instructions\n\nWhat specific assignment are you working on?";
+            }
+            
+            if (message.includes('thank') || message.includes('thanks')) {
+                return "You're very welcome! 😊 I'm always here to help with your learning journey. Feel free to ask me anything about your studies!";
+            }
+            
+            // Default response
+            return "That's an interesting question! 🤔 While I'm still learning, I can help you with study strategies, exam preparation, assignment guidance, and general learning tips. Could you be more specific about what you'd like help with?";
         }
-    } catch (error) {
-        console.error('Error loading cohorts:', error);
-    }
-}
 
-// Display cohorts
-function displayCohorts(cohortsList) {
-    const container = document.getElementById('cohortsList');
-    
-    if (cohortsList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No cohorts joined</h5>
-                <p class="text-muted">Join a cohort to access lectures, quizzes, and materials</p>
-                <button class="btn btn-primary" onclick="showJoinCohortModal()">
-                    <i class="bi bi-people me-2"></i>Join Cohort
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = cohortsList.map(cohort => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card cohort-card">
-                <div class="card-body">
-                    <h6 class="card-title">${cohort.name}</h6>
-                    <p class="card-text text-muted small">${cohort.description || 'No description'}</p>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <small class="text-muted">
-                            <i class="bi bi-book me-1"></i>
-                            ${cohort.subject}
-                        </small>
-                        <small class="text-muted">
-                            <i class="bi bi-people me-1"></i>
-                            ${cohort.student_count || 0} students
-                        </small>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            Joined ${new Date(cohort.joined_at).toLocaleDateString()}
-                        </small>
-                        <span class="badge bg-success">Active</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Update dashboard stats
-function updateStats() {
-    document.getElementById('totalLectures').textContent = lectures.length;
-    document.getElementById('totalCohorts').textContent = cohorts.length;
-    document.getElementById('totalQuizzes').textContent = quizzes.length;
-    document.getElementById('totalMaterials').textContent = materials.length;
-}
-
-// Modal functions
-function showJoinCohortModal() {
-    const modal = new bootstrap.Modal(document.getElementById('joinCohortModal'));
-    modal.show();
-}
-
-// Join cohort
-async function joinCohort() {
-    const code = document.getElementById('cohortCode').value.trim();
-    
-    if (!code) {
-        showToast('Please enter a cohort code', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/cohorts/student/join', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('joinCohortModal')).hide();
-            document.getElementById('joinCohortForm').reset();
-            loadStudentData(); // Reload all data
-        } else {
-            showToast(data.error || 'Failed to join cohort', 'error');
+        async function logout() {
+            try {
+                const response = await fetch('/api/student/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/';
+            }
         }
-    } catch (error) {
-        console.error('Error joining cohort:', error);
-        showToast('Failed to join cohort', 'error');
-    }
-}
 
-// Utility functions
-function getFileIcon(fileType) {
-    switch (fileType) {
-        case 'pdf': return 'bi-file-earmark-pdf';
-        case 'doc': case 'docx': return 'bi-file-earmark-word';
-        case 'ppt': case 'pptx': return 'bi-file-earmark-ppt';
-        case 'jpg': case 'jpeg': case 'png': case 'gif': return 'bi-file-earmark-image';
-        case 'mp3': case 'wav': return 'bi-file-earmark-music';
-        case 'mp4': case 'avi': return 'bi-file-earmark-play';
-        default: return 'bi-file-earmark';
-    }
-}
+        function downloadMaterial(materialId) {
+            // Implement material download
+            showToast('Download feature coming soon!', 'info');
+        }
 
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Placeholder functions for actions
-function joinLiveSession(lectureId) {
-    showToast('Joining live session...', 'info');
-}
-
-function viewLectureMaterials(lectureId) {
-    showToast('Viewing lecture materials...', 'info');
-}
-
-function startQuiz(quizId) {
-    showToast('Starting quiz...', 'info');
-}
-
-function viewQuizHistory(quizId) {
-    showToast('Viewing quiz history...', 'info');
-}
-
-function downloadMaterial(materialId) {
-    window.open(`/api/download/${materialId}`, '_blank');
-}
-
-// Toast notification function
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
-    toast.setAttribute('role', 'alert');
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-    
-    let container = document.getElementById('toastContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        document.body.appendChild(container);
-    }
-    
-    container.appendChild(toast);
-    
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
-    
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-    });
-}
-</script>
-{% endblock %}
+        function startQuiz(quizId) {
+            // Implement quiz start
+            showToast('Quiz feature coming soon!', 'info');
+        }
+    </script>
+</body>
+</html>

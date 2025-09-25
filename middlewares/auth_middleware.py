@@ -7,7 +7,7 @@ from functools import wraps
 from flask import request, session, redirect, url_for, flash, jsonify
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from utils.database import DatabaseManager
+from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 
 class AuthMiddleware:
     def __init__(self, app, db: DatabaseManager):
@@ -396,6 +396,38 @@ class AuthMiddleware:
                 session.clear()
                 flash('Session expired. Please log in again.', 'error')
                 return redirect(url_for('super_admin.login'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    
+    def institution_admin_required(self, f):
+        """Decorator to require institution admin role for routes"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Check if session exists and is valid
+            if 'user_id' not in session or not session.get('user_id'):
+                if request.is_json:
+                    return jsonify({'error': 'Authentication required'}), 401
+                session.clear()
+                flash('Please log in to access this page.', 'error')
+                return redirect(url_for('institution_admin.login'))
+            
+            # Check if user is institution admin
+            if session.get('user_type') != 'institution_admin':
+                if request.is_json:
+                    return jsonify({'error': 'Institution admin access required'}), 403
+                session.clear()
+                flash('Institution admin access required.', 'error')
+                return redirect(url_for('institution_admin.login'))
+            
+            # Additional security: Check if user is still in online_users (session validation)
+            user_id = session.get('user_id')
+            if user_id not in self.online_users:
+                if request.is_json:
+                    return jsonify({'error': 'Session expired'}), 401
+                session.clear()
+                flash('Session expired. Please log in again.', 'error')
+                return redirect(url_for('institution_admin.login'))
             
             return f(*args, **kwargs)
         return decorated_function

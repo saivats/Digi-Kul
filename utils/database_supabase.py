@@ -1396,5 +1396,695 @@ class SupabaseDatabaseManager:
             return None
 
 
+    # Institution Management Methods
+    def get_all_institutions(self) -> List[Dict[str, Any]]:
+        """Get all institutions"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('institutions').select('*').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting institutions: {e}")
+            return []
+    
+    def get_institution_by_id(self, institution_id: str) -> Optional[Dict[str, Any]]:
+        """Get institution by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('institutions').select('*').eq('id', institution_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting institution: {e}")
+            return None
+    
+    def create_institution(self, name: str, domain: str, subdomain: str = None, 
+                          logo_url: str = None, primary_color: str = '#007bff',
+                          secondary_color: str = '#6c757d', description: str = None,
+                          contact_email: str = None, created_by: str = None) -> Optional[str]:
+        """Create a new institution"""
+        if not self.supabase:
+            return None
+        try:
+            institution_data = {
+                'name': name,
+                'domain': domain,
+                'subdomain': subdomain,
+                'logo_url': logo_url,
+                'primary_color': primary_color,
+                'secondary_color': secondary_color,
+                'description': description,
+                'contact_email': contact_email,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('institutions').insert(institution_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating institution: {e}")
+            return None
+    
+    def get_platform_stats(self) -> Dict[str, Any]:
+        """Get platform-wide statistics"""
+        if not self.supabase:
+            return {
+                'institutions': 0,
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'active_lectures': 0,
+                'total_quizzes': 0
+            }
+        try:
+            # Get institution count
+            institutions_result = self.supabase.table('institutions').select('id', count='exact').execute()
+            
+            # Get user counts
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').execute()
+            students_result = self.supabase.table('students').select('id', count='exact').execute()
+            
+            # Get lecture count
+            lectures_result = self.supabase.table('lectures').select('id', count='exact').execute()
+            
+            return {
+                'institutions': institutions_result.count or 0,
+                'total_users': (teachers_result.count or 0) + (students_result.count or 0),
+                'teachers': teachers_result.count or 0,
+                'students': students_result.count or 0,
+                'active_lectures': lectures_result.count or 0,
+                'total_quizzes': 0  # Placeholder
+            }
+        except Exception as e:
+            print(f"Error getting platform stats: {e}")
+            return {
+                'institutions': 0,
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'active_lectures': 0,
+                'total_quizzes': 0
+            }
+    
+    def get_all_super_admins(self) -> List[Dict[str, Any]]:
+        """Get all super admins"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('super_admins').select('*').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting super admins: {e}")
+            return []
+    
+    def get_super_admin_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get super admin by email"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('super_admins').select('*').eq('email', email).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting super admin: {e}")
+            return None
+    
+    def create_super_admin(self, name: str, email: str, password_hash: str) -> Optional[str]:
+        """Create a new super admin"""
+        if not self.supabase:
+            return None
+        try:
+            super_admin_data = {
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('super_admins').insert(super_admin_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating super admin: {e}")
+            return None
+    
+    def get_platform_analytics(self) -> Dict[str, Any]:
+        """Get platform analytics data"""
+        if not self.supabase:
+            return {
+                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'growth_data': [0, 1, 2, 3, 5, 8],
+                'user_counts': {
+                    'teachers': 0,
+                    'students': 0,
+                    'admins': 0
+                }
+            }
+        try:
+            # This is a simplified version - you can expand this
+            # to include more complex analytics based on your needs
+            return {
+                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'growth_data': [0, 1, 2, 3, 5, 8],  # Placeholder data
+                'user_counts': {
+                    'teachers': 0,
+                    'students': 0,
+                    'admins': 0
+                }
+            }
+        except Exception as e:
+            print(f"Error getting platform analytics: {e}")
+            return {
+                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                'growth_data': [0, 1, 2, 3, 5, 8],
+                'user_counts': {
+                    'teachers': 0,
+                    'students': 0,
+                    'admins': 0
+                }
+            }
+    
+    def get_institution_stats(self, institution_id: str) -> Dict[str, Any]:
+        """Get statistics for a specific institution"""
+        if not self.supabase:
+            return {
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'active_lectures': 0
+            }
+        try:
+            # Get user counts for this institution
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').eq('institution_id', institution_id).execute()
+            students_result = self.supabase.table('students').select('id', count='exact').eq('institution_id', institution_id).execute()
+            
+            # Get lecture count (assuming lectures are tied to teachers in this institution)
+            lectures_result = self.supabase.table('lectures').select('id', count='exact').eq('institution_id', institution_id).execute()
+            
+            return {
+                'total_users': (teachers_result.count or 0) + (students_result.count or 0),
+                'teachers': teachers_result.count or 0,
+                'students': students_result.count or 0,
+                'active_lectures': lectures_result.count or 0
+            }
+        except Exception as e:
+            print(f"Error getting institution stats: {e}")
+            return {
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'active_lectures': 0
+            }
+    
+    # Institution Admin Management Methods
+    def get_institution_admins(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all institution admins for a specific institution"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('institution_admins').select('*').eq('institution_id', institution_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting institution admins: {e}")
+            return []
+    
+    def get_institution_admin_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get institution admin by email"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('institution_admins').select('*').eq('email', email).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting institution admin: {e}")
+            return None
+    
+    def create_institution_admin(self, institution_id: str, name: str, email: str, password_hash: str, 
+                                role: str = 'admin', permissions: Dict = None) -> Optional[str]:
+        """Create a new institution admin"""
+        if not self.supabase:
+            return None
+        try:
+            if permissions is None:
+                permissions = {
+                    "manage_teachers": True,
+                    "manage_students": True,
+                    "manage_cohorts": True,
+                    "view_analytics": True,
+                    "manage_materials": False,
+                    "manage_quizzes": False
+                }
+            
+            admin_data = {
+                'institution_id': institution_id,
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'role': role,
+                'permissions': permissions,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('institution_admins').insert(admin_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating institution admin: {e}")
+            return None
+    
+    # Teacher Management Methods (Updated for new schema)
+    def get_teachers_by_institution(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all teachers for a specific institution"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('teachers').select('*').eq('institution_id', institution_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting teachers: {e}")
+            return []
+    
+    def create_teacher(self, institution_id: str, name: str, email: str, subject: str, 
+                      password_hash: str, employee_id: str = None, department: str = None,
+                      phone: str = None, bio: str = None, created_by: str = None) -> Tuple[Optional[str], str]:
+        """Create a new teacher"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Check if email already exists in this institution
+            existing = self.supabase.table('teachers').select('id').eq('institution_id', institution_id).eq('email', email).execute()
+            if existing.data:
+                return None, "Email already registered in this institution"
+            
+            teacher_data = {
+                'institution_id': institution_id,
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'subject': subject,
+                'employee_id': employee_id,
+                'department': department,
+                'phone': phone,
+                'bio': bio,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('teachers').insert(teacher_data).execute()
+            return result.data[0]['id'] if result.data else None, "Teacher created successfully"
+        except Exception as e:
+            print(f"Error creating teacher: {e}")
+            return None, str(e)
+    
+    # Student Management Methods (Updated for new schema)
+    def get_students_by_institution(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all students for a specific institution"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('students').select('*').eq('institution_id', institution_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting students: {e}")
+            return []
+    
+    def create_student(self, institution_id: str, name: str, email: str, password_hash: str,
+                      student_id: str = None, roll_number: str = None, class_name: str = None,
+                      section: str = None, phone: str = None, parent_phone: str = None,
+                      date_of_birth: str = None, created_by: str = None) -> Tuple[Optional[str], str]:
+        """Create a new student"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Check if email already exists in this institution
+            existing = self.supabase.table('students').select('id').eq('institution_id', institution_id).eq('email', email).execute()
+            if existing.data:
+                return None, "Email already registered in this institution"
+            
+            student_data = {
+                'institution_id': institution_id,
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'student_id': student_id,
+                'roll_number': roll_number,
+                'class': class_name,
+                'section': section,
+                'phone': phone,
+                'parent_phone': parent_phone,
+                'date_of_birth': date_of_birth,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('students').insert(student_data).execute()
+            return result.data[0]['id'] if result.data else None, "Student created successfully"
+        except Exception as e:
+            print(f"Error creating student: {e}")
+            return None, str(e)
+    
+    # Cohort Management Methods (Updated for new schema)
+    def get_cohorts_by_institution(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all cohorts for a specific institution"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('institution_id', institution_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting cohorts: {e}")
+            return []
+    
+    def create_cohort(self, institution_id: str, name: str, description: str = None,
+                     enrollment_code: str = None, max_students: int = 50,
+                     academic_year: str = None, semester: str = None,
+                     start_date: str = None, end_date: str = None,
+                     created_by: str = None) -> Tuple[Optional[str], str]:
+        """Create a new cohort"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Generate enrollment code if not provided
+            if not enrollment_code:
+                enrollment_code = f"COHORT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            cohort_data = {
+                'institution_id': institution_id,
+                'name': name,
+                'description': description,
+                'enrollment_code': enrollment_code,
+                'max_students': max_students,
+                'academic_year': academic_year,
+                'semester': semester,
+                'start_date': start_date,
+                'end_date': end_date,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('cohorts').insert(cohort_data).execute()
+            return result.data[0]['id'] if result.data else None, "Cohort created successfully"
+        except Exception as e:
+            print(f"Error creating cohort: {e}")
+            return None, str(e)
+    
+    # Lecture Management Methods (Updated for new schema)
+    def get_lectures_by_institution(self, institution_id: str) -> List[Dict[str, Any]]:
+        """Get all lectures for a specific institution"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('lectures').select('*').eq('institution_id', institution_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lectures: {e}")
+            return []
+    
+    def create_lecture(self, institution_id: str, cohort_id: str, teacher_id: str, title: str,
+                      description: str = None, scheduled_time: str = None, duration: int = 60,
+                      meeting_link: str = None, meeting_id: str = None, meeting_password: str = None,
+                      recording_enabled: bool = True, chat_enabled: bool = True,
+                      max_participants: int = 100) -> Tuple[Optional[str], str]:
+        """Create a new lecture"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            lecture_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'title': title,
+                'description': description,
+                'scheduled_time': scheduled_time or datetime.now().isoformat(),
+                'duration': duration,
+                'meeting_link': meeting_link,
+                'meeting_id': meeting_id,
+                'meeting_password': meeting_password,
+                'status': 'scheduled',
+                'recording_enabled': recording_enabled,
+                'chat_enabled': chat_enabled,
+                'max_participants': max_participants,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('lectures').insert(lecture_data).execute()
+            return result.data[0]['id'] if result.data else None, "Lecture created successfully"
+        except Exception as e:
+            print(f"Error creating lecture: {e}")
+            return None, str(e)
+    
+    # Additional methods needed for the new routes
+    def get_cohort_by_enrollment_code(self, enrollment_code: str) -> Optional[Dict[str, Any]]:
+        """Get cohort by enrollment code"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('enrollment_code', enrollment_code).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting cohort by enrollment code: {e}")
+            return None
+    
+    def get_materials_by_cohorts(self, cohort_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get materials for specific cohorts"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('materials').select('*').in_('cohort_id', cohort_ids).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting materials by cohorts: {e}")
+            return []
+    
+    def get_quiz_sets_by_cohorts(self, cohort_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get quiz sets for specific cohorts"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('quiz_sets').select('*').in_('cohort_id', cohort_ids).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting quiz sets by cohorts: {e}")
+            return []
+    
+    def get_quiz_set_by_id(self, quiz_set_id: str) -> Optional[Dict[str, Any]]:
+        """Get quiz set by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('quiz_sets').select('*').eq('id', quiz_set_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting quiz set: {e}")
+            return None
+    
+    def start_quiz_attempt(self, student_id: str, quiz_set_id: str) -> Tuple[Optional[str], str]:
+        """Start a new quiz attempt"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Get attempt number
+            attempts_result = self.supabase.table('quiz_attempts').select('attempt_number').eq('student_id', student_id).eq('quiz_set_id', quiz_set_id).execute()
+            attempt_number = len(attempts_result.data) + 1 if attempts_result.data else 1
+            
+            attempt_data = {
+                'quiz_set_id': quiz_set_id,
+                'student_id': student_id,
+                'started_at': datetime.now().isoformat(),
+                'attempt_number': attempt_number,
+                'is_completed': False
+            }
+            
+            result = self.supabase.table('quiz_attempts').insert(attempt_data).execute()
+            return result.data[0]['id'] if result.data else None, "Quiz attempt started"
+        except Exception as e:
+            print(f"Error starting quiz attempt: {e}")
+            return None, str(e)
+    
+    def get_quiz_questions(self, quiz_set_id: str) -> List[Dict[str, Any]]:
+        """Get questions for a quiz set"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('quizzes').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting quiz questions: {e}")
+            return []
+    
+    def submit_quiz_response(self, attempt_id: str, quiz_id: str, student_id: str, selected_answer: str) -> Tuple[Optional[str], str]:
+        """Submit a quiz response"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Get the quiz to check correct answer
+            quiz_result = self.supabase.table('quizzes').select('*').eq('id', quiz_id).execute()
+            if not quiz_result.data:
+                return None, "Quiz not found"
+            
+            quiz = quiz_result.data[0]
+            is_correct = selected_answer == quiz.get('correct_answer')
+            points_earned = quiz.get('points', 1) if is_correct else 0
+            
+            response_data = {
+                'attempt_id': attempt_id,
+                'quiz_id': quiz_id,
+                'student_id': student_id,
+                'selected_answer': selected_answer,
+                'is_correct': is_correct,
+                'points_earned': points_earned,
+                'responded_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('quiz_responses').insert(response_data).execute()
+            return result.data[0]['id'] if result.data else None, "Response submitted"
+        except Exception as e:
+            print(f"Error submitting quiz response: {e}")
+            return None, str(e)
+    
+    def finish_quiz_attempt(self, attempt_id: str, student_id: str) -> Tuple[bool, str]:
+        """Finish a quiz attempt and calculate score"""
+        if not self.supabase:
+            return False, "Database not available"
+        try:
+            # Get all responses for this attempt
+            responses_result = self.supabase.table('quiz_responses').select('*').eq('attempt_id', attempt_id).execute()
+            responses = responses_result.data if responses_result.data else []
+            
+            # Calculate score
+            total_questions = len(responses)
+            correct_answers = sum(1 for r in responses if r.get('is_correct', False))
+            total_points = sum(r.get('points_earned', 0) for r in responses)
+            score = int((correct_answers / total_questions * 100)) if total_questions > 0 else 0
+            
+            # Update attempt
+            update_data = {
+                'finished_at': datetime.now().isoformat(),
+                'score': score,
+                'total_questions': total_questions,
+                'correct_answers': correct_answers,
+                'is_completed': True
+            }
+            
+            result = self.supabase.table('quiz_attempts').update(update_data).eq('id', attempt_id).execute()
+            return bool(result.data), "Quiz attempt finished"
+        except Exception as e:
+            print(f"Error finishing quiz attempt: {e}")
+            return False, str(e)
+    
+    def get_quiz_attempt_by_id(self, attempt_id: str) -> Optional[Dict[str, Any]]:
+        """Get quiz attempt by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('quiz_attempts').select('*').eq('id', attempt_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting quiz attempt: {e}")
+            return None
+    
+    def get_teacher_materials(self, teacher_id: str) -> List[Dict[str, Any]]:
+        """Get materials uploaded by a teacher"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('materials').select('*').eq('teacher_id', teacher_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting teacher materials: {e}")
+            return []
+    
+    def create_material(self, institution_id: str, lecture_id: str = None, cohort_id: str = None,
+                       teacher_id: str = None, title: str = None, description: str = None,
+                       file_path: str = None, file_name: str = None, file_type: str = None,
+                       file_size: int = None, is_public: bool = False) -> Tuple[Optional[str], str]:
+        """Create a new material"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            material_data = {
+                'institution_id': institution_id,
+                'lecture_id': lecture_id,
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'title': title,
+                'description': description,
+                'file_path': file_path,
+                'file_name': file_name,
+                'file_type': file_type,
+                'file_size': file_size,
+                'is_public': is_public,
+                'download_count': 0,
+                'is_active': True,
+                'uploaded_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('materials').insert(material_data).execute()
+            return result.data[0]['id'] if result.data else None, "Material created successfully"
+        except Exception as e:
+            print(f"Error creating material: {e}")
+            return None, str(e)
+    
+    def update_lecture(self, lecture_id: str, **kwargs) -> bool:
+        """Update a lecture"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('lectures').update(kwargs).eq('id', lecture_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating lecture: {e}")
+            return False
+    
+    def delete_lecture(self, lecture_id: str) -> bool:
+        """Delete a lecture"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('lectures').update({'is_active': False}).eq('id', lecture_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error deleting lecture: {e}")
+            return False
+    
+    def update_teacher(self, teacher_id: str, **kwargs) -> bool:
+        """Update a teacher"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('teachers').update(kwargs).eq('id', teacher_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating teacher: {e}")
+            return False
+    
+    def update_student(self, student_id: str, **kwargs) -> bool:
+        """Update a student"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('students').update(kwargs).eq('id', student_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating student: {e}")
+            return False
+    
+    def update_student_last_login(self, student_id: str) -> bool:
+        """Update student last login time"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('students').update({'last_login': datetime.now().isoformat()}).eq('id', student_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating student last login: {e}")
+            return False
+
+
 # Create a global instance for compatibility
 DatabaseManager = SupabaseDatabaseManager

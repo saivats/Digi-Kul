@@ -1,667 +1,485 @@
-{% extends 'base.html' %}
-{% block title %}Teacher Dashboard • Digi Kul{% endblock %}
-{% block header_title %}Teacher Dashboard{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - Digi Kul</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-mortarboard me-2"></i>
+                Digi Kul - Teacher Portal
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    Welcome, <strong id="teacherName">Teacher</strong>
+                </span>
+                <button class="btn btn-outline-light" onclick="logout()">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </button>
+            </div>
+        </div>
+    </nav>
 
-{% block content %}
-<!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-
-<div class="container-fluid py-4">
-    <!-- Dashboard Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-1">Teacher Dashboard</h1>
-                    <p class="text-muted">Welcome back, {{ session.get('user_name') }}!</p>
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <!-- Dashboard Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">My Lectures</h6>
+                                <h3 id="myLectures">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-calendar-event fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" onclick="showCreateLectureModal()">
-                        <i class="bi bi-plus-circle me-2"></i>Create Lecture
-                    </button>
-                    <button class="btn btn-success" onclick="showCreateQuizModal()">
-                        <i class="bi bi-question-circle me-2"></i>Create Quiz
-                    </button>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">My Cohorts</h6>
+                                <h3 id="myCohorts">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-people-fill fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Materials</h6>
+                                <h3 id="myMaterials">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-file-earmark-text fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Students</h6>
+                                <h3 id="totalStudents">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-person-check fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <button class="btn btn-primary w-100" onclick="showCreateLectureModal()">
+                                    <i class="bi bi-plus-circle me-2"></i>Create Lecture
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn btn-success w-100" onclick="showUploadMaterialModal()">
+                                    <i class="bi bi-upload me-2"></i>Upload Material
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn btn-warning w-100" onclick="showCreateQuizModal()">
+                                    <i class="bi bi-question-circle me-2"></i>Create Quiz
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn btn-info w-100" onclick="viewAnalytics()">
+                                    <i class="bi bi-graph-up me-2"></i>View Analytics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
+                    <i class="bi bi-calendar-event me-2"></i>My Lectures
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
+                    <i class="bi bi-people me-2"></i>My Cohorts
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab">
+                    <i class="bi bi-file-earmark-text me-2"></i>Materials
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab">
+                    <i class="bi bi-person me-2"></i>Profile
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabContent">
+            <!-- Lectures Tab -->
+            <div class="tab-pane fade show active" id="lectures" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">My Lectures</h5>
+                        <button class="btn btn-primary" onclick="showCreateLectureModal()">
+                            <i class="bi bi-plus-circle me-2"></i>Create Lecture
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="lecturesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No lectures created yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cohorts Tab -->
+            <div class="tab-pane fade" id="cohorts" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">My Cohorts</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="cohortsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-people fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No cohorts assigned</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Materials Tab -->
+            <div class="tab-pane fade" id="materials" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">My Materials</h5>
+                        <button class="btn btn-primary" onclick="showUploadMaterialModal()">
+                            <i class="bi bi-upload me-2"></i>Upload Material
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="materialsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No materials uploaded yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div class="tab-pane fade" id="profile" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">My Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="profileContent">
+                            <div class="text-center py-4">
+                                <i class="bi bi-person fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">Loading profile...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Cohort Selector -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="bi bi-people-fill text-primary fs-4"></i>
-                        <div>
-                            <h6 class="mb-1">Active Cohort</h6>
-                            <select class="form-select" id="cohortSelector" onchange="selectCohort(this.value)">
-                                <option value="">Select a cohort to manage</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
 
-    <!-- Dashboard Stats -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar-check fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalLectures">0</h3>
-                    <p class="mb-0">Total Lectures</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-people-fill fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalStudents">0</h3>
-                    <p class="mb-0">Students</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-question-circle-fill fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalQuizzes">0</h3>
-                    <p class="mb-0">Quizzes</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <i class="bi bi-record-circle-fill fs-1 mb-3"></i>
-                    <h3 class="mb-1" id="totalRecordings">0</h3>
-                    <p class="mb-0">Recordings</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
-    <!-- Main Content Tabs -->
-    <div class="row">
-        <div class="col-12">
-            <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
-                        <i class="bi bi-calendar-event me-2"></i>Lectures
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
-                        <i class="bi bi-question-circle me-2"></i>Quizzes
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="recordings-tab" data-bs-toggle="tab" data-bs-target="#recordings" type="button" role="tab">
-                        <i class="bi bi-record-circle me-2"></i>Recordings
-                    </button>
-                </li>
-            </ul>
+    <script>
+        // Global variables
+        let teacherData = {};
 
-            <div class="tab-content" id="dashboardTabsContent">
-                <!-- Lectures Tab -->
-                <div class="tab-pane fade show active" id="lectures" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Your Lectures</h5>
-                            <button class="btn btn-primary btn-sm" onclick="showCreateLectureModal()">
-                                <i class="bi bi-plus-circle me-1"></i>New Lecture
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div id="lecturesList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading lectures...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTeacherData();
+            loadDashboardData();
+        });
 
-                <!-- Quizzes Tab -->
-                <div class="tab-pane fade" id="quizzes" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Your Quizzes</h5>
-                            <button class="btn btn-success btn-sm" onclick="showCreateQuizModal()">
-                                <i class="bi bi-plus-circle me-1"></i>New Quiz
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div id="quizzesList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-success" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading quizzes...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        async function loadTeacherData() {
+            try {
+                const response = await fetch('/api/teacher/profile');
+                const data = await response.json();
+                
+                if (data.success) {
+                    teacherData = data.teacher;
+                    document.getElementById('teacherName').textContent = teacherData.name;
+                }
+            } catch (error) {
+                console.error('Error loading teacher data:', error);
+            }
+        }
 
-                <!-- Recordings Tab -->
-                <div class="tab-pane fade" id="recordings" role="tabpanel">
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="mb-0">Session Recordings</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="recordingsList" class="row">
-                                <div class="col-12 text-center py-5">
-                                    <div class="spinner-border text-info" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading recordings...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadLectures(),
+                    loadCohorts(),
+                    loadMaterials()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
 
-<!-- Create Lecture Modal -->
-<div class="modal fade" id="createLectureModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Lecture</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="createLectureForm">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="lectureTitle" class="form-label">Lecture Title</label>
-                                <input type="text" class="form-control" id="lectureTitle" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="lectureDuration" class="form-label">Duration (minutes)</label>
-                                <input type="number" class="form-control" id="lectureDuration" value="60" min="15" max="180">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="lectureDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="lectureDescription" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="lectureDate" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="lectureDate" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="lectureTime" class="form-label">Time</label>
-                                <input type="time" class="form-control" id="lectureTime" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="instantLecture">
-                            <label class="form-check-label" for="instantLecture">
-                                Start immediately (Instant Lecture)
-                            </label>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="createLecture()">Create Lecture</button>
-            </div>
-        </div>
-    </div>
-</div>
+        async function loadLectures() {
+            try {
+                const response = await fetch('/api/teacher/lectures');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const lectures = data.lectures;
+                    document.getElementById('myLectures').textContent = lectures.length;
+                    renderLectures(lectures);
+                }
+            } catch (error) {
+                console.error('Error loading lectures:', error);
+            }
+        }
 
-<!-- Create Quiz Modal -->
-<div class="modal fade" id="createQuizModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Quiz</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="createQuizForm">
-                    <div class="mb-3">
-                        <label for="quizTitle" class="form-label">Quiz Title</label>
-                        <input type="text" class="form-control" id="quizTitle" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="quizDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="quizDescription" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="quizTimeLimit" class="form-label">Time Limit (minutes)</label>
-                                <input type="number" class="form-control" id="quizTimeLimit" min="5" max="120" placeholder="No limit">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="quizMaxAttempts" class="form-label">Max Attempts</label>
-                                <input type="number" class="form-control" id="quizMaxAttempts" value="1" min="1" max="5">
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="createQuiz()">Create Quiz</button>
-            </div>
-        </div>
-    </div>
-</div>
+        async function loadCohorts() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohorts = data.cohorts;
+                    document.getElementById('myCohorts').textContent = cohorts.length;
+                    renderCohorts(cohorts);
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+            }
+        }
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        async function loadMaterials() {
+            try {
+                const response = await fetch('/api/teacher/materials');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const materials = data.materials;
+                    document.getElementById('myMaterials').textContent = materials.length;
+                    renderMaterials(materials);
+                }
+            } catch (error) {
+                console.error('Error loading materials:', error);
+            }
+        }
 
-<script>
-// Global variables
-let currentCohortId = null;
-let lectures = [];
-let quizzes = [];
-let recordings = [];
-
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    loadTeacherData();
-});
-
-// Load teacher data
-async function loadTeacherData() {
-    try {
-        // Load cohorts
-        const cohortsResponse = await fetch('/api/cohorts/teacher');
-        const cohortsData = await cohortsResponse.json();
-        
-        if (cohortsData.success) {
-            const cohortSelector = document.getElementById('cohortSelector');
-            cohortSelector.innerHTML = '<option value="">Select a cohort to manage</option>';
+        function renderLectures(lectures) {
+            const container = document.getElementById('lecturesList');
             
-            cohortsData.cohorts.forEach(cohort => {
-                const option = document.createElement('option');
-                option.value = cohort.id;
-                option.textContent = cohort.name;
-                cohortSelector.appendChild(option);
-            });
-        }
-        
-        // Load lectures
-        await loadLectures();
-        
-        // Load quizzes
-        await loadQuizzes();
-        
-        // Load recordings
-        await loadRecordings();
-        
-    } catch (error) {
-        console.error('Error loading teacher data:', error);
-        showToast('Failed to load dashboard data', 'error');
-    }
-}
-
-// Load lectures
-async function loadLectures() {
-    try {
-        const response = await fetch('/api/lectures');
-        const data = await response.json();
-        
-        if (data.success) {
-            lectures = data.lectures;
-            displayLectures(lectures);
-            updateStats();
-        }
-    } catch (error) {
-        console.error('Error loading lectures:', error);
-    }
-}
-
-// Display lectures
-function displayLectures(lecturesList) {
-    const container = document.getElementById('lecturesList');
-    
-    if (lecturesList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No lectures found</h5>
-                <p class="text-muted">Create your first lecture to get started</p>
-                <button class="btn btn-primary" onclick="showCreateLectureModal()">
-                    <i class="bi bi-plus-circle me-2"></i>Create Lecture
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = lecturesList.map(lecture => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card lecture-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="card-title mb-0">${lecture.title}</h6>
-                        <span class="badge ${getStatusBadgeClass(lecture.status)}">${lecture.status}</span>
+            if (lectures.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No lectures created yet</p>
                     </div>
-                    <p class="card-text text-muted small">${lecture.description || 'No description'}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            ${formatDateTime(lecture.scheduled_time)}
-                        </small>
-                        <small class="text-muted">
-                            <i class="bi bi-clock me-1"></i>
-                            ${lecture.duration} min
-                        </small>
-                    </div>
-                    <div class="mt-3 d-flex gap-2">
-                        ${getLectureActions(lecture)}
+                `;
+                return;
+            }
+            
+            container.innerHTML = lectures.map(lecture => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${lecture.title}</h6>
+                        <p class="card-text text-muted">${lecture.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${new Date(lecture.scheduled_time).toLocaleString()}
+                            </small>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="editLecture('${lecture.id}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteLecture('${lecture.id}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Get status badge class
-function getStatusBadgeClass(status) {
-    switch (status) {
-        case 'active': return 'bg-success';
-        case 'scheduled': return 'bg-warning';
-        case 'expired': return 'bg-secondary';
-        default: return 'bg-primary';
-    }
-}
-
-// Get lecture actions
-function getLectureActions(lecture) {
-    let actions = '';
-    
-    if (lecture.status === 'active') {
-        actions += `<button class="btn btn-success btn-sm" onclick="startLiveSession('${lecture.id}')">
-            <i class="bi bi-play-circle me-1"></i>Start Live
-        </button>`;
-    } else if (lecture.status === 'scheduled') {
-        actions += `<button class="btn btn-primary btn-sm" onclick="editLecture('${lecture.id}')">
-            <i class="bi bi-pencil me-1"></i>Edit
-        </button>`;
-    }
-    
-    actions += `<button class="btn btn-outline-primary btn-sm" onclick="viewLectureMaterials('${lecture.id}')">
-        <i class="bi bi-file-earmark me-1"></i>Materials
-    </button>`;
-    
-    return actions;
-}
-
-// Load quizzes
-async function loadQuizzes() {
-    try {
-        const response = await fetch('/api/quiz/cohort/all');
-        const data = await response.json();
-        
-        if (data.success) {
-            quizzes = data.quiz_sets;
-            displayQuizzes(quizzes);
-            updateStats();
+            `).join('');
         }
-    } catch (error) {
-        console.error('Error loading quizzes:', error);
-    }
-}
 
-// Display quizzes
-function displayQuizzes(quizzesList) {
-    const container = document.getElementById('quizzesList');
-    
-    if (quizzesList.length === 0) {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-question-circle text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No quizzes found</h5>
-                <p class="text-muted">Create your first quiz to get started</p>
-                <button class="btn btn-success" onclick="showCreateQuizModal()">
-                    <i class="bi bi-plus-circle me-2"></i>Create Quiz
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = quizzesList.map(quiz => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card quiz-card">
-                <div class="card-body">
-                    <h6 class="card-title">${quiz.title}</h6>
-                    <p class="card-text text-muted small">${quiz.description || 'No description'}</p>
-                    <div class="mt-3 d-flex gap-2">
-                        <button class="btn btn-primary btn-sm" onclick="viewQuizAnalytics('${quiz.id}')">
-                            <i class="bi bi-graph-up me-1"></i>Analytics
-                        </button>
-                        <button class="btn btn-outline-primary btn-sm" onclick="editQuiz('${quiz.id}')">
-                            <i class="bi bi-pencil me-1"></i>Edit
-                        </button>
+        function renderCohorts(cohorts) {
+            const container = document.getElementById('cohortsList');
+            
+            if (cohorts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-people fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No cohorts assigned</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = cohorts.map(cohort => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${cohort.name}</h6>
+                        <p class="card-text text-muted">${cohort.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar me-1"></i>
+                                ${cohort.academic_year || 'N/A'}
+                            </small>
+                            <span class="badge bg-primary">Assigned</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Load recordings
-async function loadRecordings() {
-    try {
-        const container = document.getElementById('recordingsList');
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-record-circle text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">No recordings found</h5>
-                <p class="text-muted">Start recording your live sessions to see them here</p>
-            </div>
-        `;
-    } catch (error) {
-        console.error('Error loading recordings:', error);
-    }
-}
-
-// Update dashboard stats
-function updateStats() {
-    document.getElementById('totalLectures').textContent = lectures.length;
-    document.getElementById('totalQuizzes').textContent = quizzes.length;
-    document.getElementById('totalRecordings').textContent = recordings.length;
-    document.getElementById('totalStudents').textContent = '0';
-}
-
-// Modal functions
-function showCreateLectureModal() {
-    const modal = new bootstrap.Modal(document.getElementById('createLectureModal'));
-    modal.show();
-}
-
-function showCreateQuizModal() {
-    const modal = new bootstrap.Modal(document.getElementById('createQuizModal'));
-    modal.show();
-}
-
-// Create lecture
-async function createLecture() {
-    const title = document.getElementById('lectureTitle').value;
-    const description = document.getElementById('lectureDescription').value;
-    const duration = document.getElementById('lectureDuration').value;
-    const date = document.getElementById('lectureDate').value;
-    const time = document.getElementById('lectureTime').value;
-    const isInstant = document.getElementById('instantLecture').checked;
-    
-    if (!title || (!isInstant && (!date || !time))) {
-        showToast('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    try {
-        const lectureData = {
-            title,
-            description,
-            duration: parseInt(duration),
-            scheduled_time: isInstant ? new Date().toISOString() : `${date}T${time}:00`,
-            cohort_id: currentCohortId
-        };
-        
-        const endpoint = isInstant ? '/api/lectures/instant' : '/api/lectures';
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(lectureData)
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('createLectureModal')).hide();
-            document.getElementById('createLectureForm').reset();
-            loadLectures();
-        } else {
-            showToast(data.error || 'Failed to create lecture', 'error');
+            `).join('');
         }
-    } catch (error) {
-        console.error('Error creating lecture:', error);
-        showToast('Failed to create lecture', 'error');
-    }
-}
 
-// Create quiz
-async function createQuiz() {
-    const title = document.getElementById('quizTitle').value;
-    const description = document.getElementById('quizDescription').value;
-    const timeLimit = document.getElementById('quizTimeLimit').value;
-    const maxAttempts = document.getElementById('quizMaxAttempts').value;
-    
-    if (!title) {
-        showToast('Please enter a quiz title', 'error');
-        return;
-    }
-    
-    try {
-        const quizData = {
-            title,
-            description,
-            time_limit: timeLimit ? parseInt(timeLimit) : null,
-            max_attempts: parseInt(maxAttempts),
-            cohort_id: currentCohortId
-        };
-        
-        const response = await fetch('/api/quiz/sets', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(quizData)
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('createQuizModal')).hide();
-            document.getElementById('createQuizForm').reset();
-            loadQuizzes();
-        } else {
-            showToast(data.error || 'Failed to create quiz', 'error');
+        function renderMaterials(materials) {
+            const container = document.getElementById('materialsList');
+            
+            if (materials.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No materials uploaded yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = materials.map(material => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${material.title}</h6>
+                        <p class="card-text text-muted">${material.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-file-earmark me-1"></i>
+                                ${material.file_name}
+                            </small>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="editMaterial('${material.id}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteMaterial('${material.id}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
-    } catch (error) {
-        console.error('Error creating quiz:', error);
-        showToast('Failed to create quiz', 'error');
-    }
-}
 
-// Utility functions
-function formatDateTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-}
+        function showCreateLectureModal() {
+            showToast('Create lecture feature coming soon!', 'info');
+        }
 
-// Placeholder functions for actions
-function startLiveSession(lectureId) {
-    showToast('Starting live session...', 'info');
-}
+        function showUploadMaterialModal() {
+            showToast('Upload material feature coming soon!', 'info');
+        }
 
-function editLecture(lectureId) {
-    showToast('Edit lecture functionality coming soon', 'info');
-}
+        function showCreateQuizModal() {
+            showToast('Create quiz feature coming soon!', 'info');
+        }
 
-function viewLectureMaterials(lectureId) {
-    showToast('View materials functionality coming soon', 'info');
-}
+        function viewAnalytics() {
+            showToast('Analytics feature coming soon!', 'info');
+        }
 
-function viewQuizAnalytics(quizId) {
-    showToast('Quiz analytics coming soon', 'info');
-}
+        function editLecture(lectureId) {
+            showToast('Edit lecture feature coming soon!', 'info');
+        }
 
-function editQuiz(quizId) {
-    showToast('Edit quiz functionality coming soon', 'info');
-}
+        function deleteLecture(lectureId) {
+            if (confirm('Are you sure you want to delete this lecture?')) {
+                showToast('Delete lecture feature coming soon!', 'info');
+            }
+        }
 
-// Toast notification function
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
-    toast.setAttribute('role', 'alert');
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-    
-    let container = document.getElementById('toastContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        document.body.appendChild(container);
-    }
-    
-    container.appendChild(toast);
-    
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
-    
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-    });
-}
-</script>
-{% endblock %}
+        function editMaterial(materialId) {
+            showToast('Edit material feature coming soon!', 'info');
+        }
+
+        function deleteMaterial(materialId) {
+            if (confirm('Are you sure you want to delete this material?')) {
+                showToast('Delete material feature coming soon!', 'info');
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/teacher/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/';
+            }
+        }
+    </script>
+</body>
+</html>

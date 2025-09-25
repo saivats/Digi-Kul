@@ -27,7 +27,7 @@ from functools import wraps
 
 # Import configuration and utilities
 from config import Config
-from utils.database_supabase import DatabaseManager
+from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from utils.compression import compress_audio, compress_image, compress_pdf, get_file_type
 
 # Import new modular components
@@ -47,6 +47,9 @@ from routes.lecture_routes import lecture_bp
 from routes.quiz_routes import quiz_bp
 from routes.super_admin_routes import super_admin_bp
 from routes.institution_routes import institution_bp
+from routes.institution_admin_routes import institution_admin_bp
+from routes.teacher_routes import teacher_bp
+from routes.student_routes import student_bp
 # from routes.admin_routes import admin_bp  # TODO: Create admin routes
 
 # Initialize the database
@@ -81,7 +84,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 def set_security_headers(response):
     """Set security headers for all responses"""
     # Prevent caching of sensitive pages
-    if request.endpoint in ['teacher_dashboard', 'student_dashboard', 'admin_dashboard', 'teacher', 'student']:
+    if request.endpoint in ['teacher.dashboard', 'student.dashboard', 'admin_dashboard', 'teacher', 'student']:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
@@ -126,8 +129,11 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(cohort_bp, url_prefix='/api/cohorts')
 app.register_blueprint(lecture_bp, url_prefix='/api/lectures')
 app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
-app.register_blueprint(super_admin_bp)
+app.register_blueprint(super_admin_bp, url_prefix='/api/super-admin')
 app.register_blueprint(institution_bp)
+app.register_blueprint(institution_admin_bp, url_prefix='/api/institution-admin')
+app.register_blueprint(teacher_bp, url_prefix='/api/teacher')
+app.register_blueprint(student_bp, url_prefix='/api/student')
 # app.register_blueprint(admin_bp, url_prefix='/api/admin')  # TODO: Create admin routes
 
 # ==================== BASIC ROUTES ====================
@@ -146,6 +152,21 @@ def login_page():
 def admin_login_page():
     """Admin-only login page"""
     return render_template('login.html', admin_mode=True)
+
+@app.route('/super_admin_login')
+def super_admin_login_page():
+    """Super admin login page"""
+    return render_template('super_admin_login.html')
+
+@app.route('/super_admin_dashboard')
+def super_admin_dashboard():
+    """Super admin dashboard"""
+    return render_template('super_admin_dashboard.html')
+
+@app.route('/institution_admin_dashboard')
+def institution_admin_dashboard():
+    """Institution admin dashboard"""
+    return render_template('institution_admin_dashboard.html')
 
 @app.route('/register')
 def register_page():
@@ -192,21 +213,6 @@ def logout_page():
 
 # ==================== DASHBOARD ROUTES ====================
 
-@app.route('/teacher_dashboard')
-@auth_middleware.teacher_required
-def teacher_dashboard():
-    """Teacher dashboard"""
-    return render_template('teacher_dashboard.html', 
-                         user_name=session.get('user_name'),
-                         user_email=session.get('user_email'))
-
-@app.route('/student_dashboard')
-@auth_middleware.student_required
-def student_dashboard():
-    """Student dashboard"""
-    return render_template('student_dashboard.html',
-                         user_name=session.get('user_name'),
-                         user_email=session.get('user_email'))
 
 @app.route('/admin_dashboard')
 @auth_middleware.admin_required
@@ -222,11 +228,11 @@ def student_profile(student_id):
     """Individual student profile page - redirects to dashboard"""
     if session.get('user_id') != student_id:
         flash('Access denied.', 'error')
-        return redirect(url_for('student_dashboard'))
+        return redirect(url_for('student.dashboard'))
     
     # Redirect to student dashboard since individual profile page is not implemented
     flash('Profile page not available. Redirecting to dashboard.', 'info')
-    return redirect(url_for('student_dashboard'))
+    return redirect(url_for('student.dashboard'))
 
 # ==================== LIVE SESSION ROUTES ====================
 
@@ -236,7 +242,7 @@ def join_session_page(session_id):
     """Join live session page for students"""
     if session_id not in active_sessions:
         flash('Session not found or has ended.', 'error')
-        return redirect(url_for('student_dashboard'))
+        return redirect(url_for('student.dashboard'))
     
     session_info = active_sessions[session_id]
     return render_template('student_live_session.html', lecture_id=session_info['lecture_id'])
@@ -247,12 +253,12 @@ def manage_session_page(session_id):
     """Manage live session page for teachers"""
     if session_id not in active_sessions:
         flash('Session not found.', 'error')
-        return redirect(url_for('teacher_dashboard'))
+        return redirect(url_for('teacher.dashboard'))
     
     session_info = active_sessions[session_id]
     if session_info['teacher_id'] != session['user_id']:
         flash('Access denied.', 'error')
-        return redirect(url_for('teacher_dashboard'))
+        return redirect(url_for('teacher.dashboard'))
     
     return render_template('teacher_live_session.html', lecture_id=session_info['lecture_id'])
 
