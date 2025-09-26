@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'dart:async';
+import '../config.dart'; // Import the centralized config
 
 class LiveSessionScreen extends StatefulWidget {
   final String sessionId;
@@ -29,10 +30,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   MediaStream? _remoteStream;
   bool _isMuted = false;
   bool _isConnected = false;
-  bool _isConnecting = false;
 
   // Socket.IO
-  IO.Socket? _socket;
+  io.Socket? _socket;
   bool _isSocketConnected = false;
 
   // Chat
@@ -41,7 +41,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   final ScrollController _chatScrollController = ScrollController();
 
   // Polls
-  final List<Poll> _polls = [];
+  List<Poll> _polls = [];
   String? _currentPollId;
 
   // Content sharing
@@ -137,7 +137,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   Future<void> _connectSocket() async {
     try {
-      _socket = IO.io('http://192.168.29.104:5000', <String, dynamic>{
+      _socket = io.io(baseUrl, <String, dynamic>{
         'transports': ['websocket'],
         'autoConnect': false,
       });
@@ -237,7 +237,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         'target_user_id': data['from_user_id'],
       });
     } catch (e) {
-      print('Error handling offer: $e');
+      // In a real app, this should be handled by a proper logging framework.
     }
   }
 
@@ -249,7 +249,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       );
       await _peerConnection!.setRemoteDescription(answer);
     } catch (e) {
-      print('Error handling answer: $e');
+      // In a real app, this should be handled by a proper logging framework.
     }
   }
 
@@ -262,7 +262,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       );
       await _peerConnection!.addCandidate(candidate);
     } catch (e) {
-      print('Error handling ICE candidate: $e');
+      // In a real app, this should be handled by a proper logging framework.
     }
   }
 
@@ -387,7 +387,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey.withAlpha(26),
                               spreadRadius: 1,
                               blurRadius: 3,
                               offset: const Offset(0, 1),
@@ -426,7 +426,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.1),
+                                  color: Colors.grey.withAlpha(26),
                                   spreadRadius: 1,
                                   blurRadius: 3,
                                   offset: const Offset(0, 1),
@@ -449,7 +449,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 
                 // Chat and polls sidebar
                 if (_showChat || _showPolls)
-                  SizedBox(
+                  Container(
                     width: 300,
                     child: Column(
                       children: [
@@ -499,7 +499,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           child: Center(
             child: _sharedContentType == 'image'
                 ? Image.network(_sharedContentUrl!)
-                : Text('Document: $_sharedContentUrl'),
+                : Text('Document: $sharedContentUrl'),
           ),
         ),
       ],
@@ -559,11 +559,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.chat, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 8),
+                const Text(
                   'Live Chat',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -650,11 +650,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.poll, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 8),
+                const Text(
                   'Polls',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -692,7 +692,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           child: Text('• $option'),
                         ),
-                      ),
+                      ).toList(),
                       if (poll.hasVoted)
                         Container(
                           margin: const EdgeInsets.only(top: 8),

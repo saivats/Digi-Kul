@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/student.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -7,21 +6,8 @@ import 'login_screen.dart';
 const Color primaryColor = Color(0xFF5247eb);
 const Color backgroundLight = Color(0xFFf6f6f8);
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  late Future<Student> _studentProfileFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _studentProfileFuture = ApiService.getStudentProfile();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,111 +21,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
+              // TODO: Navigate to edit profile screen
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit profile functionality coming soon!')),
+                const SnackBar(
+                  content: Text('Edit profile functionality coming soon!'),
+                ),
               );
             },
           ),
         ],
       ),
-      body: FutureBuilder<Student>(
-        future: _studentProfileFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('No profile data found.'));
-          }
-
-          final student = snapshot.data!;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildProfileHeader(student),
-                const SizedBox(height: 24),
-                _buildStatsCards(student.stats),
-                const SizedBox(height: 24),
-                _buildMenuSection(context),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildProfileHeader(Student student) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=1'),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              student.name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              student.email,
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+            // Profile Header
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    const CircleAvatar(
+                      radius: 50,
+                      backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=1'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'John Student',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'john.student@example.com',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withAlpha(26),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Student',
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: const Text(
-                'Student',
-                style: TextStyle(color: primaryColor, fontWeight: FontWeight.w500),
-              ),
             ),
+            const SizedBox(height: 24),
+
+            // Stats Cards
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.school,
+                    title: 'Courses',
+                    value: '5',
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.group_work,
+                    title: 'Cohorts',
+                    value: '3',
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.schedule,
+                    title: 'Hours',
+                    value: '24',
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Menu Items
+            _buildMenuSection(context),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildStatsCards(StudentStats stats) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.school,
-            title: 'Courses',
-            value: stats.enrolledCourses.toString(),
-            color: Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.group_work,
-            title: 'Cohorts',
-            value: stats.joinedCohorts.toString(),
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.schedule,
-            title: 'Hours',
-            value: stats.learningHours.toString(),
-            color: Colors.orange,
-          ),
-        ),
-      ],
     );
   }
 
@@ -158,12 +139,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
             ),
           ],
         ),
@@ -190,6 +178,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Notifications settings coming soon!')),
             );
+          },
+        ),
+        _buildMenuTile(
+          icon: Icons.security_outlined,
+          title: 'Privacy & Security',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Privacy settings coming soon!')),
+            );
+          },
+        ),
+        _buildMenuTile(
+          icon: Icons.help_outline,
+          title: 'Help & Support',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Help & support coming soon!')),
+            );
+          },
+        ),
+        _buildMenuTile(
+          icon: Icons.info_outline,
+          title: 'About',
+          onTap: () {
+            _showAboutDialog(context);
           },
         ),
         _buildMenuTile(
@@ -227,6 +240,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Digi-Kul',
+      applicationVersion: '1.0.0',
+      applicationLegalese: '© 2024 Digi-Kul Student App',
+      children: [
+        const Text(
+          'A virtual classroom platform designed for rural colleges with low bandwidth internet connections.',
+        ),
+      ],
     );
   }
 

@@ -135,7 +135,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
               child: ListTile(
                 leading: const Icon(Icons.school, color: Colors.indigo),
                 title: Text(lecture.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(lecture.teacherName),
+                  subtitle: Text(lecture.teacherName ?? 'Unknown Teacher'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.of(context).push(

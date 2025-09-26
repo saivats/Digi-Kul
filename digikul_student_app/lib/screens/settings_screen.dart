@@ -272,28 +272,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showLanguageDialog() {
     final List<String> languages = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu'];
-    
+    String tempSelectedLanguage = _selectedLanguage;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Select Language'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: languages.map((language) {
-              return RadioListTile<String>(
-                title: Text(language),
-                value: language,
-                groupValue: _selectedLanguage,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLanguage = value!;
-                  });
-                  Navigator.of(context).pop();
-                },
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: languages.map((language) {
+                  return RadioListTile<String>(
+                    title: Text(language),
+                    value: language,
+                    groupValue: tempSelectedLanguage,
+                    onChanged: (value) {
+                      setState(() {
+                        tempSelectedLanguage = value!;
+                      });
+                    },
+                  );
+                }).toList(),
               );
-            }).toList(),
+            },
           ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                setState(() {
+                  _selectedLanguage = tempSelectedLanguage;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
       },
     );
@@ -301,29 +322,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showQualityDialog() {
     final List<String> qualities = ['Low', 'Medium', 'High'];
-    
+    String tempSelectedQuality = _selectedQuality;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Select Video Quality'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: qualities.map((quality) {
-              return RadioListTile<String>(
-                title: Text(quality),
-                subtitle: Text(_getQualityDescription(quality)),
-                value: quality,
-                groupValue: _selectedQuality,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedQuality = value!;
-                  });
-                  Navigator.of(context).pop();
-                },
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: qualities.map((quality) {
+                  return RadioListTile<String>(
+                    title: Text(quality),
+                    subtitle: Text(_getQualityDescription(quality)),
+                    value: quality,
+                    groupValue: tempSelectedQuality,
+                    onChanged: (value) {
+                      setState(() {
+                        tempSelectedQuality = value!;
+                      });
+                    },
+                  );
+                }).toList(),
               );
-            }).toList(),
+            },
           ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                setState(() {
+                  _selectedQuality = tempSelectedQuality;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
       },
     );

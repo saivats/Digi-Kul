@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Import the intl package
 import '../models/cohort.dart';
 import '../models/lecture.dart';
 import '../services/api_service.dart';
 import 'lecture_details_screen.dart';
-import 'quiz_list_screen.dart'; // Import the new quiz list screen
 
 // --- Theme Colors ---
 const Color primaryColor = Color(0xFF5247eb);
@@ -90,7 +88,7 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                widget.cohort.teacherName,
+                                widget.cohort.teacherName ?? 'Unknown Teacher',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
                                   fontSize: 16,
@@ -112,7 +110,7 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      widget.cohort.description ?? 'No description provided.',
+                      widget.cohort.description,
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.black54,
@@ -121,31 +119,6 @@ class _CohortDetailsScreenState extends State<CohortDetailsScreen> {
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // View Quizzes Button
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              icon: const Icon(Icons.quiz),
-              label: const Text('View Quizzes for this Cohort'),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => QuizListScreen(
-                      cohortId: widget.cohort.id,
-                      cohortName: widget.cohort.name,
-                    ),
-                  ),
-                );
-              },
             ),
             const SizedBox(height: 24),
             
@@ -201,7 +174,7 @@ class _LectureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 1.0,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withAlpha(26),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: InkWell(
         onTap: () {
@@ -254,15 +227,15 @@ class _LectureCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      lecture.teacherName ?? 'Unknown Teacher',
+                      lecture.teacherName,
                       style: TextStyle(
                         fontSize: 14,
-                        color: primaryColor.withOpacity(0.8),
+                        color: primaryColor.withAlpha(204),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      DateFormat.yMMMd().add_jm().format(lecture.scheduledTime),
+                      lecture.scheduledTime,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,

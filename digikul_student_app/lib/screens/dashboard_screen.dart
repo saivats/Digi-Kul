@@ -96,14 +96,14 @@ class LectureCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'By ${lecture.teacherName}',
+                'By ${lecture.teacherName ?? 'Unknown Teacher'}',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 14,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(lecture.description),
+              Text(lecture.description ?? 'No description available.'),
             ],
           ),
         ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // You will need to import these from their new, separate files
@@ -69,7 +68,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
               sessionId: sessionId,
               lectureId: widget.lecture.id,
               lectureTitle: widget.lecture.title,
-              teacherName: widget.lecture.teacherName ?? 'Teacher',
+              teacherName: widget.lecture.teacherName,
             ),
           ),
         );
@@ -77,7 +76,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Colors.orange,
-            content: Text('No active session found for this lecture.'),
+            content: Text('No active session found for this lecture'),
           ),
         );
       }
@@ -142,7 +141,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
             _buildLecturerInfo(),
             const SizedBox(height: 8),
             Text(
-              widget.lecture.description ?? 'No description available for this lecture.',
+              widget.lecture.description,
               style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const SizedBox(height: 24),
@@ -169,7 +168,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.lecture.teacherName,
+              widget.lecture.teacherName ?? 'Unknown Teacher',
               style: const TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 16,
@@ -177,7 +176,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              DateFormat.yMMMd().add_jm().format(widget.lecture.scheduledTime), // Use the dynamic time
+              widget.lecture.scheduledTime, // Use the dynamic time
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ],
@@ -240,7 +239,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor.withOpacity(0.2),
+                backgroundColor: primaryColor.withAlpha(51),
                 foregroundColor: primaryColor,
                 elevation: 0,
                 minimumSize: const Size(double.infinity, 48),
@@ -313,7 +312,7 @@ class _StudyMaterialCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
+              color: primaryColor.withAlpha(26),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.picture_as_pdf, color: primaryColor), // Icon can be dynamic
@@ -330,7 +329,7 @@ class _StudyMaterialCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${material.fileType.toUpperCase()} - ${(material.fileSize / (1024 * 1024)).toStringAsFixed(2)} MB',
+                  '${material.fileType.toUpperCase()} - ${material.fileSizeMb.toStringAsFixed(1)} MB',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],

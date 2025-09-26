@@ -3,9 +3,8 @@ import 'package:http/http.dart' as http;
 import '../models/cohort.dart';
 import '../models/lecture.dart';
 import '../models/material.dart';
-import '../models/student.dart';
-import '../models/quiz.dart'; // Import the Quiz model
-import '../config.dart'; // Import the centralized config
+
+const String baseUrl = 'http://192.168.29.104:5000'; // For physical device
 
 class ApiService {
   static String? _sessionCookie;
@@ -224,37 +223,6 @@ class ApiService {
   }
 
   static bool get isLoggedIn => _sessionCookie != null;
-
-  static Future<Student> getStudentProfile() async {
-    if (_sessionCookie == null) throw Exception('Not authenticated');
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/student/profile'),
-      headers: {'Cookie': _sessionCookie!},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return Student.fromJson(data['profile']);
-    } else {
-      throw Exception('Failed to load profile');
-    }
-  }
-
-  static Future<List<Quiz>> getCohortQuizzes(String cohortId) async {
-    if (_sessionCookie == null) throw Exception('Not authenticated');
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/student/cohort/$cohortId/quizzes'),
-      headers: {'Cookie': _sessionCookie!},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final List quizzesJson = data['quizzes'];
-      return quizzesJson.map((json) => Quiz.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load quizzes');
-    }
-  }
 }
 
 // Poll model
