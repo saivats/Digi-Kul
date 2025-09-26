@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // You will need to import these from their new, separate files
@@ -60,7 +61,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
     try {
       final sessionId = await ApiService.getActiveSessionId(widget.lecture.id);
       if (!mounted) return;
-      
+
       if (sessionId != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -68,7 +69,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
               sessionId: sessionId,
               lectureId: widget.lecture.id,
               lectureTitle: widget.lecture.title,
-              teacherName: widget.lecture.teacherName,
+              teacherName: widget.lecture.teacherName ?? 'Teacher',
             ),
           ),
         );
@@ -76,7 +77,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Colors.orange,
-            content: Text('No active session found for this lecture'),
+            content: Text('No active session found for this lecture.'),
           ),
         );
       }
@@ -141,7 +142,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
             _buildLecturerInfo(),
             const SizedBox(height: 8),
             Text(
-              widget.lecture.description,
+              widget.lecture.description ?? 'No description available for this lecture.',
               style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const SizedBox(height: 24),
@@ -176,7 +177,7 @@ class _LectureDetailsScreenState extends State<LectureDetailsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              widget.lecture.scheduledTime, // Use the dynamic time
+              DateFormat.yMMMd().add_jm().format(widget.lecture.scheduledTime), // Use the dynamic time
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ],
@@ -329,7 +330,7 @@ class _StudyMaterialCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${material.fileType.toUpperCase()} - ${material.fileSizeMb.toStringAsFixed(1)} MB',
+                  '${material.fileType.toUpperCase()} - ${(material.fileSize / (1024 * 1024)).toStringAsFixed(2)} MB',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],

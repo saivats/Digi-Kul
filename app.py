@@ -1200,6 +1200,46 @@ def get_all_cohorts():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/student/profile', methods=['GET'])
+@api_student_required
+def get_student_profile():
+    """Get profile and stats for the current student"""
+    try:
+        student_id = session['user_id']
+
+        # Get basic student info
+        student_info = db.get_student_by_id(student_id)
+        if not student_info:
+            return jsonify({'error': 'Student not found'}), 404
+
+        # Get stats
+        enrolled_lectures = db.get_student_enrolled_lectures(student_id)
+        student_cohorts = db.get_student_cohorts(student_id)
+
+        # We don't have a direct "hours" metric, so we'll estimate from lecture durations
+        total_hours = sum(lecture.get('duration', 0) for lecture in enrolled_lectures) / 60
+
+        profile_data = {
+            'id': student_info.get('id'),
+            'name': student_info.get('name'),
+            'email': student_info.get('email'),
+            'institution': student_info.get('institution'),
+            'createdAt': student_info.get('created_at'),
+            'stats': {
+                'enrolled_courses': len(enrolled_lectures),
+                'joined_cohorts': len(student_cohorts),
+                'learning_hours': round(total_hours, 1)
+            }
+        }
+
+        return jsonify({
+            'success': True,
+            'profile': profile_data
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/cohorts', methods=['POST'])
 @api_admin_required
 def create_cohort():
@@ -1403,6 +1443,24 @@ def get_cohort_lectures(cohort_id):
             'lectures': lectures
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/student/cohort/<cohort_id>/quizzes', methods=['GET'])
+@api_student_required
+def get_cohort_quizzes(cohort_id):
+    """Get all quizzes for a specific cohort"""
+    try:
+        # Verify student is in this cohort
+        in_cohort = db.is_student_in_cohort(session['user_id'], cohort_id)
+        if not in_cohort:
+            return jsonify({'error': 'Not enrolled in this cohort'}), 403
+
+        quizzes = db.get_cohort_quizzes(cohort_id)
+        return jsonify({
+            'success': True,
+            'quizzes': quizzes
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -336,6 +336,22 @@ class SupabaseDatabaseManager:
             return len(result.data) > 0
         except Exception:
             return False
+
+    def get_cohort_quizzes(self, cohort_id: str) -> List[Dict]:
+        """Get all quizzes for a cohort"""
+        try:
+            # Get lectures in the cohort through cohort_lectures table
+            cohort_lectures_result = self.supabase.table('cohort_lectures').select('lecture_id').eq('cohort_id', cohort_id).execute()
+            lecture_ids = [cl['lecture_id'] for cl in cohort_lectures_result.data] if cohort_lectures_result.data else []
+
+            if not lecture_ids:
+                return []
+
+            # Get quizzes for these lectures
+            result = self.supabase.table('quizzes').select('*').in_('lecture_id', lecture_ids).order('created_at', desc=True).execute()
+            return result.data or []
+        except Exception:
+            return []
     
     # Quiz methods
     def create_quiz(self, lecture_id: str, question: str, options: List[str], correct_answer: str) -> Tuple[Optional[str], str]:

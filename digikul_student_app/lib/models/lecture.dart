@@ -1,31 +1,37 @@
 class Lecture {
   final String id;
+  final String teacherId;
   final String title;
-  final String description;
-  final String teacherName;
-  final String scheduledTime;
+  final String? description;
+  final DateTime scheduledTime;
   final int duration;
+  final DateTime createdAt;
   final bool sessionActive;
+  final String? teacherName;
 
   Lecture({
     required this.id,
+    required this.teacherId,
     required this.title,
-    required this.description,
-    required this.teacherName,
+    this.description,
     required this.scheduledTime,
     required this.duration,
-    required this.sessionActive,
+    required this.createdAt,
+    this.sessionActive = false,
+    this.teacherName,
   });
 
   factory Lecture.fromJson(Map<String, dynamic> json) {
     return Lecture(
-      id: json['id'] ?? '',
-      title: json['title'] ?? 'No Title',
-      description: json['description'] ?? '',
-      teacherName: json['teacher_name'] ?? 'Unknown Teacher',
-      scheduledTime: json['scheduled_time'] ?? '',
-      duration: json['duration'] ?? 0,
+      id: json['id'] as String,
+      teacherId: json['teacher_id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String?,
+      scheduledTime: DateTime.parse(json['scheduled_time'] as String),
+      duration: json['duration'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String),
       sessionActive: json['session_active'] ?? false,
+      teacherName: json['teacher_name'] as String?,
     );
   }
 }
