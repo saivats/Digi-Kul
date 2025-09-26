@@ -128,7 +128,7 @@ class _PollsScreenState extends State<PollsScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
-              )).toList(),
+              )),
             ],
           ),
         ),
@@ -315,7 +315,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                         ),
                                       ),
                                     );
-                                  }).toList(),
+                                  }),
                                 ],
                               ),
                             ),

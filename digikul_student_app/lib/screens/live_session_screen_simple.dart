@@ -39,7 +39,7 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
   final ScrollController _chatScrollController = ScrollController();
 
   // UI
-  bool _showChat = true;
+  final bool _showChat = true;
   bool _isMuted = false;
 
   @override
@@ -71,15 +71,13 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
     });
 
     _peerConnection?.onIceCandidate = (candidate) {
-      if (candidate != null) {
-        _socket?.emit('ice_candidate', {
-          'session_id': widget.sessionId,
-          'candidate': candidate.toMap(),
-          // In a real scenario, you'd send this to a specific user (the teacher)
-          'target_user_id': 'teacher_id_placeholder',
-        });
-      }
-    };
+      _socket?.emit('ice_candidate', {
+        'session_id': widget.sessionId,
+        'candidate': candidate.toMap(),
+        // In a real scenario, you'd send this to a specific user (the teacher)
+        'target_user_id': 'teacher_id_placeholder',
+      });
+        };
 
     _localStream = await navigator.mediaDevices.getUserMedia({'audio': true, 'video': false});
     _localStream?.getTracks().forEach((track) {

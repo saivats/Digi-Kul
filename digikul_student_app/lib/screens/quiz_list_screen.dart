@@ -60,7 +60,7 @@ class _QuizListScreenState extends State<QuizListScreen> {
                   onTap: () {
                     // TODO: Navigate to QuizTakingScreen
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Starting quiz... (Not Implemented)')),
+                      const SnackBar(content: Text('Starting quiz... (Not Implemented)')),
                     );
                   },
                 ),
