@@ -31,7 +31,7 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
   final ScrollController _chatScrollController = ScrollController();
 
   // Polls
-  List<Poll> _polls = [];
+  final List<Poll> _polls = [];
   String? _currentPollId;
 
   // Content sharing
@@ -303,7 +303,7 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
 
                 // Chat and polls sidebar
                 if (_showChat || _showPolls)
-                  Container(
+                  SizedBox(
                     width: 300,
                     child: Column(
                       children: [
@@ -393,7 +393,7 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
                 ),
                 child: Text(option),
               ),
-            ).toList(),
+            ),
           ],
         ),
       ),
@@ -413,11 +413,11 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.chat, color: Colors.indigo),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Live Chat',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -504,11 +504,11 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.poll, color: Colors.indigo),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Polls',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -546,7 +546,7 @@ class _LiveSessionScreenSimpleState extends State<LiveSessionScreenSimple> {
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           child: Text('• $option'),
                         ),
-                      ).toList(),
+                      ),
                       if (poll.hasVoted)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
