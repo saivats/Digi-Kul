@@ -17,6 +17,14 @@ institution_bp = Blueprint('institution', __name__)
 db = DatabaseManager()
 email_service = EmailService()
 
+# Global variable to store auth_middleware reference
+auth_middleware = None
+
+def set_auth_middleware(middleware):
+    """Set the auth middleware reference from main.py"""
+    global auth_middleware
+    auth_middleware = middleware
+
 @institution_bp.route('/<subdomain>')
 def institution_home(subdomain):
     """Institution-specific home page"""
@@ -67,15 +75,17 @@ def institution_login_api():
         if not all([email, password, institution_id]):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        # Validate email domain
-        email_domain = email.split('@')[1] if '@' in email else ''
+        # Get institution
         institution = db.get_institution_by_id(institution_id)
         
         if not institution:
             return jsonify({'error': 'Invalid institution'}), 404
         
-        if email_domain != institution['domain']:
-            return jsonify({'error': f'Please use your {institution["name"]} email address'}), 400
+        # Only validate email domain for institution admins
+        if user_type == 'admin':
+            email_domain = email.split('@')[1] if '@' in email else ''
+            if email_domain != institution['domain']:
+                return jsonify({'error': f'Please use your {institution["name"]} email address'}), 400
         
         # Authenticate user based on type
         user = None
@@ -118,10 +128,15 @@ def institution_login_api():
             db.update_institution_admin_last_login(user['id'])
         
         # Add user to online users for session management
-        from middlewares.auth_middleware import AuthMiddleware
-        # We need to access the global auth_middleware instance
-        # For now, we'll skip this and let the session handle it
-        pass
+        if auth_middleware:
+            auth_middleware.online_users[user['id']] = {
+                'user_id': user['id'],
+                'user_type': user_type,
+                'user_name': user['name'],
+                'user_email': user['email'],
+                'institution_id': institution_id,
+                'last_activity': datetime.now().isoformat()
+            }
         
         # Log activity
         db.log_user_activity(
@@ -138,9 +153,9 @@ def institution_login_api():
         if user_type == 'admin':
             redirect_url = '/institution-admin/dashboard'
         elif user_type == 'teacher':
-            redirect_url = '/teacher/dashboard'
+            redirect_url = '/api/teacher/dashboard'
         elif user_type == 'student':
-            redirect_url = '/student/dashboard'
+            redirect_url = '/api/student/dashboard'
         
         return jsonify({
             'success': True,
@@ -324,6 +339,11 @@ def institution_logout(subdomain):
                 action='logout',
                 resource_type='authentication'
             )
+        
+        # Remove user from online users tracking
+        user_id = session.get('user_id')
+        if user_id and auth_middleware and user_id in auth_middleware.online_users:
+            del auth_middleware.online_users[user_id]
         
         session.clear()
         return redirect(url_for('institution.institution_login', subdomain=subdomain))

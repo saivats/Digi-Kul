@@ -15,8 +15,26 @@ teacher_bp = Blueprint('teacher', __name__)
 
 # Initialize services
 db = DatabaseManager()
-auth_middleware = AuthMiddleware(None, db)
 email_service = EmailService()
+
+# Global variable to store auth_middleware reference
+auth_middleware = None
+
+def set_auth_middleware(middleware):
+    """Set the auth middleware reference from main.py"""
+    global auth_middleware
+    auth_middleware = middleware
+
+def teacher_required(f):
+    """Decorator to require teacher role - gets middleware at runtime"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if auth_middleware is None:
+            from flask import jsonify
+            return jsonify({'error': 'Authentication service not available'}), 500
+        return auth_middleware.teacher_required(f)(*args, **kwargs)
+    return decorated_function
 
 @teacher_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -70,13 +88,13 @@ def login():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/dashboard')
-@auth_middleware.teacher_required
+@teacher_required
 def dashboard():
     """Teacher dashboard"""
     return render_template('teacher_dashboard.html')
 
 @teacher_bp.route('/lectures', methods=['GET'])
-@auth_middleware.teacher_required
+@teacher_required
 def get_lectures():
     """Get teacher's lectures"""
     try:
@@ -92,7 +110,7 @@ def get_lectures():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/lectures', methods=['POST'])
-@auth_middleware.teacher_required
+@teacher_required
 def create_lecture():
     """Create a new lecture"""
     try:
@@ -135,7 +153,7 @@ def create_lecture():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/lectures/<lecture_id>', methods=['PUT'])
-@auth_middleware.teacher_required
+@teacher_required
 def update_lecture(lecture_id):
     """Update a lecture"""
     try:
@@ -162,7 +180,7 @@ def update_lecture(lecture_id):
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/lectures/<lecture_id>', methods=['DELETE'])
-@auth_middleware.teacher_required
+@teacher_required
 def delete_lecture(lecture_id):
     """Delete a lecture"""
     try:
@@ -188,7 +206,7 @@ def delete_lecture(lecture_id):
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/cohorts', methods=['GET'])
-@auth_middleware.teacher_required
+@teacher_required
 def get_cohorts():
     """Get teacher's cohorts"""
     try:
@@ -204,7 +222,7 @@ def get_cohorts():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/materials', methods=['GET'])
-@auth_middleware.teacher_required
+@teacher_required
 def get_materials():
     """Get teacher's materials"""
     try:
@@ -220,7 +238,7 @@ def get_materials():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/materials', methods=['POST'])
-@auth_middleware.teacher_required
+@teacher_required
 def create_material():
     """Create a new material"""
     try:
@@ -263,7 +281,7 @@ def create_material():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/profile', methods=['GET'])
-@auth_middleware.teacher_required
+@teacher_required
 def get_profile():
     """Get teacher profile"""
     try:
@@ -285,7 +303,7 @@ def get_profile():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/profile', methods=['PUT'])
-@auth_middleware.teacher_required
+@teacher_required
 def update_profile():
     """Update teacher profile"""
     try:
@@ -312,7 +330,7 @@ def update_profile():
         return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/logout', methods=['POST'])
-@auth_middleware.teacher_required
+@teacher_required
 def logout():
     """Teacher logout"""
     try:

@@ -442,3 +442,229 @@ def manage_cohort_students(cohort_id):
                 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@institution_admin_bp.route('/teachers/<teacher_id>', methods=['PUT', 'DELETE'])
+@auth_middleware.institution_admin_required
+def manage_teacher(teacher_id):
+    """Update or delete a teacher"""
+    try:
+        institution_id = session.get('institution_id')
+        
+        if request.method == 'PUT':
+            # Update teacher
+            data = request.get_json()
+            
+            # Verify teacher belongs to this institution
+            teacher = db.get_teacher_by_id(teacher_id)
+            if not teacher or teacher['institution_id'] != institution_id:
+                return jsonify({'error': 'Teacher not found'}), 404
+            
+            # Update teacher data
+            update_data = {}
+            if 'name' in data:
+                update_data['name'] = data['name']
+            if 'email' in data:
+                update_data['email'] = data['email']
+            if 'subject' in data:
+                update_data['subject'] = data['subject']
+            if 'is_active' in data:
+                update_data['is_active'] = data['is_active']
+            
+            success = db.update_teacher(teacher_id, update_data)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Teacher updated successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to update teacher'}), 400
+                
+        elif request.method == 'DELETE':
+            # Delete teacher (soft delete)
+            teacher = db.get_teacher_by_id(teacher_id, active_only=False)
+            if not teacher or teacher['institution_id'] != institution_id:
+                return jsonify({'error': 'Teacher not found'}), 404
+            
+            success = db.delete_teacher(teacher_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Teacher deleted successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to delete teacher'}), 400
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@institution_admin_bp.route('/students/<student_id>', methods=['PUT', 'DELETE'])
+@auth_middleware.institution_admin_required
+def manage_student(student_id):
+    """Update or delete a student"""
+    try:
+        institution_id = session.get('institution_id')
+        
+        if request.method == 'PUT':
+            # Update student
+            data = request.get_json()
+            
+            # Verify student belongs to this institution
+            student = db.get_student_by_id(student_id)
+            if not student or student['institution_id'] != institution_id:
+                return jsonify({'error': 'Student not found'}), 404
+            
+            # Update student data
+            update_data = {}
+            if 'name' in data:
+                update_data['name'] = data['name']
+            if 'email' in data:
+                update_data['email'] = data['email']
+            if 'is_active' in data:
+                update_data['is_active'] = data['is_active']
+            
+            success = db.update_student(student_id, update_data)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Student updated successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to update student'}), 400
+                
+        elif request.method == 'DELETE':
+            # Delete student (soft delete)
+            student = db.get_student_by_id(student_id, active_only=False)
+            if not student or student['institution_id'] != institution_id:
+                return jsonify({'error': 'Student not found'}), 404
+            
+            success = db.delete_student(student_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Student deleted successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to delete student'}), 400
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@institution_admin_bp.route('/cohorts/<cohort_id>', methods=['PUT', 'DELETE'])
+@auth_middleware.institution_admin_required
+def manage_cohort(cohort_id):
+    """Update or delete a cohort"""
+    try:
+        institution_id = session.get('institution_id')
+        
+        if request.method == 'PUT':
+            # Update cohort
+            data = request.get_json()
+            
+            # Verify cohort belongs to this institution
+            cohort = db.get_cohort_by_id(cohort_id)
+            if not cohort or cohort['institution_id'] != institution_id:
+                return jsonify({'error': 'Cohort not found'}), 404
+            
+            # Update cohort data
+            update_data = {}
+            if 'name' in data:
+                update_data['name'] = data['name']
+            if 'description' in data:
+                update_data['description'] = data['description']
+            if 'subject' in data:
+                update_data['subject'] = data['subject']
+            if 'is_active' in data:
+                update_data['is_active'] = data['is_active']
+            
+            success = db.update_cohort(cohort_id, update_data)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Cohort updated successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to update cohort'}), 400
+                
+        elif request.method == 'DELETE':
+            # Delete cohort (soft delete)
+            cohort = db.get_cohort_by_id(cohort_id, active_only=False)
+            if not cohort or cohort['institution_id'] != institution_id:
+                return jsonify({'error': 'Cohort not found'}), 404
+            
+            success = db.delete_cohort(cohort_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Cohort deleted successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to delete cohort'}), 400
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@institution_admin_bp.route('/lectures/<lecture_id>', methods=['PUT', 'DELETE'])
+@auth_middleware.institution_admin_required
+def manage_lecture(lecture_id):
+    """Update or delete a lecture"""
+    try:
+        institution_id = session.get('institution_id')
+        
+        if request.method == 'PUT':
+            # Update lecture
+            data = request.get_json()
+            
+            # Verify lecture belongs to this institution
+            lecture = db.get_lecture_by_id(lecture_id)
+            if not lecture or lecture['institution_id'] != institution_id:
+                return jsonify({'error': 'Lecture not found'}), 404
+            
+            # Update lecture data
+            update_data = {}
+            if 'title' in data:
+                update_data['title'] = data['title']
+            if 'description' in data:
+                update_data['description'] = data['description']
+            if 'scheduled_time' in data:
+                update_data['scheduled_time'] = data['scheduled_time']
+            if 'duration' in data:
+                update_data['duration'] = data['duration']
+            if 'status' in data:
+                update_data['status'] = data['status']
+            if 'is_active' in data:
+                update_data['is_active'] = data['is_active']
+            
+            success = db.update_lecture(lecture_id, update_data)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Lecture updated successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to update lecture'}), 400
+                
+        elif request.method == 'DELETE':
+            # Delete lecture (soft delete)
+            lecture = db.get_lecture_by_id(lecture_id, active_only=False)
+            if not lecture or lecture['institution_id'] != institution_id:
+                return jsonify({'error': 'Lecture not found'}), 404
+            
+            success = db.delete_lecture(lecture_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Lecture deleted successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to delete lecture'}), 400
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

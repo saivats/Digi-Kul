@@ -433,7 +433,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Description</th>
-                                    <th>Enrollment Code</th>
+                                    <th>Codes</th>
                                     <th>Students</th>
                                     <th>Teachers</th>
                                     <th>Status</th>
@@ -903,7 +903,14 @@
                             <tr>
                                 <td>${cohort.name}</td>
                                 <td>${cohort.description || 'N/A'}</td>
-                                <td><code>${cohort.enrollment_code}</code></td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        <small class="text-muted">Enrollment:</small>
+                                        <code class="text-primary" title="Click to copy" onclick="copyToClipboard('${cohort.enrollment_code}')" style="cursor: pointer;">${cohort.enrollment_code}</code>
+                                        <small class="text-muted mt-1">Join:</small>
+                                        <code class="text-success" title="Click to copy" onclick="copyToClipboard('${cohort.join_code}')" style="cursor: pointer;">${cohort.join_code}</code>
+                                    </div>
+                                </td>
                                 <td>${cohort.student_count || 0}</td>
                                 <td>${cohort.teacher_count || 0}</td>
                                 <td><span class="badge bg-success">Active</span></td>
@@ -1194,9 +1201,29 @@
             console.log('Edit teacher:', id);
         }
 
-        function deleteTeacher(id) {
+        async function deleteTeacher(id) {
             if (confirm('Are you sure you want to delete this teacher?')) {
-                console.log('Delete teacher:', id);
+                try {
+                    const response = await fetch(`/institution-admin/teachers/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Teacher deleted successfully', 'success');
+                        loadTeachers(); // Reload the teachers list
+                    } else {
+                        showToast(data.error || 'Failed to delete teacher', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting teacher:', error);
+                    showToast('Error deleting teacher', 'error');
+                }
             }
         }
 
@@ -1204,9 +1231,29 @@
             console.log('Edit student:', id);
         }
 
-        function deleteStudent(id) {
+        async function deleteStudent(id) {
             if (confirm('Are you sure you want to delete this student?')) {
-                console.log('Delete student:', id);
+                try {
+                    const response = await fetch(`/institution-admin/students/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Student deleted successfully', 'success');
+                        loadStudents(); // Reload the students list
+                    } else {
+                        showToast(data.error || 'Failed to delete student', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting student:', error);
+                    showToast('Error deleting student', 'error');
+                }
             }
         }
 
@@ -1288,15 +1335,35 @@
             loadCohortStudents(cohortId);
         }
 
-        function deleteCohort(id) {
+        async function deleteCohort(id) {
             if (confirm('Are you sure you want to delete this cohort?')) {
-                console.log('Delete cohort:', id);
+                try {
+                    const response = await fetch(`/institution-admin/cohorts/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Cohort deleted successfully', 'success');
+                        loadCohorts(); // Reload the cohorts list
+                    } else {
+                        showToast(data.error || 'Failed to delete cohort', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting cohort:', error);
+                    showToast('Error deleting cohort', 'error');
+                }
             }
         }
 
         async function loadCohortTeachers(cohortId) {
             try {
-                const response = await fetch(`/institution-admin/api/cohorts/${cohortId}/teachers`);
+                const response = await fetch(`/institution-admin/cohorts/${cohortId}/teachers`);
                 const data = await response.json();
                 
                 const container = document.getElementById('cohortTeachersList');
@@ -1322,7 +1389,7 @@
 
         async function loadCohortStudents(cohortId) {
             try {
-                const response = await fetch(`/institution-admin/api/cohorts/${cohortId}/students`);
+                const response = await fetch(`/institution-admin/cohorts/${cohortId}/students`);
                 const data = await response.json();
                 
                 const container = document.getElementById('cohortStudentsList');
@@ -1544,9 +1611,29 @@
             console.log('Edit lecture:', id);
         }
 
-        function deleteLecture(id) {
+        async function deleteLecture(id) {
             if (confirm('Are you sure you want to delete this lecture?')) {
-                console.log('Delete lecture:', id);
+                try {
+                    const response = await fetch(`/institution-admin/lectures/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showToast('Lecture deleted successfully', 'success');
+                        loadLectures(); // Reload the lectures list
+                    } else {
+                        showToast(data.error || 'Failed to delete lecture', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting lecture:', error);
+                    showToast('Error deleting lecture', 'error');
+                }
             }
         }
 
@@ -1562,6 +1649,16 @@
                     window.location.href = '/';
                 });
             }
+        }
+
+        // Copy to clipboard function
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showToast(`Copied: ${text}`, 'success');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+                showToast('Failed to copy to clipboard', 'error');
+            });
         }
     </script>
 </body>

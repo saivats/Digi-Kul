@@ -74,7 +74,13 @@ cohort_middleware = CohortMiddleware(app, db)
 
 # Set auth middleware reference in routes
 from routes.super_admin_routes import set_auth_middleware
+from routes.institution_routes import set_auth_middleware as set_institution_auth_middleware
+from routes.teacher_routes import set_auth_middleware as set_teacher_auth_middleware
+from routes.student_routes import set_auth_middleware as set_student_auth_middleware
 set_auth_middleware(auth_middleware)
+set_institution_auth_middleware(auth_middleware)
+set_teacher_auth_middleware(auth_middleware)
+set_student_auth_middleware(auth_middleware)
 
 # Enhanced session security configuration
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')

@@ -15,8 +15,26 @@ student_bp = Blueprint('student', __name__)
 
 # Initialize services
 db = DatabaseManager()
-auth_middleware = AuthMiddleware(None, db)
 email_service = EmailService()
+
+# Global variable to store auth_middleware reference
+auth_middleware = None
+
+def set_auth_middleware(middleware):
+    """Set the auth middleware reference from main.py"""
+    global auth_middleware
+    auth_middleware = middleware
+
+def student_required(f):
+    """Decorator to require student role - gets middleware at runtime"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if auth_middleware is None:
+            from flask import jsonify
+            return jsonify({'error': 'Authentication service not available'}), 500
+        return auth_middleware.student_required(f)(*args, **kwargs)
+    return decorated_function
 
 @student_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -70,13 +88,13 @@ def login():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/dashboard')
-@auth_middleware.student_required
+@student_required
 def dashboard():
     """Student dashboard"""
     return render_template('student_dashboard.html')
 
 @student_bp.route('/enroll', methods=['POST'])
-@auth_middleware.student_required
+@student_required
 def enroll_in_cohort():
     """Enroll in a cohort using enrollment code"""
     try:
@@ -118,7 +136,7 @@ def enroll_in_cohort():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/cohorts', methods=['GET'])
-@auth_middleware.student_required
+@student_required
 def get_cohorts():
     """Get student's enrolled cohorts"""
     try:
@@ -134,7 +152,7 @@ def get_cohorts():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/lectures', methods=['GET'])
-@auth_middleware.student_required
+@student_required
 def get_lectures():
     """Get lectures for student's cohorts"""
     try:
@@ -168,7 +186,7 @@ def get_lectures():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/materials', methods=['GET'])
-@auth_middleware.student_required
+@student_required
 def get_materials():
     """Get materials for student's cohorts"""
     try:
@@ -196,7 +214,7 @@ def get_materials():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/quizzes', methods=['GET'])
-@auth_middleware.student_required
+@student_required
 def get_quizzes():
     """Get available quizzes for student's cohorts"""
     try:
@@ -224,7 +242,7 @@ def get_quizzes():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/quiz-attempts', methods=['POST'])
-@auth_middleware.student_required
+@student_required
 def start_quiz_attempt():
     """Start a quiz attempt"""
     try:
@@ -263,7 +281,7 @@ def start_quiz_attempt():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/quiz-responses', methods=['POST'])
-@auth_middleware.student_required
+@student_required
 def submit_quiz_response():
     """Submit a quiz response"""
     try:
@@ -301,7 +319,7 @@ def submit_quiz_response():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/quiz-attempts/<attempt_id>/finish', methods=['POST'])
-@auth_middleware.student_required
+@student_required
 def finish_quiz_attempt(attempt_id):
     """Finish a quiz attempt"""
     try:
@@ -328,7 +346,7 @@ def finish_quiz_attempt(attempt_id):
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/profile', methods=['GET'])
-@auth_middleware.student_required
+@student_required
 def get_profile():
     """Get student profile"""
     try:
@@ -350,7 +368,7 @@ def get_profile():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/profile', methods=['PUT'])
-@auth_middleware.student_required
+@student_required
 def update_profile():
     """Update student profile"""
     try:
@@ -377,7 +395,7 @@ def update_profile():
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/logout', methods=['POST'])
-@auth_middleware.student_required
+@student_required
 def logout():
     """Student logout"""
     try:
