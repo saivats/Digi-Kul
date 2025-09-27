@@ -7,7 +7,7 @@ from flask import Blueprint, request, jsonify, session
 from middlewares.auth_middleware import AuthMiddleware
 from middlewares.cohort_middleware import CohortMiddleware
 from services.admin_service import AdminService
-from utils.database_supabase import DatabaseManager
+from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from utils.email_service import EmailService
 import logging
 

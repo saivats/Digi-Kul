@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List, Dict, Any
 from supabase import create_client, Client
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables before importing config
 from config import Config
 
 class SupabaseDatabaseManager:
@@ -16,7 +18,9 @@ class SupabaseDatabaseManager:
         if (self.supabase_url == 'https://placeholder.supabase.co' or 
             self.supabase_key == 'placeholder-key' or
             self.supabase_url == 'your-supabase-url' or
-            self.supabase_key == 'your-supabase-key'):
+            self.supabase_key == 'your-supabase-key' or
+            self.supabase_url == 'https://demo.supabase.co' or
+            self.supabase_key == 'demo-key'):
             print("WARNING: Using placeholder Supabase credentials. Database operations will not work.")
             self.supabase = None
             return
@@ -67,6 +71,15 @@ class SupabaseDatabaseManager:
         except Exception:
             return None
     
+    def get_teacher_by_email_and_institution(self, email: str, institution_id: str) -> Optional[Dict]:
+        """Get teacher by email and institution ID"""
+        try:
+            result = self.supabase.table('teachers').select('*').eq('email', email).eq('institution_id', institution_id).eq('is_active', True).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting teacher by email and institution: {e}")
+            return None
+    
     def get_teacher_by_id(self, teacher_id: str) -> Optional[Dict]:
         """Get teacher by ID"""
         try:
@@ -78,11 +91,14 @@ class SupabaseDatabaseManager:
     def update_teacher_last_login(self, teacher_id: str) -> bool:
         """Update teacher's last login time"""
         try:
+            if not self.supabase:
+                return False
             self.supabase.table('teachers').update({
                 'last_login': datetime.now().isoformat()
             }).eq('id', teacher_id).execute()
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Error updating teacher last login: {e}")
             return False
     
     def get_all_teachers(self) -> List[Dict]:
@@ -128,6 +144,15 @@ class SupabaseDatabaseManager:
             result = self.supabase.table('students').select('*').eq('email', email).eq('is_active', True).execute()
             return result.data[0] if result.data else None
         except Exception:
+            return None
+    
+    def get_student_by_email_and_institution(self, email: str, institution_id: str) -> Optional[Dict]:
+        """Get student by email and institution ID"""
+        try:
+            result = self.supabase.table('students').select('*').eq('email', email).eq('institution_id', institution_id).eq('is_active', True).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting student by email and institution: {e}")
             return None
     
     def get_student_by_id(self, student_id: str) -> Optional[Dict]:
@@ -612,9 +637,23 @@ class SupabaseDatabaseManager:
     def get_teacher_cohorts(self, teacher_id: str) -> List[Dict]:
         """Get cohorts for a teacher"""
         try:
+            if not self.supabase:
+                return []
             result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).order('created_at', desc=True).execute()
             return result.data
-        except Exception:
+        except Exception as e:
+            print(f"Error getting teacher cohorts: {e}")
+            return []
+    
+    def get_lectures_by_teacher(self, teacher_id: str) -> List[Dict]:
+        """Get lectures for a teacher"""
+        try:
+            if not self.supabase:
+                return []
+            result = self.supabase.table('lectures').select('*').eq('teacher_id', teacher_id).eq('is_active', True).order('scheduled_time', desc=True).execute()
+            return result.data
+        except Exception as e:
+            print(f"Error getting teacher lectures: {e}")
             return []
     
     def get_student_cohorts(self, student_id: str) -> List[Dict]:
@@ -709,6 +748,179 @@ class SupabaseDatabaseManager:
             
             return lectures
         except Exception:
+            return []
+    
+    def get_lectures_by_cohort(self, cohort_id: str) -> List[Dict]:
+        """Get lectures for a cohort (alias for get_cohort_lectures)"""
+        return self.get_cohort_lectures(cohort_id)
+    
+    def enroll_student_in_cohort(self, institution_id: str, student_id: str, cohort_id: str, enrolled_by: str = None) -> bool:
+        """Enroll a student in a cohort"""
+        try:
+            if not self.supabase:
+                return False
+            # Check if already enrolled
+            existing = self.supabase.table('enrollments').select('id').eq('student_id', student_id).eq('cohort_id', cohort_id).execute()
+            if existing.data:
+                return True  # Already enrolled
+            
+            enrollment_data = {
+                'institution_id': institution_id,
+                'student_id': student_id,
+                'cohort_id': cohort_id,
+                'enrolled_at': datetime.now().isoformat(),
+                'is_active': True
+            }
+            
+            # Note: enrolled_by and status columns don't exist in actual Supabase schema
+            # lecture_id is available but not used for cohort enrollments
+            
+            result = self.supabase.table('enrollments').insert(enrollment_data).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error enrolling student in cohort: {e}")
+            return False
+
+    def remove_student_from_cohort(self, student_id: str, cohort_id: str) -> bool:
+        """Remove a student from a cohort"""
+        try:
+            if not self.supabase:
+                return False
+            
+            result = self.supabase.table('enrollments').update({
+                'is_active': False,
+                'status': 'inactive'
+            }).eq('student_id', student_id).eq('cohort_id', cohort_id).execute()
+            
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error removing student from cohort: {e}")
+            return False
+
+    def assign_teacher_to_cohort(self, teacher_id: str, cohort_id: str, role: str = 'teacher', assigned_by: str = None) -> bool:
+        """Assign a teacher to a cohort"""
+        try:
+            if not self.supabase:
+                return False
+            
+            # Check if already assigned
+            existing = self.supabase.table('teacher_cohorts').select('id').eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+            if existing.data:
+                return True  # Already assigned
+            
+            assignment_data = {
+                'teacher_id': teacher_id,
+                'cohort_id': cohort_id,
+                'role': role,
+                'assigned_at': datetime.now().isoformat(),
+                'assigned_by': assigned_by
+            }
+            
+            result = self.supabase.table('teacher_cohorts').insert(assignment_data).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error assigning teacher to cohort: {e}")
+            return False
+
+    def remove_teacher_from_cohort(self, teacher_id: str, cohort_id: str) -> bool:
+        """Remove a teacher from a cohort"""
+        try:
+            if not self.supabase:
+                return False
+            
+            result = self.supabase.table('cohort_teachers').update({
+                'is_active': False
+            }).eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+            
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error removing teacher from cohort: {e}")
+            return False
+
+    def get_cohort_teachers(self, cohort_id: str) -> List[Dict]:
+        """Get teachers assigned to a cohort"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('cohort_teachers').select(
+                '*, teachers!inner(*)'
+            ).eq('cohort_id', cohort_id).eq('is_active', True).execute()
+            
+            teachers = []
+            for assignment in result.data:
+                teacher_data = assignment.get('teachers', {})
+                teacher_data['assigned_at'] = assignment.get('assigned_at')
+                teachers.append(teacher_data)
+            
+            return teachers
+        except Exception as e:
+            print(f"Error getting cohort teachers: {e}")
+            return []
+
+    def get_cohort_students(self, cohort_id: str) -> List[Dict]:
+        """Get students enrolled in a cohort"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('enrollments').select(
+                '*, students!inner(*)'
+            ).eq('cohort_id', cohort_id).eq('is_active', True).execute()
+            
+            students = []
+            for enrollment in result.data:
+                student_data = enrollment.get('students', {})
+                student_data['enrolled_at'] = enrollment.get('enrolled_at')
+                student_data['enrollment_status'] = enrollment.get('status')
+                students.append(student_data)
+            
+            return students
+        except Exception as e:
+            print(f"Error getting cohort students: {e}")
+            return []
+
+    def get_teacher_cohorts(self, teacher_id: str) -> List[Dict]:
+        """Get cohorts assigned to a teacher"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('cohort_teachers').select(
+                '*, cohorts!inner(*)'
+            ).eq('teacher_id', teacher_id).eq('is_active', True).execute()
+            
+            cohorts = []
+            for assignment in result.data:
+                cohort_data = assignment.get('cohorts', {})
+                cohort_data['assigned_at'] = assignment.get('assigned_at')
+                cohorts.append(cohort_data)
+            
+            return cohorts
+        except Exception as e:
+            print(f"Error getting teacher cohorts: {e}")
+            return []
+
+    def get_student_cohorts(self, student_id: str) -> List[Dict]:
+        """Get cohorts enrolled by a student"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('enrollments').select(
+                '*, cohorts!inner(*)'
+            ).eq('student_id', student_id).eq('is_active', True).execute()
+            
+            cohorts = []
+            for enrollment in result.data:
+                cohort_data = enrollment.get('cohorts', {})
+                cohort_data['enrolled_at'] = enrollment.get('enrolled_at')
+                cohort_data['enrollment_status'] = enrollment.get('status')
+                cohorts.append(cohort_data)
+            
+            return cohorts
+        except Exception as e:
+            print(f"Error getting student cohorts: {e}")
             return []
     
     def get_cohort_students(self, cohort_id: str) -> List[Dict]:
@@ -977,6 +1189,36 @@ class SupabaseDatabaseManager:
             return result.data[0] if result.data else None
         except Exception:
             return None
+    
+    def get_institution_public_stats(self, institution_id: str) -> Dict[str, Any]:
+        """Get public statistics for an institution"""
+        if not self.supabase:
+            return {
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'cohorts': 0
+            }
+        try:
+            # Get user counts for this institution
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').eq('institution_id', institution_id).eq('is_active', True).execute()
+            students_result = self.supabase.table('students').select('id', count='exact').eq('institution_id', institution_id).eq('is_active', True).execute()
+            cohorts_result = self.supabase.table('cohorts').select('id', count='exact').eq('institution_id', institution_id).eq('is_active', True).execute()
+            
+            return {
+                'total_users': (teachers_result.count or 0) + (students_result.count or 0),
+                'teachers': teachers_result.count or 0,
+                'students': students_result.count or 0,
+                'cohorts': cohorts_result.count or 0
+            }
+        except Exception as e:
+            print(f"Error getting institution public stats: {e}")
+            return {
+                'total_users': 0,
+                'teachers': 0,
+                'students': 0,
+                'cohorts': 0
+            }
 
     # ========================================
     # INSTITUTION ADMIN METHODS
@@ -1488,6 +1730,60 @@ class SupabaseDatabaseManager:
                 'total_quizzes': 0
             }
     
+    def update_institution(self, institution_id: str, **kwargs) -> bool:
+        """Update institution details"""
+        if not self.supabase:
+            return False
+        try:
+            # Remove None values and prepare update data
+            update_data = {k: v for k, v in kwargs.items() if v is not None}
+            update_data['updated_at'] = datetime.now().isoformat()
+            
+            result = self.supabase.table('institutions').update(update_data).eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating institution: {e}")
+            return False
+    
+    def deactivate_institution(self, institution_id: str) -> bool:
+        """Deactivate an institution"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('institutions').update({
+                'is_active': False,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error deactivating institution: {e}")
+            return False
+    
+    def update_institution_status(self, institution_id: str, is_active: bool) -> bool:
+        """Update institution active status"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('institutions').update({
+                'is_active': is_active,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating institution status: {e}")
+            return False
+    
+    def delete_institution(self, institution_id: str) -> bool:
+        """Delete an institution"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('institutions').delete().eq('id', institution_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error deleting institution: {e}")
+            return False
+    
     def get_all_super_admins(self) -> List[Dict[str, Any]]:
         """Get all super admins"""
         if not self.supabase:
@@ -1529,12 +1825,37 @@ class SupabaseDatabaseManager:
             print(f"Error creating super admin: {e}")
             return None
     
+    def get_super_admin_by_id(self, admin_id: str) -> Optional[Dict[str, Any]]:
+        """Get super admin by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('super_admins').select('*').eq('id', admin_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting super admin: {e}")
+            return None
+    
+    def update_super_admin_status(self, admin_id: str, is_active: bool) -> bool:
+        """Update super admin active status"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('super_admins').update({
+                'is_active': is_active,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', admin_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating super admin status: {e}")
+            return False
+    
     def get_platform_analytics(self) -> Dict[str, Any]:
         """Get platform analytics data"""
         if not self.supabase:
             return {
                 'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                'growth_data': [0, 1, 2, 3, 5, 8],
+                'growth_data': [0, 0, 0, 0, 0, 0],
                 'user_counts': {
                     'teachers': 0,
                     'students': 0,
@@ -1579,6 +1900,9 @@ class SupabaseDatabaseManager:
             teachers_result = self.supabase.table('teachers').select('id', count='exact').eq('institution_id', institution_id).execute()
             students_result = self.supabase.table('students').select('id', count='exact').eq('institution_id', institution_id).execute()
             
+            # Get cohort count for this institution
+            cohorts_result = self.supabase.table('cohorts').select('id', count='exact').eq('institution_id', institution_id).execute()
+            
             # Get lecture count (assuming lectures are tied to teachers in this institution)
             lectures_result = self.supabase.table('lectures').select('id', count='exact').eq('institution_id', institution_id).execute()
             
@@ -1586,6 +1910,7 @@ class SupabaseDatabaseManager:
                 'total_users': (teachers_result.count or 0) + (students_result.count or 0),
                 'teachers': teachers_result.count or 0,
                 'students': students_result.count or 0,
+                'cohorts': cohorts_result.count or 0,
                 'active_lectures': lectures_result.count or 0
             }
         except Exception as e:
@@ -1594,6 +1919,7 @@ class SupabaseDatabaseManager:
                 'total_users': 0,
                 'teachers': 0,
                 'students': 0,
+                'cohorts': 0,
                 'active_lectures': 0
             }
     
@@ -1619,6 +1945,50 @@ class SupabaseDatabaseManager:
         except Exception as e:
             print(f"Error getting institution admin: {e}")
             return None
+    
+    def get_institution_admin_by_email_and_institution(self, email: str, institution_id: str) -> Optional[Dict[str, Any]]:
+        """Get institution admin by email and institution ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('institution_admins').select('*').eq('email', email).eq('institution_id', institution_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting institution admin by email and institution: {e}")
+            return None
+    
+    def update_institution_admin_last_login(self, admin_id: str) -> bool:
+        """Update institution admin last login timestamp"""
+        if not self.supabase:
+            return False
+        try:
+            result = self.supabase.table('institution_admins').update({
+                'last_login': datetime.now().isoformat()
+            }).eq('id', admin_id).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating institution admin last login: {e}")
+            return False
+    
+    def log_user_activity(self, user_id: str, user_type: str, action: str, institution_id: str = None, resource_type: str = None, details: dict = None) -> bool:
+        """Log user activity"""
+        if not self.supabase:
+            return False
+        try:
+            activity_data = {
+                'user_id': user_id,
+                'user_type': user_type,
+                'action': action,
+                'institution_id': institution_id,
+                'resource_type': resource_type,
+                'details': details,
+                'timestamp': datetime.now().isoformat()
+            }
+            result = self.supabase.table('activity_logs').insert(activity_data).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error logging user activity: {e}")
+            return False
     
     def create_institution_admin(self, institution_id: str, name: str, email: str, password_hash: str, 
                                 role: str = 'admin', permissions: Dict = None) -> Optional[str]:
@@ -1683,14 +2053,14 @@ class SupabaseDatabaseManager:
                 'email': email,
                 'password_hash': password_hash,
                 'subject': subject,
-                'employee_id': employee_id,
-                'department': department,
-                'phone': phone,
-                'bio': bio,
                 'created_by': created_by,
                 'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
+            
+            # Note: The following columns don't exist in the actual Supabase schema:
+            # employee_id, department, phone, bio
+            # These parameters are accepted but not stored in the database
             
             result = self.supabase.table('teachers').insert(teacher_data).execute()
             return result.data[0]['id'] if result.data else None, "Teacher created successfully"
@@ -1728,17 +2098,14 @@ class SupabaseDatabaseManager:
                 'name': name,
                 'email': email,
                 'password_hash': password_hash,
-                'student_id': student_id,
-                'roll_number': roll_number,
-                'class': class_name,
-                'section': section,
-                'phone': phone,
-                'parent_phone': parent_phone,
-                'date_of_birth': date_of_birth,
                 'created_by': created_by,
                 'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
+            
+            # Note: The following columns don't exist in the actual Supabase schema:
+            # student_id, roll_number, class, section, phone, parent_phone, date_of_birth
+            # These parameters are accepted but not stored in the database
             
             result = self.supabase.table('students').insert(student_data).execute()
             return result.data[0]['id'] if result.data else None, "Student created successfully"
@@ -1760,7 +2127,7 @@ class SupabaseDatabaseManager:
     
     def create_cohort(self, institution_id: str, name: str, description: str = None,
                      enrollment_code: str = None, max_students: int = 50,
-                     academic_year: str = None, semester: str = None,
+                     academic_year: str = None, semester: str = None, session: str = None,
                      start_date: str = None, end_date: str = None,
                      created_by: str = None) -> Tuple[Optional[str], str]:
         """Create a new cohort"""
@@ -1776,15 +2143,15 @@ class SupabaseDatabaseManager:
                 'name': name,
                 'description': description,
                 'enrollment_code': enrollment_code,
-                'max_students': max_students,
                 'academic_year': academic_year,
-                'semester': semester,
-                'start_date': start_date,
-                'end_date': end_date,
                 'created_by': created_by,
                 'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
+            
+            # Note: The following columns don't exist in the actual Supabase schema:
+            # max_students, semester, start_date, end_date, session
+            # These parameters are accepted but not stored in the database
             
             result = self.supabase.table('cohorts').insert(cohort_data).execute()
             return result.data[0]['id'] if result.data else None, "Cohort created successfully"
@@ -1806,9 +2173,9 @@ class SupabaseDatabaseManager:
     
     def create_lecture(self, institution_id: str, cohort_id: str, teacher_id: str, title: str,
                       description: str = None, scheduled_time: str = None, duration: int = 60,
-                      meeting_link: str = None, meeting_id: str = None, meeting_password: str = None,
-                      recording_enabled: bool = True, chat_enabled: bool = True,
-                      max_participants: int = 100) -> Tuple[Optional[str], str]:
+                      lecture_type: str = 'live', meeting_link: str = None, meeting_id: str = None, 
+                      meeting_password: str = None, recording_enabled: bool = True, chat_enabled: bool = True,
+                      max_participants: int = 100, created_by: str = None) -> Tuple[Optional[str], str]:
         """Create a new lecture"""
         if not self.supabase:
             return None, "Database not available"
@@ -1821,16 +2188,15 @@ class SupabaseDatabaseManager:
                 'description': description,
                 'scheduled_time': scheduled_time or datetime.now().isoformat(),
                 'duration': duration,
-                'meeting_link': meeting_link,
-                'meeting_id': meeting_id,
-                'meeting_password': meeting_password,
                 'status': 'scheduled',
-                'recording_enabled': recording_enabled,
-                'chat_enabled': chat_enabled,
-                'max_participants': max_participants,
                 'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
+            
+            # Note: The following columns don't exist in the actual Supabase schema:
+            # meeting_link, meeting_id, meeting_password, recording_enabled, chat_enabled, 
+            # max_participants, lecture_type, created_by
+            # These parameters are accepted but not stored in the database
             
             result = self.supabase.table('lectures').insert(lecture_data).execute()
             return result.data[0]['id'] if result.data else None, "Lecture created successfully"
@@ -2083,6 +2449,73 @@ class SupabaseDatabaseManager:
             return bool(result.data)
         except Exception as e:
             print(f"Error updating student last login: {e}")
+            return False
+    
+    def get_activity_logs(self, limit: int = 100, offset: int = 0, institution_id: str = None) -> List[Dict[str, Any]]:
+        """Get system activity logs"""
+        if not self.supabase:
+            return []
+        try:
+            query = self.supabase.table('activity_logs').select('*')
+            
+            if institution_id:
+                query = query.eq('institution_id', institution_id)
+            
+            result = query.order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting activity logs: {e}")
+            return []
+    
+    def get_platform_settings(self) -> Dict[str, Any]:
+        """Get platform settings"""
+        if not self.supabase:
+            return {}
+        try:
+            result = self.supabase.table('platform_settings').select('*').execute()
+            if result.data:
+                return result.data[0]
+            return {}
+        except Exception as e:
+            print(f"Error getting platform settings: {e}")
+            return {}
+    
+    def update_platform_settings(self, settings: Dict[str, Any]) -> bool:
+        """Update platform settings"""
+        if not self.supabase:
+            return False
+        try:
+            # Check if settings exist
+            existing = self.supabase.table('platform_settings').select('id').execute()
+            
+            settings_data = {
+                **settings,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            if existing.data:
+                # Update existing
+                result = self.supabase.table('platform_settings').update(settings_data).eq('id', existing.data[0]['id']).execute()
+            else:
+                # Create new
+                settings_data['created_at'] = datetime.now().isoformat()
+                result = self.supabase.table('platform_settings').insert(settings_data).execute()
+            
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating platform settings: {e}")
+            return False
+    
+    def test_connection(self) -> bool:
+        """Test database connection"""
+        if not self.supabase:
+            return False
+        try:
+            # Simple query to test connection
+            result = self.supabase.table('institutions').select('id').limit(1).execute()
+            return True
+        except Exception as e:
+            print(f"Database connection test failed: {e}")
             return False
 
 

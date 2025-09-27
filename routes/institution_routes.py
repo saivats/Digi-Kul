@@ -4,8 +4,9 @@ Handles institution-specific functionality and login pages.
 """
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template
-from werkzeug.security import check_password_hash
 from datetime import datetime
+from werkzeug.security import check_password_hash
+from utils.password_utils import check_password_hash_compatible
 from utils.database_supabase import DatabaseManager
 from utils.email_service import EmailService
 
@@ -89,7 +90,11 @@ def institution_login_api():
         else:
             return jsonify({'error': 'Invalid user type'}), 400
         
-        if not user or not check_password_hash(user['password_hash'], password):
+        if not user:
+            return jsonify({'error': 'Invalid credentials'}), 401
+            
+        # Check password with backward compatibility
+        if not check_password_hash_compatible(user['password_hash'], password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
         if not user.get('is_active', True):
@@ -112,6 +117,12 @@ def institution_login_api():
         elif user_type == 'admin':
             db.update_institution_admin_last_login(user['id'])
         
+        # Add user to online users for session management
+        from middlewares.auth_middleware import AuthMiddleware
+        # We need to access the global auth_middleware instance
+        # For now, we'll skip this and let the session handle it
+        pass
+        
         # Log activity
         db.log_user_activity(
             institution_id=institution_id,
@@ -122,11 +133,21 @@ def institution_login_api():
             details={'login_method': 'institution_login'}
         )
         
+        # Determine redirect URL based on user type
+        redirect_url = '/dashboard'  # Default
+        if user_type == 'admin':
+            redirect_url = '/institution-admin/dashboard'
+        elif user_type == 'teacher':
+            redirect_url = '/teacher/dashboard'
+        elif user_type == 'student':
+            redirect_url = '/student/dashboard'
+        
         return jsonify({
             'success': True,
             'message': 'Login successful',
             'user_type': user_type,
-            'institution_name': institution['name']
+            'institution_name': institution['name'],
+            'redirect_url': redirect_url
         }), 200
         
     except Exception as e:

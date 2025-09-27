@@ -4,9 +4,9 @@ Handles user login, logout, registration, and session management.
 """
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, flash, render_template
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
-from utils.database_supabase import DatabaseManager
+from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from services.cohort_service import CohortService
 from utils.email_service import EmailService
 
@@ -45,12 +45,12 @@ def register_page():
         return redirect(url_for('auth.login_page'))
     return render_template('register.html')
 
-@auth_bp.route('/api/register/teacher', methods=['POST'])
+@auth_bp.route('/register/teacher', methods=['POST'])
 def register_teacher():
     """Register a new teacher (admin only)"""
     try:
         # Check if user is admin
-        if session.get('user_type') != 'admin':
+        if session.get('user_type') not in ['admin', 'institution_admin']:
             return jsonify({'error': 'Admin access required'}), 403
         
         data = request.get_json()
@@ -59,13 +59,15 @@ def register_teacher():
             return jsonify({'error': 'Missing required fields'}), 400
         
         # Hash password
-        from werkzeug.security import generate_password_hash
         password_hash = generate_password_hash(data['password'])
         
         # Create teacher
-        teacher_id, response = db.create_teacher(
-            data['name'], data['email'], data['institution_id'], 
-            data['subject'], password_hash
+        teacher_id = db.create_teacher(
+            name=data['name'],
+            email=data['email'],
+            institution_id=data['institution_id'],
+            subject=data['subject'],
+            password_hash=password_hash
         )
         
         if teacher_id:
@@ -82,37 +84,92 @@ def register_teacher():
                 'teacher_id': teacher_id
             }), 201
         else:
-            return jsonify({'error': response}), 400
+            return jsonify({'error': 'Failed to create teacher'}), 400
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/api/register/student', methods=['POST'])
+@auth_bp.route('/register/student', methods=['POST'])
 def register_student():
-    """Register a new student (admin only)"""
+    """Register a new student with image upload"""
     try:
-        # Check if user is admin
-        if session.get('user_type') != 'admin':
-            return jsonify({'error': 'Admin access required'}), 403
+        # Get form data (including file uploads)
+        data = request.form.to_dict()
         
-        data = request.get_json()
+        # Validate required fields
+        required_fields = ['first_name', 'last_name', 'email', 'password', 'institution_id']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        if not all(key in data for key in ['name', 'email', 'institution_id', 'password']):
-            return jsonify({'error': 'Missing required fields'}), 400
+        # Check if email already exists
+        existing_student = db.get_student_by_email(data['email'])
+        if existing_student:
+            return jsonify({'error': 'Email already exists'}), 409
+        
+        # Handle profile image upload
+        profile_image_url = None
+        if 'profile_image' in request.files:
+            profile_image = request.files['profile_image']
+            if profile_image and profile_image.filename:
+                # Save the image
+                import os
+                import uuid
+                from werkzeug.utils import secure_filename
+                
+                # Create uploads directory if it doesn't exist
+                upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'students')
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                # Generate unique filename
+                filename = secure_filename(profile_image.filename)
+                file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+                unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+                
+                # Save file
+                file_path = os.path.join(upload_dir, unique_filename)
+                profile_image.save(file_path)
+                
+                # Set the URL
+                profile_image_url = f"/static/uploads/students/{unique_filename}"
         
         # Hash password
-        from werkzeug.security import generate_password_hash
         password_hash = generate_password_hash(data['password'])
         
+        # Prepare student data
+        student_data = {
+            'first_name': data['first_name'],
+            'last_name': data['last_name'],
+            'email': data['email'],
+            'password_hash': password_hash,
+            'institution_id': data['institution_id'],
+            'phone': data.get('phone'),
+            'date_of_birth': data.get('date_of_birth'),
+            'gender': data.get('gender'),
+            'address': data.get('address'),
+            'grade': data.get('grade'),
+            'student_id': data.get('student_id'),
+            'previous_school': data.get('previous_school'),
+            'parent_name': data.get('parent_name'),
+            'parent_email': data.get('parent_email'),
+            'parent_phone': data.get('parent_phone'),
+            'emergency_contact': data.get('emergency_contact'),
+            'profile_image_url': profile_image_url
+        }
+        
         # Create student
-        student_id, response = db.create_student(
-            data['name'], data['email'], data['institution_id'], password_hash
-        )
+        student_id = db.create_student(student_data)
         
         if student_id:
-            # If cohort_id is provided, add student to cohort
-            if 'cohort_id' in data:
-                cohort_service.add_student_to_cohort(data['cohort_id'], student_id)
+            # Send welcome email
+            try:
+                email_service.send_student_welcome_email(
+                    data['email'],
+                    data['first_name'],
+                    data.get('grade', 'N/A')
+                )
+            except Exception as email_error:
+                print(f"Failed to send welcome email: {str(email_error)}")
             
             return jsonify({
                 'success': True,
@@ -120,17 +177,17 @@ def register_student():
                 'student_id': student_id
             }), 201
         else:
-            return jsonify({'error': response}), 400
+            return jsonify({'error': 'Failed to create student'}), 400
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/api/register/admin', methods=['POST'])
+@auth_bp.route('/register/admin', methods=['POST'])
 def register_admin():
     """Admin registration disabled: only one hardcoded admin is allowed"""
     return jsonify({'error': 'Admin registration is disabled'}), 403
 
-@auth_bp.route('/api/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'])
 def login():
     """Login for teachers and students"""
     try:
@@ -166,7 +223,7 @@ def login():
                 'success': True,
                 'message': 'Login successful',
                 'user_type': 'admin',
-                'redirect_url': '/admin_dashboard'
+                'redirect_url': '/admin/dashboard'
             }), 200
         
         elif user_type == 'teacher':
@@ -200,18 +257,20 @@ def login():
         # Update last login
         if user_type == 'teacher':
             db.update_teacher_last_login(user['id'])
+        elif user_type == 'student':
+            db.update_student_last_login(user['id'])
         
         return jsonify({
             'success': True,
             'message': 'Login successful',
             'user_type': user_type,
-            'redirect_url': f'/{user_type}_dashboard'
+            'redirect_url': f'/{user_type}/dashboard'
         }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/api/logout', methods=['POST'])
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     """Secure logout with complete session destruction"""
     try:
@@ -295,7 +354,7 @@ def logout_page():
     except Exception as e:
         return redirect(url_for('auth.login_page'))
 
-@auth_bp.route('/api/validate-session', methods=['GET'])
+@auth_bp.route('/validate-session', methods=['GET'])
 def validate_session():
     """Validate current session and return user info"""
     try:
@@ -320,11 +379,11 @@ def validate_session():
     except Exception as e:
         return jsonify({'valid': False, 'error': str(e)}), 500
 
-@auth_bp.route('/api/force-logout', methods=['POST'])
+@auth_bp.route('/force-logout', methods=['POST'])
 def force_logout():
     """Force logout all sessions for a user (admin function)"""
     try:
-        if session.get('user_type') != 'admin':
+        if session.get('user_type') not in ['admin', 'super_admin']:
             return jsonify({'error': 'Admin access required'}), 403
         
         data = request.get_json()
@@ -345,7 +404,7 @@ def force_logout():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/api/cohort-selection', methods=['POST'])
+@auth_bp.route('/cohort-selection', methods=['POST'])
 def select_cohort():
     """Select a cohort for teachers/admins with multiple cohorts"""
     try:
@@ -390,7 +449,7 @@ def select_cohort():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/api/available-cohorts', methods=['GET'])
+@auth_bp.route('/available-cohorts', methods=['GET'])
 def get_available_cohorts():
     """Get available cohorts for the current user"""
     try:
@@ -404,7 +463,7 @@ def get_available_cohorts():
             cohorts = db.get_student_cohorts(user_id)
         elif user_type == 'teacher':
             cohorts = db.get_teacher_cohorts(user_id)
-        elif user_type == 'admin':
+        elif user_type in ['admin', 'institution_admin']:
             cohorts = db.get_all_cohorts()
         else:
             return jsonify({'error': 'Invalid user type'}), 400
@@ -416,4 +475,3 @@ def get_available_cohorts():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
