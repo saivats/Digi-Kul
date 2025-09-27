@@ -2128,7 +2128,7 @@ class SupabaseDatabaseManager:
     def create_cohort(self, institution_id: str, name: str, description: str = None,
                      enrollment_code: str = None, max_students: int = 50,
                      academic_year: str = None, semester: str = None, session: str = None,
-                     start_date: str = None, end_date: str = None,
+                     start_date: str = None, end_date: str = None, subject: str = "General",
                      created_by: str = None) -> Tuple[Optional[str], str]:
         """Create a new cohort"""
         if not self.supabase:
@@ -2144,6 +2144,7 @@ class SupabaseDatabaseManager:
                 'description': description,
                 'enrollment_code': enrollment_code,
                 'academic_year': academic_year,
+                'subject': subject,  # Required field in actual schema
                 'created_by': created_by,
                 'is_active': True,
                 'created_at': datetime.now().isoformat()

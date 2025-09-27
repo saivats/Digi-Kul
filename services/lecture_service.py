@@ -457,4 +457,20 @@ class LectureService:
             
         except Exception:
             return {}
+    
+    def delete_lecture(self, lecture_id: str) -> bool:
+        """
+        Delete a lecture by setting is_active to False
+        
+        Args:
+            lecture_id: ID of the lecture to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            return self.db.delete_lecture(lecture_id)
+        except Exception as e:
+            print(f"Error deleting lecture: {e}")
+            return False
 

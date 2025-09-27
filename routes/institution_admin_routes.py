@@ -1,30 +1,27 @@
 """
 Institution Admin Routes
-Handles institution admin functionality for managing teachers, students, cohorts, and institution-specific operations.
+Handles institution admin dashboard and management operations
 """
 
-from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template
-from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime
-from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
+from flask import Blueprint, request, jsonify, session, render_template
+from werkzeug.security import generate_password_hash
 from middlewares.auth_middleware import AuthMiddleware
+from utils.database_supabase import DatabaseManager
 from utils.email_service import EmailService
-from services.institution_admin_service import InstitutionAdminService
+from datetime import datetime
 
 # Initialize blueprint
-institution_admin_bp = Blueprint('institution_admin', __name__)
+institution_admin_bp = Blueprint('institution_admin', __name__, url_prefix='/institution-admin')
 
 # Initialize services
 db = DatabaseManager()
 auth_middleware = AuthMiddleware(None, db)
 email_service = EmailService()
-institution_admin_service = InstitutionAdminService(db, email_service)
 
 @institution_admin_bp.route('/dashboard')
 def dashboard():
     """Institution admin dashboard"""
     try:
-        # Get institution information
         institution_id = session.get('institution_id')
         if not institution_id:
             return redirect('/institution-admin/login')
@@ -49,32 +46,27 @@ def login():
         password = data.get('password')
         
         if not email or not password:
-            return jsonify({'error': 'Email and password required'}), 400
+            return jsonify({'error': 'Email and password are required'}), 400
         
-        # Get institution admin by email
+        # Get institution admin
         admin = db.get_institution_admin_by_email(email)
         if not admin:
             return jsonify({'error': 'Invalid credentials'}), 401
         
-        # Verify password
-        if not check_password_hash(admin['password_hash'], password):
+        # Check password
+        from utils.password_utils import check_password_hash_compatible
+        if not check_password_hash_compatible(admin['password_hash'], password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
-        # Create session
-        session.permanent = True
+        # Set session
         session['user_id'] = admin['id']
-        session['user_type'] = 'institution_admin'
-        session['user_name'] = admin['name']
-        session['user_email'] = admin['email']
+        session['user_type'] = 'admin'
         session['institution_id'] = admin['institution_id']
+        session['name'] = admin['name']
+        session['email'] = admin['email']
         
-        # Track online users
-        auth_middleware.online_users[admin['id']] = {
-            'name': admin['name'],
-            'email': admin['email'],
-            'type': 'institution_admin',
-            'login_time': datetime.now().isoformat()
-        }
+        # Update last login
+        db.update_institution_admin_last_login(admin['id'])
         
         return jsonify({
             'success': True,
@@ -85,218 +77,69 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-@institution_admin_bp.route('/teachers', methods=['GET'])
+@institution_admin_bp.route('/api/stats')
 @auth_middleware.institution_admin_required
-def get_teachers():
-    """Get all teachers in the institution"""
-    try:
-        institution_id = session.get('institution_id')
-        teachers = db.get_teachers_by_institution(institution_id)
-        
-        return jsonify({
-            'success': True,
-            'teachers': teachers
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@institution_admin_bp.route('/students', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_students():
-    """Get all students in the institution"""
-    try:
-        institution_id = session.get('institution_id')
-        students = db.get_students_by_institution(institution_id)
-        
-        return jsonify({
-            'success': True,
-            'students': students
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@institution_admin_bp.route('/cohorts', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_cohorts():
-    """Get all cohorts in the institution"""
-    try:
-        institution_id = session.get('institution_id')
-        cohorts = db.get_cohorts_by_institution(institution_id)
-        
-        return jsonify({
-            'success': True,
-            'cohorts': cohorts
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@institution_admin_bp.route('/lectures', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_lectures():
-    """Get all lectures in the institution"""
-    try:
-        institution_id = session.get('institution_id')
-        lectures = db.get_lectures_by_institution(institution_id)
-        
-        return jsonify({
-            'success': True,
-            'lectures': lectures
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/stats', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_institution_stats():
+def get_stats():
     """Get institution statistics"""
     try:
         institution_id = session.get('institution_id')
         stats = db.get_institution_stats(institution_id)
-        
-        return jsonify({
-            'success': True,
-            'stats': stats
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/logout', methods=['POST'])
-@auth_middleware.institution_admin_required
-def logout():
-    """Institution admin logout"""
-    try:
-        user_id = session.get('user_id')
-        
-        # Remove from online users tracking
-        if user_id and user_id in auth_middleware.online_users:
-            del auth_middleware.online_users[user_id]
-        
-        # Clear all session data
-        session.clear()
-        session.permanent = False
-        
-        return jsonify({
-            'success': True,
-            'message': 'Logged out successfully',
-            'redirect_url': '/'
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Dashboard API endpoints
-@institution_admin_bp.route('/api/stats')
-@auth_middleware.institution_admin_required
-def get_dashboard_stats():
-    """Get institution statistics for dashboard"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        stats = db.get_institution_stats(institution_id)
-        return jsonify({
-            'success': True,
-            'stats': stats
-        }), 200
+        return jsonify({'success': True, 'stats': stats}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @institution_admin_bp.route('/api/teachers')
 @auth_middleware.institution_admin_required
-def get_dashboard_teachers():
-    """Get all teachers for the institution"""
+def get_teachers():
+    """Get all teachers in institution"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         teachers = db.get_teachers_by_institution(institution_id)
-        return jsonify({
-            'success': True,
-            'teachers': teachers
-        }), 200
+        return jsonify({'success': True, 'teachers': teachers}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @institution_admin_bp.route('/api/students')
 @auth_middleware.institution_admin_required
-def get_dashboard_students():
-    """Get all students for the institution"""
+def get_students():
+    """Get all students in institution"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         students = db.get_students_by_institution(institution_id)
-        return jsonify({
-            'success': True,
-            'students': students
-        }), 200
+        return jsonify({'success': True, 'students': students}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @institution_admin_bp.route('/api/cohorts')
 @auth_middleware.institution_admin_required
-def get_dashboard_cohorts():
-    """Get all cohorts for the institution"""
+def get_cohorts():
+    """Get all cohorts in institution"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         cohorts = db.get_cohorts_by_institution(institution_id)
-        return jsonify({
-            'success': True,
-            'cohorts': cohorts
-        }), 200
+        return jsonify({'success': True, 'cohorts': cohorts}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @institution_admin_bp.route('/api/lectures')
 @auth_middleware.institution_admin_required
-def get_dashboard_lectures():
-    """Get all lectures for the institution"""
+def get_lectures():
+    """Get all lectures in institution"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         lectures = db.get_lectures_by_institution(institution_id)
-        return jsonify({
-            'success': True,
-            'lectures': lectures
-        }), 200
+        return jsonify({'success': True, 'lectures': lectures}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Management API endpoints
 @institution_admin_bp.route('/teachers', methods=['POST'])
 @auth_middleware.institution_admin_required
 def create_teacher():
     """Create a new teacher"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         data = request.get_json()
         
-        # Check if email already exists
-        existing_teacher = db.get_teacher_by_email(data['email'])
-        if existing_teacher:
-            return jsonify({'error': 'Email already exists'}), 400
-        
-        # Create teacher
         teacher_id, message = db.create_teacher(
             institution_id=institution_id,
             name=data['name'],
@@ -311,7 +154,6 @@ def create_teacher():
         )
         
         if teacher_id:
-            # Send welcome email
             try:
                 email_service.send_welcome_email(
                     user_email=data['email'],
@@ -338,17 +180,8 @@ def create_student():
     """Create a new student"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         data = request.get_json()
         
-        # Check if email already exists
-        existing_student = db.get_student_by_email(data['email'])
-        if existing_student:
-            return jsonify({'error': 'Email already exists'}), 400
-        
-        # Create student
         student_id, message = db.create_student(
             institution_id=institution_id,
             name=data['name'],
@@ -365,7 +198,6 @@ def create_student():
         )
         
         if student_id:
-            # Send welcome email
             try:
                 email_service.send_welcome_email(
                     user_email=data['email'],
@@ -392,12 +224,8 @@ def create_cohort():
     """Create a new cohort"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
         data = request.get_json()
         
-        # Create cohort
         cohort_id, message = db.create_cohort(
             institution_id=institution_id,
             name=data['name'],
@@ -406,9 +234,10 @@ def create_cohort():
             max_students=data.get('max_students', 50),
             academic_year=data.get('academic_year'),
             semester=data.get('semester'),
-            session=data.get('session'),  # Add session field
+            session=data.get('session'),
             start_date=data.get('start_date'),
             end_date=data.get('end_date'),
+            subject=data.get('subject', 'General'),
             created_by=session.get('user_id')
         )
         
@@ -416,142 +245,66 @@ def create_cohort():
             return jsonify({
                 'success': True,
                 'message': 'Cohort created successfully',
-                'cohort_id': cohort_id,
-                'enrollment_code': data.get('enrollment_code', 'AUTO_GENERATED')
+                'cohort_id': cohort_id
             }), 201
         else:
             return jsonify({'error': message}), 400
             
     except Exception as e:
-        return jsonify({'error': str(e)}), 500# Edit/Delete endpoints
-@institution_admin_bp.route('/teachers/<teacher_id>', methods=['PUT', 'DELETE'])
+        return jsonify({'error': str(e)}), 500
+
+@institution_admin_bp.route('/lectures', methods=['POST'])
 @auth_middleware.institution_admin_required
-def manage_teacher(teacher_id):
-    """Update or delete a teacher"""
+def create_lecture():
+    """Create a new lecture"""
     try:
         institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
+        data = request.get_json()
         
-        if request.method == 'PUT':
-            # Update teacher
-            data = request.get_json()
+        lecture_id, message = db.create_lecture(
+            institution_id=institution_id,
+            cohort_id=data['cohort_id'],
+            teacher_id=data['teacher_id'],
+            title=data['title'],
+            description=data.get('description'),
+            scheduled_time=data.get('scheduled_time'),
+            duration=data.get('duration', 60),
+            lecture_type=data.get('lecture_type', 'live'),
+            meeting_link=data.get('meeting_link'),
+            meeting_id=data.get('meeting_id'),
+            meeting_password=data.get('meeting_password'),
+            recording_enabled=data.get('recording_enabled', True),
+            chat_enabled=data.get('chat_enabled', True),
+            max_participants=data.get('max_participants', 100),
+            created_by=session.get('user_id')
+        )
+        
+        if lecture_id:
+            # Send lecture notification to teacher
+            try:
+                teacher = db.get_teacher_by_id(data['teacher_id'])
+                if teacher:
+                    email_service.send_lecture_notification(
+                        user_email=teacher['email'],
+                        user_name=teacher['name'],
+                        lecture_title=data['title'],
+                        teacher_name=teacher['name'],
+                        scheduled_time=data.get('scheduled_time')
+                    )
+            except Exception as email_error:
+                print(f"Failed to send lecture notification: {str(email_error)}")
             
-            # Remove password from update data if not provided
-            update_data = {k: v for k, v in data.items() if k != 'password'}
+            return jsonify({
+                'success': True,
+                'message': 'Lecture created successfully',
+                'lecture_id': lecture_id
+            }), 201
+        else:
+            return jsonify({'error': message}), 400
             
-            # Hash password if provided
-            if 'password' in data and data['password']:
-                update_data['password_hash'] = generate_password_hash(data['password'], method='scrypt')
-            
-            success = db.update_teacher(teacher_id, **update_data)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Teacher updated successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to update teacher'}), 400
-                
-        elif request.method == 'DELETE':
-            # Delete teacher (soft delete by setting is_active to False)
-            success = db.update_teacher(teacher_id, is_active=False)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Teacher deleted successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to delete teacher'}), 400
-                
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@institution_admin_bp.route('/students/<student_id>', methods=['PUT', 'DELETE'])
-@auth_middleware.institution_admin_required
-def manage_student(student_id):
-    """Update or delete a student"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        if request.method == 'PUT':
-            # Update student
-            data = request.get_json()
-            
-            # Remove password from update data if not provided
-            update_data = {k: v for k, v in data.items() if k != 'password'}
-            
-            # Hash password if provided
-            if 'password' in data and data['password']:
-                update_data['password_hash'] = generate_password_hash(data['password'], method='scrypt')
-            
-            success = db.update_student(student_id, **update_data)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Student updated successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to update student'}), 400
-                
-        elif request.method == 'DELETE':
-            # Delete student (soft delete by setting is_active to False)
-            success = db.update_student(student_id, is_active=False)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Student deleted successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to delete student'}), 400
-                
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/cohorts/<cohort_id>', methods=['PUT', 'DELETE'])
-@auth_middleware.institution_admin_required
-def manage_cohort(cohort_id):
-    """Update or delete a cohort"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        if request.method == 'PUT':
-            # Update cohort
-            data = request.get_json()
-            
-            success = db.update_cohort(cohort_id, **data)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Cohort updated successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to update cohort'}), 400
-                
-        elif request.method == 'DELETE':
-            # Delete cohort (soft delete by setting is_active to False)
-            success = db.update_cohort(cohort_id, is_active=False)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Cohort deleted successfully'
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to delete cohort'}), 400
-                
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-# Assignment endpoints
 @institution_admin_bp.route('/cohorts/<cohort_id>/teachers', methods=['GET', 'POST', 'DELETE'])
 @auth_middleware.institution_admin_required
 def manage_cohort_teachers(cohort_id):
@@ -687,124 +440,5 @@ def manage_cohort_students(cohort_id):
             else:
                 return jsonify({'error': 'Failed to remove student from cohort'}), 400
                 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/cohorts/<cohort_id>/enroll', methods=['POST'])
-@auth_middleware.institution_admin_required
-def enroll_student_by_code(cohort_id):
-    """Enroll student in cohort using enrollment code"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        data = request.get_json()
-        enrollment_code = data.get('enrollment_code')
-        student_id = data.get('student_id')
-        
-        if not enrollment_code or not student_id:
-            return jsonify({'error': 'Enrollment code and student ID are required'}), 400
-        
-        # Verify enrollment code matches cohort
-        cohort = db.get_cohort_by_id(cohort_id)
-        if not cohort or cohort.get('enrollment_code') != enrollment_code:
-            return jsonify({'error': 'Invalid enrollment code'}), 400
-        
-        success = db.enroll_student_in_cohort(student_id, cohort_id)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Student enrolled successfully'
-            }), 200
-        else:
-            return jsonify({'error': 'Failed to enroll student'}), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/teachers/<teacher_id>/cohorts', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_teacher_cohorts(teacher_id):
-    """Get cohorts assigned to a teacher"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        cohorts = db.get_teacher_cohorts(teacher_id)
-        return jsonify({
-            'success': True,
-            'cohorts': cohorts
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@institution_admin_bp.route('/students/<student_id>/cohorts', methods=['GET'])
-@auth_middleware.institution_admin_required
-def get_student_cohorts(student_id):
-    """Get cohorts enrolled by a student"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        cohorts = db.get_student_cohorts(student_id)
-        return jsonify({
-            'success': True,
-            'cohorts': cohorts
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-@institution_admin_bp.route('/lectures', methods=['POST'])
-@auth_middleware.institution_admin_required
-def create_lecture():
-    """Create a new lecture"""
-    try:
-        institution_id = session.get('institution_id')
-        if not institution_id:
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        data = request.get_json()
-        
-        # Create lecture
-        lecture_id, message = db.create_lecture(
-            institution_id=institution_id,
-            cohort_id=data['cohort_id'],
-            teacher_id=data['teacher_id'],
-            title=data['title'],
-            description=data.get('description'),
-            scheduled_time=data['scheduled_time'],
-            duration=data.get('duration', 60),
-            lecture_type=data.get('lecture_type', 'live'),
-            created_by=session.get('user_id')
-        )
-        
-        if lecture_id:
-            # Send lecture notification to teacher
-            try:
-                teacher = db.get_teacher_by_id(data['teacher_id'])
-                if teacher:
-                    email_service.send_lecture_notification(
-                        user_email=teacher['email'],
-                        user_name=teacher['name'],
-                        lecture_title=data['title'],
-                        teacher_name=teacher['name'],
-                        scheduled_time=data['scheduled_time']
-                    )
-            except Exception as email_error:
-                print(f"Failed to send lecture notification: {str(email_error)}")
-            
-            return jsonify({
-                'success': True,
-                'message': 'Lecture scheduled successfully',
-                'lecture_id': lecture_id
-            }), 201
-        else:
-            return jsonify({'error': message}), 400
-            
     except Exception as e:
         return jsonify({'error': str(e)}), 500

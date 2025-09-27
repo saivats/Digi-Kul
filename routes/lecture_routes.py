@@ -127,33 +127,56 @@ def get_lectures():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@lecture_bp.route('/api/lectures/<lecture_id>', methods=['GET'])
+@lecture_bp.route('/api/lectures/<lecture_id>', methods=['GET', 'DELETE'])
 @auth_middleware.api_login_required
-def get_lecture(lecture_id):
-    """Get lecture details by ID"""
+def get_or_delete_lecture(lecture_id):
+    """Get lecture details by ID or delete lecture"""
     try:
-        lecture = lecture_service.get_lecture_by_id(lecture_id)
-        
-        if not lecture:
-            return jsonify({'error': 'Lecture not found'}), 404
-        
-        # Check if user has access to this lecture
-        user_type = session.get('user_type')
-        user_id = session.get('user_id')
-        
-        if user_type == 'teacher':
-            if lecture['teacher_id'] != user_id:
+        if request.method == 'GET':
+            lecture = lecture_service.get_lecture_by_id(lecture_id)
+            
+            if not lecture:
+                return jsonify({'error': 'Lecture not found'}), 404
+            
+            # Check if user has access to this lecture
+            user_type = session.get('user_type')
+            user_id = session.get('user_id')
+            
+            if user_type == 'teacher':
+                if lecture['teacher_id'] != user_id:
+                    return jsonify({'error': 'Access denied to this lecture'}), 403
+            elif user_type == 'student':
+                # Check if student is enrolled in a cohort that has this lecture
+                student_lectures = lecture_service.get_student_lectures(user_id)
+                if not any(l['id'] == lecture_id for l in student_lectures):
+                    return jsonify({'error': 'Access denied to this lecture'}), 403
+            
+            return jsonify({
+                'success': True,
+                'lecture': lecture
+            }), 200
+            
+        elif request.method == 'DELETE':
+            # Only teachers can delete lectures
+            if session.get('user_type') != 'teacher':
+                return jsonify({'error': 'Only teachers can delete lectures'}), 403
+            
+            lecture = lecture_service.get_lecture_by_id(lecture_id)
+            if not lecture:
+                return jsonify({'error': 'Lecture not found'}), 404
+            
+            # Verify teacher owns this lecture
+            if lecture['teacher_id'] != session.get('user_id'):
                 return jsonify({'error': 'Access denied to this lecture'}), 403
-        elif user_type == 'student':
-            # Check if student is enrolled in a cohort that has this lecture
-            student_lectures = lecture_service.get_student_lectures(user_id)
-            if not any(l['id'] == lecture_id for l in student_lectures):
-                return jsonify({'error': 'Access denied to this lecture'}), 403
-        
-        return jsonify({
-            'success': True,
-            'lecture': lecture
-        }), 200
+            
+            success = lecture_service.delete_lecture(lecture_id)
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Lecture deleted successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to delete lecture'}), 500
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
