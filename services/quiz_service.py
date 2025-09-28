@@ -78,12 +78,12 @@ class QuizService:
         try:
             question_data = {
                 'quiz_set_id': quiz_set_id,
-                'question': question,
+                'question_text': question,
+                'question_type': 'multiple_choice',
                 'options': options,
                 'correct_answer': correct_answer,
                 'points': points,
-                'question_order': question_order,
-                'created_at': datetime.now().isoformat()
+                'order_index': question_order
             }
             
             result = self.db.supabase.table('quizzes').insert(question_data).execute()

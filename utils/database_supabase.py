@@ -183,12 +183,25 @@ class SupabaseDatabaseManager:
     def create_lecture(self, teacher_id: str, title: str, description: str, scheduled_time: str, duration: int) -> Tuple[Optional[str], str]:
         """Create a new lecture"""
         try:
+            # Get teacher details to find required fields
+            teacher_result = self.supabase.table('teachers').select('institution_id').eq('id', teacher_id).execute()
+            if not teacher_result.data:
+                return None, "Teacher not found"
+            
+            teacher = teacher_result.data[0]
+            
             lecture_data = {
+                'institution_id': teacher['institution_id'],
                 'teacher_id': teacher_id,
                 'title': title,
                 'description': description,
                 'scheduled_time': scheduled_time,
                 'duration': duration,
+                'status': 'scheduled',
+                'recording_enabled': True,
+                'chat_enabled': True,
+                'max_participants': 100,
+                'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
             
@@ -317,14 +330,27 @@ class SupabaseDatabaseManager:
     def add_material(self, lecture_id: str, title: str, description: str, file_path: str, compressed_path: str, file_size: int, file_type: str) -> Tuple[Optional[str], str]:
         """Add material to lecture"""
         try:
+            # Get lecture details to find required fields
+            lecture_result = self.supabase.table('lectures').select('institution_id, cohort_id, teacher_id').eq('id', lecture_id).execute()
+            if not lecture_result.data:
+                return None, "Lecture not found"
+            
+            lecture = lecture_result.data[0]
+            
             material_data = {
+                'institution_id': lecture['institution_id'],
                 'lecture_id': lecture_id,
+                'cohort_id': lecture['cohort_id'],
+                'teacher_id': lecture['teacher_id'],
                 'title': title,
                 'description': description,
                 'file_path': file_path,
-                'compressed_path': compressed_path,
-                'file_size': file_size,
+                'file_name': file_path.split('/')[-1],  # Extract filename from path
                 'file_type': file_type,
+                'file_size': file_size,
+                'is_public': False,
+                'download_count': 0,
+                'is_active': True,
                 'uploaded_at': datetime.now().isoformat()
             }
             
@@ -384,20 +410,51 @@ class SupabaseDatabaseManager:
     def create_quiz(self, lecture_id: str, question: str, options: List[str], correct_answer: str) -> Tuple[Optional[str], str]:
         """Create a quiz for lecture"""
         try:
-            quiz_data = {
-                'lecture_id': lecture_id,
-                'question': question,
-                'options': options,  # Supabase handles JSON automatically
-                'correct_answer': correct_answer,
+            # This method is deprecated - quizzes should be created through quiz_sets
+            # For now, we'll create a simple quiz_set and add the question
+            # First, get the lecture details to find cohort and teacher
+            lecture_result = self.supabase.table('lectures').select('cohort_id, teacher_id, institution_id').eq('id', lecture_id).execute()
+            if not lecture_result.data:
+                return None, "Lecture not found"
+            
+            lecture = lecture_result.data[0]
+            
+            # Create a quiz set for this lecture
+            quiz_set_data = {
+                'institution_id': lecture['institution_id'],
+                'cohort_id': lecture['cohort_id'],
+                'teacher_id': lecture['teacher_id'],
+                'title': f"Quiz for Lecture {lecture_id}",
+                'description': "Auto-generated quiz",
+                'is_active': True,
                 'created_at': datetime.now().isoformat()
             }
+            quiz_set_result = self.supabase.table('quiz_sets').insert(quiz_set_data).execute()
             
-            result = self.supabase.table('quizzes').insert(quiz_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Quiz created successfully"
+            if quiz_set_result.data:
+                quiz_set_id = quiz_set_result.data[0]['id']
+                
+                # Add the question to the quiz set - use minimal fields to avoid schema cache issues
+                question_data = {
+                    'quiz_set_id': quiz_set_id,
+                    'question_text': question,
+                    'question_type': 'multiple_choice'
+                }
+                
+                # Only add optional fields if they have values
+                if options:
+                    question_data['options'] = options
+                if correct_answer:
+                    question_data['correct_answer'] = correct_answer
+                
+                result = self.supabase.table('quizzes').insert(question_data).execute()
+                
+                if result.data:
+                    return result.data[0]['id'], "Quiz created successfully"
+                else:
+                    return None, "Failed to create quiz question"
             else:
-                return None, "Failed to create quiz"
+                return None, "Failed to create quiz set"
                 
         except Exception as e:
             return None, str(e)
@@ -646,16 +703,6 @@ class SupabaseDatabaseManager:
         except Exception:
             return None
     
-    def get_teacher_cohorts(self, teacher_id: str) -> List[Dict]:
-        """Get cohorts for a teacher"""
-        try:
-            if not self.supabase:
-                return []
-            result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).order('created_at', desc=True).execute()
-            return result.data
-        except Exception as e:
-            print(f"Error getting teacher cohorts: {e}")
-            return []
     
     def get_lectures_by_teacher(self, teacher_id: str) -> List[Dict]:
         """Get lectures for a teacher"""
@@ -897,19 +944,25 @@ class SupabaseDatabaseManager:
         """Get cohorts assigned to a teacher"""
         try:
             if not self.supabase:
+                print("Database not available")
                 return []
             
-            result = self.supabase.table('cohort_teachers').select(
-                '*, cohorts!inner(*)'
-            ).eq('teacher_id', teacher_id).eq('is_active', True).execute()
+            print(f"Getting cohorts for teacher: {teacher_id}")
             
-            cohorts = []
-            for assignment in result.data:
-                cohort_data = assignment.get('cohorts', {})
-                cohort_data['assigned_at'] = assignment.get('assigned_at')
-                cohorts.append(cohort_data)
+            # Check if teacher is directly assigned to cohorts
+            try:
+                result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).execute()
+                print(f"Direct assignment query result: {len(result.data) if result.data else 0} records")
+                
+                if result.data:
+                    return result.data
+            except Exception as e:
+                print(f"Direct assignment query failed: {e}")
             
-            return cohorts
+            # If no assignments found, return empty list
+            print("No cohorts found for teacher")
+            return []
+            
         except Exception as e:
             print(f"Error getting teacher cohorts: {e}")
             return []
@@ -2421,27 +2474,34 @@ class SupabaseDatabaseManager:
     def create_material(self, institution_id: str, lecture_id: str = None, cohort_id: str = None,
                        teacher_id: str = None, title: str = None, description: str = None,
                        file_path: str = None, file_name: str = None, file_type: str = None,
-                       file_size: int = None, is_public: bool = False) -> Tuple[Optional[str], str]:
+                       file_size: int = None) -> Tuple[Optional[str], str]:
         """Create a new material"""
         if not self.supabase:
             return None, "Database not available"
         try:
+            # Create material data with all required fields
             material_data = {
                 'institution_id': institution_id,
-                'lecture_id': lecture_id,
-                'cohort_id': cohort_id,
                 'teacher_id': teacher_id,
                 'title': title,
-                'description': description,
                 'file_path': file_path,
                 'file_name': file_name,
                 'file_type': file_type,
-                'file_size': file_size,
-                'is_public': is_public,
-                'download_count': 0,
-                'is_active': True,
-                'uploaded_at': datetime.now().isoformat()
+                'is_active': True
             }
+            
+            # Add optional fields - handle lecture_id constraint
+            if lecture_id:
+                material_data['lecture_id'] = lecture_id
+            # If no lecture_id provided, we'll omit it from the insert
+            # The schema allows NULL for lecture_id, so this should work
+                
+            if cohort_id:
+                material_data['cohort_id'] = cohort_id
+            if description:
+                material_data['description'] = description
+            if file_size is not None:
+                material_data['file_size'] = file_size
             
             result = self.supabase.table('materials').insert(material_data).execute()
             return result.data[0]['id'] if result.data else None, "Material created successfully"
@@ -2592,6 +2652,519 @@ class SupabaseDatabaseManager:
         except Exception as e:
             print(f"Error deleting student: {e}")
             return False
+
+    def create_poll(self, teacher_id: str, cohort_id: str, question: str, options: List[str], is_active: bool = True) -> Optional[str]:
+        """Create a poll for a cohort"""
+        if not self.supabase:
+            return None
+        try:
+            poll_data = {
+                'teacher_id': teacher_id,
+                'cohort_id': cohort_id,
+                'question': question,
+                'options': options,
+                'is_active': is_active,
+                'created_at': datetime.now().isoformat()
+            }
+            result = self.supabase.table('polls').insert(poll_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating poll: {e}")
+            return None
+
+    def get_cohort_discussions(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get discussions for a cohort"""
+        if not self.supabase:
+            return []
+        try:
+            # Get discussion forums for the cohort with post count
+            result = self.supabase.table('discussion_forums').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
+            discussions = result.data if result.data else []
+            
+            # Add post count and latest post info to each discussion
+            for discussion in discussions:
+                try:
+                    # Get post count
+                    posts_result = self.supabase.table('discussion_posts').select('id').eq('forum_id', discussion['id']).execute()
+                    discussion['post_count'] = len(posts_result.data) if posts_result.data else 0
+                    
+                    # Get latest post
+                    latest_post = self.supabase.table('discussion_posts').select('*').eq('forum_id', discussion['id']).order('created_at', desc=True).limit(1).execute()
+                    if latest_post.data:
+                        discussion['latest_post'] = latest_post.data[0]
+                except Exception as e:
+                    print(f"Error getting discussion details: {e}")
+                    discussion['post_count'] = 0
+                    discussion['latest_post'] = None
+            
+            return discussions
+        except Exception as e:
+            print(f"Error getting cohort discussions: {e}")
+            return []
+
+    def create_discussion(self, cohort_id: str, teacher_id: str, title: str, content: str, is_pinned: bool = False) -> Tuple[Optional[str], str]:
+        """Create a discussion for a cohort"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # First, get the institution_id from the cohort
+            cohort_result = self.supabase.table('cohorts').select('institution_id').eq('id', cohort_id).execute()
+            if not cohort_result.data:
+                return None, "Cohort not found"
+            
+            institution_id = cohort_result.data[0]['institution_id']
+            
+            # Create discussion forum
+            forum_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'title': title,
+                'description': content,
+                'is_active': True,
+                'created_by': teacher_id,
+                'created_at': datetime.now().isoformat()
+            }
+            forum_result = self.supabase.table('discussion_forums').insert(forum_data).execute()
+            
+            if forum_result.data:
+                forum_id = forum_result.data[0]['id']
+                
+                # Create the initial post
+                post_data = {
+                    'institution_id': institution_id,
+                    'forum_id': forum_id,
+                    'author_id': teacher_id,
+                    'author_type': 'teacher',
+                    'title': title,
+                    'content': content,
+                    'is_pinned': is_pinned,
+                    'created_at': datetime.now().isoformat()
+                }
+                post_result = self.supabase.table('discussion_posts').insert(post_data).execute()
+                
+                if post_result.data:
+                    return post_result.data[0]['id'], "Discussion created successfully"
+                else:
+                    return None, "Failed to create discussion post"
+            else:
+                return None, "Failed to create discussion forum"
+        except Exception as e:
+            print(f"Error creating discussion: {e}")
+            return None, f"Error creating discussion: {str(e)}"
+    
+    def get_discussion_posts(self, forum_id: str) -> List[Dict[str, Any]]:
+        """Get all posts for a discussion forum"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting discussion posts: {e}")
+            return []
+    
+    def add_discussion_post(self, forum_id: str, author_id: str, author_type: str, content: str, title: str = None) -> Tuple[Optional[str], str]:
+        """Add a post to a discussion forum"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # Get institution_id from forum
+            forum_result = self.supabase.table('discussion_forums').select('institution_id').eq('id', forum_id).execute()
+            if not forum_result.data:
+                return None, "Forum not found"
+            
+            institution_id = forum_result.data[0]['institution_id']
+            
+            post_data = {
+                'institution_id': institution_id,
+                'forum_id': forum_id,
+                'author_id': author_id,
+                'author_type': author_type,
+                'content': content,
+                'is_pinned': False,
+                'is_locked': False,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            if title:
+                post_data['title'] = title
+            
+            result = self.supabase.table('discussion_posts').insert(post_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Post added successfully"
+            else:
+                return None, "Failed to add post"
+        except Exception as e:
+            print(f"Error adding discussion post: {e}")
+            return None, str(e)
+
+    def get_lecture_polls(self, lecture_id: str) -> List[Dict[str, Any]]:
+        """Get polls for a specific lecture"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('polls').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lecture polls: {e}")
+            return []
+
+    def create_lecture_poll(self, lecture_id: str, teacher_id: str, question: str, options: List[str], is_active: bool = True) -> Optional[str]:
+        """Create a poll for a specific lecture"""
+        if not self.supabase:
+            return None
+        try:
+            poll_data = {
+                'lecture_id': lecture_id,
+                'teacher_id': teacher_id,
+                'question': question,
+                'options': options,
+                'is_active': is_active,
+                'created_at': datetime.now().isoformat()
+            }
+            result = self.supabase.table('polls').insert(poll_data).execute()
+            return result.data[0]['id'] if result.data else None
+        except Exception as e:
+            print(f"Error creating lecture poll: {e}")
+            return None
+
+    def assign_teacher_to_cohort(self, teacher_id: str, cohort_id: str) -> bool:
+        """Assign a teacher to a cohort"""
+        if not self.supabase:
+            return False
+        try:
+            # Check if assignment already exists
+            existing = self.supabase.table('cohort_teachers').select('*').eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+            
+            if existing.data:
+                # Update existing assignment to active
+                result = self.supabase.table('cohort_teachers').update({
+                    'is_active': True,
+                    'assigned_at': datetime.now().isoformat()
+                }).eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+                return bool(result.data)
+            else:
+                # Create new assignment
+                assignment_data = {
+                    'teacher_id': teacher_id,
+                    'cohort_id': cohort_id,
+                    'is_active': True,
+                    'assigned_at': datetime.now().isoformat()
+                }
+                result = self.supabase.table('cohort_teachers').insert(assignment_data).execute()
+                return bool(result.data)
+        except Exception as e:
+            print(f"Error assigning teacher to cohort: {e}")
+            return False
+
+    def get_all_cohorts(self) -> List[Dict[str, Any]]:
+        """Get all active cohorts"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting all cohorts: {e}")
+            return []
+
+    def create_quiz(self, teacher_id: str, cohort_id: str, title: str, description: str, questions: List[Dict], is_active: bool = True) -> Tuple[Optional[str], str]:
+        """Create a quiz for a cohort"""
+        if not self.supabase:
+            return None, "Database not available"
+        try:
+            # First, get the institution_id from the cohort
+            cohort_result = self.supabase.table('cohorts').select('institution_id').eq('id', cohort_id).execute()
+            if not cohort_result.data:
+                return None, "Cohort not found"
+            
+            institution_id = cohort_result.data[0]['institution_id']
+            
+            # Create quiz set
+            quiz_set_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'title': title,
+                'description': description,
+                'is_active': is_active,
+                'created_at': datetime.now().isoformat()
+            }
+            quiz_set_result = self.supabase.table('quiz_sets').insert(quiz_set_data).execute()
+            
+            if quiz_set_result.data:
+                quiz_set_id = quiz_set_result.data[0]['id']
+                
+                # Add questions to the quiz set
+                for i, question in enumerate(questions):
+                    question_data = {
+                        'quiz_set_id': quiz_set_id,
+                        'question_text': question.get('question', ''),
+                        'question_type': question.get('type', 'multiple_choice'),
+                        'order_index': i
+                    }
+                    
+                    # Add optional fields if they have values
+                    if question.get('options'):
+                        question_data['options'] = question.get('options')
+                    if question.get('correct_answer'):
+                        question_data['correct_answer'] = question.get('correct_answer')
+                    if question.get('points'):
+                        question_data['points'] = question.get('points', 1)
+                    if question.get('explanation'):
+                        question_data['explanation'] = question.get('explanation')
+                    
+                    self.supabase.table('quizzes').insert(question_data).execute()
+                
+                return quiz_set_id, "Quiz created successfully"
+            else:
+                return None, "Failed to create quiz set"
+        except Exception as e:
+            print(f"Error creating quiz: {e}")
+            return None, f"Error creating quiz: {str(e)}"
+
+    def get_lecture_materials(self, lecture_id: str) -> List[Dict[str, Any]]:
+        """Get materials for a specific lecture"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('materials').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lecture materials: {e}")
+            return []
+
+    def get_cohort_by_id(self, cohort_id: str) -> Optional[Dict[str, Any]]:
+        """Get cohort by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('cohorts').select('*').eq('id', cohort_id).eq('is_active', True).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting cohort by ID: {e}")
+            return None
+
+    def get_lectures_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get lectures for a specific cohort"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('lectures').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('scheduled_time', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lectures by cohort: {e}")
+            return []
+
+    def get_quiz_responses_by_quiz_set(self, quiz_set_id: str) -> List[Dict[str, Any]]:
+        """Get all responses for a quiz set"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('quiz_responses').select('*, quiz_attempts(*, students(name, email))').eq('quiz_id', quiz_set_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting quiz responses: {e}")
+            return []
+
+    def get_quiz_attempts_by_quiz_set(self, quiz_set_id: str) -> List[Dict[str, Any]]:
+        """Get all attempts for a quiz set"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('quiz_attempts').select('*, students(name, email)').eq('quiz_set_id', quiz_set_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting quiz attempts: {e}")
+            return []
+
+    def create_poll(self, institution_id: str, cohort_id: str, teacher_id: str, question: str, options: List[str], lecture_id: str = None, expires_at: str = None) -> Tuple[Optional[str], str]:
+        """Create a new poll"""
+        if not self.supabase:
+            return None, "Database connection not available"
+        
+        try:
+            poll_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'question': question,
+                'options': options,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            if lecture_id:
+                poll_data['lecture_id'] = lecture_id
+            if expires_at:
+                poll_data['expires_at'] = expires_at
+            
+            result = self.supabase.table('polls').insert(poll_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Poll created successfully"
+            else:
+                return None, "Failed to create poll"
+        except Exception as e:
+            print(f"Error creating poll: {e}")
+            return None, f"Error creating poll: {str(e)}"
+
+    def get_polls_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get polls for a cohort"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('polls').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting polls: {e}")
+            return []
+
+    def submit_poll_response(self, poll_id: str, student_id: str, selected_option: str) -> Tuple[Optional[str], str]:
+        """Submit a poll response"""
+        if not self.supabase:
+            return None, "Database connection not available"
+        
+        try:
+            # Check if student already responded
+            existing = self.supabase.table('poll_responses').select('*').eq('poll_id', poll_id).eq('student_id', student_id).execute()
+            
+            if existing.data:
+                return None, "You have already responded to this poll"
+            
+            # Get poll institution_id
+            poll_result = self.supabase.table('polls').select('institution_id').eq('id', poll_id).execute()
+            if not poll_result.data:
+                return None, "Poll not found"
+            
+            response_data = {
+                'institution_id': poll_result.data[0]['institution_id'],
+                'poll_id': poll_id,
+                'student_id': student_id,
+                'selected_option': selected_option,
+                'responded_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('poll_responses').insert(response_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Response submitted successfully"
+            else:
+                return None, "Failed to submit response"
+        except Exception as e:
+            print(f"Error submitting poll response: {e}")
+            return None, f"Error submitting poll response: {str(e)}"
+
+    def get_poll_results(self, poll_id: str) -> Dict[str, Any]:
+        """Get poll results"""
+        if not self.supabase:
+            return {}
+        try:
+            # Get poll details
+            poll_result = self.supabase.table('polls').select('*').eq('id', poll_id).execute()
+            if not poll_result.data:
+                return {}
+            
+            poll = poll_result.data[0]
+            
+            # Get responses
+            responses_result = self.supabase.table('poll_responses').select('*').eq('poll_id', poll_id).execute()
+            responses = responses_result.data if responses_result.data else []
+            
+            # Count responses by option
+            option_counts = {}
+            for response in responses:
+                option = response['selected_option']
+                option_counts[option] = option_counts.get(option, 0) + 1
+            
+            return {
+                'poll': poll,
+                'total_responses': len(responses),
+                'option_counts': option_counts,
+                'responses': responses
+            }
+        except Exception as e:
+            print(f"Error getting poll results: {e}")
+            return {}
+
+    def create_discussion_post(self, institution_id: str, forum_id: str, author_id: str, author_type: str, content: str, title: str = None, parent_post_id: str = None) -> Tuple[Optional[str], str]:
+        """Create a discussion post"""
+        if not self.supabase:
+            return None, "Database connection not available"
+        
+        try:
+            post_data = {
+                'institution_id': institution_id,
+                'forum_id': forum_id,
+                'author_id': author_id,
+                'author_type': author_type,
+                'content': content,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            if title:
+                post_data['title'] = title
+            if parent_post_id:
+                post_data['parent_post_id'] = parent_post_id
+            
+            result = self.supabase.table('discussion_posts').insert(post_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Post created successfully"
+            else:
+                return None, "Failed to create post"
+        except Exception as e:
+            print(f"Error creating discussion post: {e}")
+            return None, f"Error creating discussion post: {str(e)}"
+
+    def get_discussion_posts(self, forum_id: str) -> List[Dict[str, Any]]:
+        """Get discussion posts for a forum"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('discussion_posts').select('*, teachers(name), students(name)').eq('forum_id', forum_id).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting discussion posts: {e}")
+            return []
+
+    def create_discussion_forum(self, institution_id: str, cohort_id: str, title: str, description: str = None, created_by: str = None) -> Tuple[Optional[str], str]:
+        """Create a discussion forum"""
+        if not self.supabase:
+            return None, "Database connection not available"
+        
+        try:
+            forum_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'title': title,
+                'description': description,
+                'created_by': created_by,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('discussion_forums').insert(forum_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Forum created successfully"
+            else:
+                return None, "Failed to create forum"
+        except Exception as e:
+            print(f"Error creating discussion forum: {e}")
+            return None, f"Error creating discussion forum: {str(e)}"
+
+    def get_discussion_forums_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get discussion forums for a cohort"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('discussion_forums').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting discussion forums: {e}")
+            return []
 
 
 # Create a global instance for compatibility

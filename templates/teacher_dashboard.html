@@ -146,6 +146,21 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab">
+                    <i class="bi bi-chat-dots me-2"></i>Discussions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="polls-tab" data-bs-toggle="tab" data-bs-target="#polls" type="button" role="tab">
+                    <i class="bi bi-bar-chart me-2"></i>Polls
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
+                    <i class="bi bi-question-circle me-2"></i>Quizzes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab">
                     <i class="bi bi-person me-2"></i>Profile
                 </button>
@@ -210,6 +225,66 @@
                 </div>
             </div>
 
+            <!-- Discussions Tab -->
+            <div class="tab-pane fade" id="discussions" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Cohort Discussions</h5>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateDiscussionModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Start Discussion
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="discussionsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">Loading discussions...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Polls Tab -->
+            <div class="tab-pane fade" id="polls" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Polls</h5>
+                        <button class="btn btn-primary btn-sm" onclick="showCreatePollModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Create Poll
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="pollsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">Loading polls...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quizzes Tab -->
+            <div class="tab-pane fade" id="quizzes" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Quizzes</h5>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateQuizModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Create Quiz
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="quizzesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-question-circle fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">Loading quizzes...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Profile Tab -->
             <div class="tab-pane fade" id="profile" role="tabpanel">
                 <div class="card mt-3">
@@ -267,8 +342,16 @@
                 await Promise.all([
                     loadLectures(),
                     loadCohorts(),
-                    loadMaterials()
+                    loadMaterials(),
+                    loadDiscussions(),
+                    loadPolls(),
+                    loadQuizzes(),
+                    loadProfile(),
+                    loadRealTimeStats()
                 ]);
+                
+                // Set up real-time updates
+                setInterval(loadRealTimeStats, 30000); // Update every 30 seconds
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
             }
@@ -319,6 +402,63 @@
             }
         }
 
+        async function loadProfile() {
+            try {
+                const response = await fetch('/api/teacher/profile');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const teacher = data.teacher;
+                    document.getElementById('teacherName').textContent = teacher.name;
+                    renderProfile(teacher);
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+        async function loadRealTimeStats() {
+            try {
+                const response = await fetch('/api/teacher/analytics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const analytics = data.analytics;
+                    updateStatsDisplay(analytics);
+                }
+            } catch (error) {
+                console.error('Error loading real-time stats:', error);
+            }
+        }
+
+        async function loadDiscussions() {
+            try {
+                const response = await fetch('/api/teacher/discussions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const discussions = data.discussions;
+                    renderDiscussions(discussions);
+                }
+            } catch (error) {
+                console.error('Error loading discussions:', error);
+            }
+        }
+
+        async function loadQuizzes() {
+            try {
+                const response = await fetch('/api/teacher/quizzes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const quizzes = data.quizzes;
+                    renderQuizzes(quizzes);
+                }
+            } catch (error) {
+                console.error('Error loading quizzes:', error);
+            }
+        }
+
         function renderLectures(lectures) {
             const container = document.getElementById('lecturesList');
             
@@ -343,10 +483,13 @@
                                 ${new Date(lecture.scheduled_time).toLocaleString()}
                             </small>
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" onclick="editLecture('${lecture.id}')">
+                                <button class="btn btn-outline-success" onclick="joinLecture('${lecture.id}')" title="Join Live Session">
+                                    <i class="bi bi-camera-video"></i>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="editLecture('${lecture.id}')" title="Edit Lecture">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteLecture('${lecture.id}')">
+                                <button class="btn btn-outline-danger" onclick="deleteLecture('${lecture.id}')" title="Delete Lecture">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -364,6 +507,9 @@
                     <div class="text-center py-4">
                         <i class="bi bi-people fs-1 text-muted"></i>
                         <p class="text-muted mt-2">No cohorts assigned</p>
+                        <button class="btn btn-primary" onclick="showAssignCohortModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Assign to Cohort
+                        </button>
                     </div>
                 `;
                 return;
@@ -379,7 +525,12 @@
                                 <i class="bi bi-calendar me-1"></i>
                                 ${cohort.academic_year || 'N/A'}
                             </small>
-                            <span class="badge bg-primary">Assigned</span>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary">Assigned</span>
+                                <button class="btn btn-outline-primary btn-sm" onclick="viewCohortDetails('${cohort.id}')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -439,6 +590,845 @@
             showToast('Analytics feature coming soon!', 'info');
         }
 
+        function renderProfile(teacher) {
+            const container = document.getElementById('profileContent');
+            
+            container.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Personal Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Name:</strong></td>
+                                <td>${teacher.name}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email:</strong></td>
+                                <td>${teacher.email}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Member Since:</strong></td>
+                                <td>${new Date(teacher.created_at).toLocaleDateString()}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Last Login:</strong></td>
+                                <td>${teacher.last_login ? new Date(teacher.last_login).toLocaleString() : 'Never'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td><span class="badge bg-${teacher.is_active ? 'success' : 'danger'}">${teacher.is_active ? 'Active' : 'Inactive'}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Statistics</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="card bg-primary text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${teacher.stats.total_cohorts}</h5>
+                                        <small>Cohorts</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-success text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${teacher.stats.total_lectures}</h5>
+                                        <small>Lectures</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-warning text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${teacher.stats.total_materials}</h5>
+                                        <small>Materials</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-info text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${teacher.stats.total_polls}</h5>
+                                        <small>Polls</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Recent Activity</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6 class="text-primary">Recent Cohorts</h6>
+                                ${teacher.recent_activity.cohorts.map(cohort => `
+                                    <div class="card mb-2">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title mb-1">${cohort.name}</h6>
+                                            <small class="text-muted">${cohort.description || 'No description'}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-success">Recent Lectures</h6>
+                                ${teacher.recent_activity.lectures.map(lecture => `
+                                    <div class="card mb-2">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title mb-1">${lecture.title}</h6>
+                                            <small class="text-muted">${new Date(lecture.scheduled_time).toLocaleString()}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-warning">Recent Materials</h6>
+                                ${teacher.recent_activity.materials.map(material => `
+                                    <div class="card mb-2">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title mb-1">${material.title}</h6>
+                                            <small class="text-muted">${new Date(material.uploaded_at).toLocaleDateString()}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateStatsDisplay(analytics) {
+            // Update the stats cards with real-time data
+            if (analytics.total_lectures !== undefined) {
+                document.getElementById('myLectures').textContent = analytics.total_lectures;
+            }
+            if (analytics.total_cohorts !== undefined) {
+                document.getElementById('myCohorts').textContent = analytics.total_cohorts;
+            }
+            if (analytics.total_materials !== undefined) {
+                document.getElementById('myMaterials').textContent = analytics.total_materials;
+            }
+            if (analytics.total_students !== undefined) {
+                document.getElementById('myStudents').textContent = analytics.total_students;
+            }
+            
+            // Add a small indicator that stats are live
+            const statsCards = document.querySelectorAll('.card.bg-primary, .card.bg-success, .card.bg-warning, .card.bg-info');
+            statsCards.forEach(card => {
+                if (!card.querySelector('.live-indicator')) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'live-indicator';
+                    indicator.innerHTML = '<i class="bi bi-circle-fill text-success" style="font-size: 8px;"></i>';
+                    indicator.style.position = 'absolute';
+                    indicator.style.top = '10px';
+                    indicator.style.right = '10px';
+                    card.style.position = 'relative';
+                    card.appendChild(indicator);
+                }
+            });
+        }
+
+        function renderDiscussions(discussions) {
+            const container = document.getElementById('discussionsList');
+            
+            if (discussions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No discussions yet</p>
+                        <button class="btn btn-primary" onclick="showCreateDiscussionModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Start First Discussion
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = discussions.map(discussion => `
+                <div class="card mb-3 discussion-item" data-discussion-id="${discussion.id}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-chat-dots me-2"></i>
+                            <h6 class="mb-0">${discussion.title}</h6>
+                            ${discussion.is_pinned ? '<span class="badge bg-warning ms-2">📌 Pinned</span>' : ''}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="toggleDiscussionChat('${discussion.id}')">
+                                <i class="bi bi-chat me-1"></i>Toggle Chat
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="viewDiscussion('${discussion.id}')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">${discussion.description || discussion.content}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            ${new Date(discussion.created_at).toLocaleString()}
+                        </small>
+                        
+                        <!-- Chat Interface (Initially Hidden) -->
+                        <div id="chat-${discussion.id}" class="mt-3" style="display: none;">
+                            <div class="chat-container" style="height: 300px; border: 1px solid #dee2e6; border-radius: 0.375rem; overflow-y: auto; padding: 1rem; background-color: #f8f9fa;">
+                                <div id="chatMessages-${discussion.id}" class="chat-messages">
+                                    <div class="text-center text-muted">
+                                        <i class="bi bi-chat-dots fs-1"></i>
+                                        <p>Loading messages...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input mt-3">
+                                <div class="input-group">
+                                    <input type="text" id="chatMessageInput-${discussion.id}" class="form-control" placeholder="Type your message..." onkeypress="handleChatKeyPress(event, '${discussion.id}')">
+                                    <button class="btn btn-primary" type="button" onclick="sendChatMessage('${discussion.id}')">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <style>
+                        .teacher-message .message-content {
+                            background-color: #e3f2fd;
+                            border-radius: 1rem 1rem 0.25rem 1rem;
+                            padding: 0.75rem;
+                            margin-left: 2rem;
+                        }
+                        .student-message .message-content {
+                            background-color: #f1f8e9;
+                            border-radius: 1rem 1rem 1rem 0.25rem;
+                            padding: 0.75rem;
+                            margin-right: 2rem;
+                        }
+                        .message-text {
+                            margin-top: 0.5rem;
+                            line-height: 1.4;
+                        }
+                        .message-header {
+                            font-size: 0.875rem;
+                        }
+                        .chat-container::-webkit-scrollbar {
+                            width: 6px;
+                        }
+                        .chat-container::-webkit-scrollbar-track {
+                            background: #f1f1f1;
+                            border-radius: 3px;
+                        }
+                        .chat-container::-webkit-scrollbar-thumb {
+                            background: #c1c1c1;
+                            border-radius: 3px;
+                        }
+                        .chat-container::-webkit-scrollbar-thumb:hover {
+                            background: #a8a8a8;
+                        }
+                        </style>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showCreateDiscussionModal() {
+            const modal = `
+                <div class="modal fade" id="createDiscussionModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Start New Discussion</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="createDiscussionForm">
+                                    <div class="mb-3">
+                                        <label for="discussionTitle" class="form-label">Discussion Title</label>
+                                        <input type="text" class="form-control" id="discussionTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="discussionCohort" class="form-label">Cohort</label>
+                                        <select class="form-control" id="discussionCohort" required>
+                                            <option value="">Select a cohort</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="discussionContent" class="form-label">Content</label>
+                                        <textarea class="form-control" id="discussionContent" rows="4" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="discussionPinned">
+                                            <label class="form-check-label" for="discussionPinned">
+                                                Pin this discussion
+                                            </label>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createDiscussion()">Start Discussion</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('createDiscussionModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohorts for dropdown
+            loadCohortsForDiscussion();
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('createDiscussionModal'));
+            modalElement.show();
+        }
+
+        async function loadCohortsForDiscussion() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohortSelect = document.getElementById('discussionCohort');
+                    cohortSelect.innerHTML = '<option value="">Select a cohort</option>';
+                    
+                    data.cohorts.forEach(cohort => {
+                        const option = document.createElement('option');
+                        option.value = cohort.id;
+                        option.textContent = cohort.name;
+                        cohortSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+            }
+        }
+
+        async function createDiscussion() {
+            try {
+                const title = document.getElementById('discussionTitle').value;
+                const cohortId = document.getElementById('discussionCohort').value;
+                const content = document.getElementById('discussionContent').value;
+                const isPinned = document.getElementById('discussionPinned').checked;
+
+                if (!title || !cohortId || !content) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/discussions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        cohort_id: cohortId,
+                        title: title,
+                        content: content,
+                        is_pinned: isPinned
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Discussion created successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createDiscussionModal')).hide();
+                    loadDiscussions(); // Refresh discussions list
+                } else {
+                    showToast(data.error || 'Failed to create discussion', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating discussion:', error);
+                showToast('Error creating discussion', 'error');
+            }
+        }
+
+        function viewDiscussion(discussionId) {
+            showToast('Discussion view feature coming soon!', 'info');
+        }
+
+        function toggleDiscussionChat(discussionId) {
+            const chatDiv = document.getElementById(`chat-${discussionId}`);
+            if (chatDiv) {
+                if (chatDiv.style.display === 'none') {
+                    chatDiv.style.display = 'block';
+                    loadChatMessages(discussionId);
+                } else {
+                    chatDiv.style.display = 'none';
+                }
+            }
+        }
+
+        function loadChatMessages(discussionId) {
+            // Load actual discussion posts
+            const chatMessages = document.getElementById(`chatMessages-${discussionId}`);
+            if (chatMessages) {
+                // Show loading state
+                chatMessages.innerHTML = `
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Loading messages...
+                    </div>
+                `;
+                
+                // Fetch discussion posts
+                fetch(`/api/discussions/${discussionId}/posts`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.posts) {
+                            renderChatMessages(chatMessages, data.posts);
+                        } else {
+                            chatMessages.innerHTML = `
+                                <div class="text-center text-muted">
+                                    <i class="bi bi-chat-dots fs-1"></i>
+                                    <p>No messages yet</p>
+                                    <small>Start the conversation!</small>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading messages:', error);
+                        chatMessages.innerHTML = `
+                            <div class="text-center text-muted">
+                                <i class="bi bi-exclamation-triangle fs-1"></i>
+                                <p>Error loading messages</p>
+                                <small>Please try again later</small>
+                            </div>
+                        `;
+                    });
+            }
+        }
+        
+        function renderChatMessages(container, posts) {
+            if (!posts || posts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="bi bi-chat-dots fs-1"></i>
+                        <p>No messages yet</p>
+                        <small>Start the conversation!</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = posts.map(post => `
+                <div class="message mb-3 ${post.author_type === 'teacher' ? 'teacher-message' : 'student-message'}">
+                    <div class="d-flex align-items-start">
+                        <div class="avatar me-2">
+                            <i class="bi bi-person-circle fs-4 ${post.author_type === 'teacher' ? 'text-primary' : 'text-success'}"></i>
+                        </div>
+                        <div class="message-content flex-grow-1">
+                            <div class="message-header d-flex justify-content-between align-items-center mb-1">
+                                <strong class="message-author">${post.author_type === 'teacher' ? 'Teacher' : 'Student'}</strong>
+                                <small class="text-muted">${new Date(post.created_at).toLocaleString()}</small>
+                            </div>
+                            <div class="message-text">${post.content}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function handleChatKeyPress(event, discussionId) {
+            if (event.key === 'Enter') {
+                sendChatMessage(discussionId);
+            }
+        }
+
+        function sendChatMessage(discussionId) {
+            const input = document.getElementById(`chatMessageInput-${discussionId}`);
+            const message = input.value.trim();
+            
+            if (message) {
+                // Send message to server
+                fetch(`/api/discussions/${discussionId}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: message,
+                        author_type: 'teacher'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        // Reload messages to show the new one
+                        loadChatMessages(discussionId);
+                        showToast('Message sent!', 'success');
+                    } else {
+                        showToast('Failed to send message: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending message:', error);
+                    showToast('Error sending message', 'error');
+                });
+            }
+        }
+
+        function showAssignCohortModal() {
+            const modal = `
+                <div class="modal fade" id="assignCohortModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Assign to Cohort</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="assignCohortForm">
+                                    <div class="mb-3">
+                                        <label for="cohortSelect" class="form-label">Select Cohort</label>
+                                        <select class="form-control" id="cohortSelect" required>
+                                            <option value="">Loading cohorts...</option>
+                                        </select>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Select a cohort to get access to its students and create lectures for them.
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="assignToCohort()">Assign to Cohort</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('assignCohortModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohorts for dropdown
+            loadCohortsForAssignment();
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('assignCohortModal'));
+            modalElement.show();
+        }
+
+        async function loadCohortsForAssignment() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohortSelect = document.getElementById('cohortSelect');
+                    cohortSelect.innerHTML = '<option value="">Select a cohort</option>';
+                    
+                    if (data.cohorts && data.cohorts.length > 0) {
+                        data.cohorts.forEach(cohort => {
+                            const option = document.createElement('option');
+                            option.value = cohort.id;
+                            option.textContent = cohort.name;
+                            cohortSelect.appendChild(option);
+                        });
+                    } else {
+                        cohortSelect.innerHTML = '<option value="">No cohorts available</option>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+                const cohortSelect = document.getElementById('cohortSelect');
+                cohortSelect.innerHTML = '<option value="">Error loading cohorts</option>';
+            }
+        }
+
+        async function assignToCohort() {
+            try {
+                const cohortId = document.getElementById('cohortSelect').value;
+
+                if (!cohortId) {
+                    showToast('Please select a cohort', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/cohorts/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        cohort_id: cohortId
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Successfully assigned to cohort!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('assignCohortModal')).hide();
+                    loadCohorts(); // Refresh cohorts list
+                } else {
+                    showToast(data.error || 'Failed to assign to cohort', 'error');
+                }
+            } catch (error) {
+                console.error('Error assigning to cohort:', error);
+                showToast('Error assigning to cohort', 'error');
+            }
+        }
+
+        function viewCohortDetails(cohortId) {
+            showCohortDetailsModal(cohortId);
+        }
+
+        async function loadCohortsForMaterial() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohortSelect = document.getElementById('materialCohort');
+                    cohortSelect.innerHTML = '<option value="">Select a cohort</option>';
+                    
+                    if (data.cohorts && data.cohorts.length > 0) {
+                        data.cohorts.forEach(cohort => {
+                            const option = document.createElement('option');
+                            option.value = cohort.id;
+                            option.textContent = cohort.name;
+                            cohortSelect.appendChild(option);
+                        });
+                    } else {
+                        cohortSelect.innerHTML = '<option value="">No cohorts available</option>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+                const cohortSelect = document.getElementById('materialCohort');
+                cohortSelect.innerHTML = '<option value="">Error loading cohorts</option>';
+            }
+        }
+
+        function showCohortDetailsModal(cohortId) {
+            const modal = `
+                <div class="modal fade" id="cohortDetailsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Cohort Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="cohortDetailsContent">
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-hourglass-split fs-1 text-muted"></i>
+                                        <p class="text-muted mt-2">Loading cohort details...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('cohortDetailsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohort details
+            loadCohortDetails(cohortId);
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('cohortDetailsModal'));
+            modalElement.show();
+        }
+
+        async function loadCohortDetails(cohortId) {
+            try {
+                const response = await fetch(`/api/teacher/cohorts/${cohortId}/details`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderCohortDetails(data.cohort, data.students, data.discussions, data.lectures);
+                } else {
+                    document.getElementById('cohortDetailsContent').innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="bi bi-exclamation-triangle fs-1 text-warning"></i>
+                            <p class="text-muted mt-2">Failed to load cohort details</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading cohort details:', error);
+                document.getElementById('cohortDetailsContent').innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-exclamation-triangle fs-1 text-danger"></i>
+                        <p class="text-muted mt-2">Error loading cohort details</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderCohortDetails(cohort, students, discussions, lectures) {
+            const container = document.getElementById('cohortDetailsContent');
+            
+            container.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Cohort Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Name:</strong></td>
+                                <td>${cohort.name}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Description:</strong></td>
+                                <td>${cohort.description || 'No description'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Academic Year:</strong></td>
+                                <td>${cohort.academic_year || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Join Code:</strong></td>
+                                <td><code>${cohort.join_code || 'N/A'}</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Statistics</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="card bg-primary text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${students.length}</h5>
+                                        <small>Students</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-success text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${discussions.length}</h5>
+                                        <small>Discussions</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-warning text-white text-center mb-2">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">${lectures.length}</h5>
+                                        <small>Lectures</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-people me-2"></i>Students (${students.length})
+                        </h6>
+                        ${students.length > 0 ? students.slice(0, 5).map(student => `
+                            <div class="card mb-2 border-start border-primary border-3">
+                                <div class="card-body p-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 12px;">
+                                            ${student.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h6 class="card-title mb-0">${student.name}</h6>
+                                            <small class="text-muted">${student.email}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-3">
+                                <i class="bi bi-person-x fs-4 text-muted"></i>
+                                <p class="text-muted mb-0">No students enrolled</p>
+                            </div>
+                        `}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-success">
+                            <i class="bi bi-chat-dots me-2"></i>Discussions (${discussions.length})
+                        </h6>
+                        ${discussions.length > 0 ? discussions.slice(0, 5).map(discussion => `
+                            <div class="card mb-2 border-start border-success border-3">
+                                <div class="card-body p-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 12px;">
+                                            <i class="bi bi-chat"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="card-title mb-0">${discussion.title}</h6>
+                                            <small class="text-muted">${new Date(discussion.created_at).toLocaleDateString()}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-3">
+                                <i class="bi bi-chat-x fs-4 text-muted"></i>
+                                <p class="text-muted mb-0">No discussions yet</p>
+                            </div>
+                        `}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-warning">
+                            <i class="bi bi-calendar-event me-2"></i>Lectures (${lectures.length})
+                        </h6>
+                        ${lectures.length > 0 ? lectures.slice(0, 5).map(lecture => `
+                            <div class="card mb-2 border-start border-warning border-3">
+                                <div class="card-body p-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 12px;">
+                                            <i class="bi bi-play-circle"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="card-title mb-0">${lecture.title}</h6>
+                                            <small class="text-muted">${new Date(lecture.scheduled_time).toLocaleDateString()}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-3">
+                                <i class="bi bi-calendar-x fs-4 text-muted"></i>
+                                <p class="text-muted mb-0">No lectures scheduled</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
         function editLecture(lectureId) {
             showToast('Edit lecture feature coming soon!', 'info');
         }
@@ -480,6 +1470,1070 @@
                 window.location.href = '/';
             }
         }
+
+        // Create Lecture Modal
+        function showCreateLectureModal() {
+            const modal = `
+                <div class="modal fade" id="createLectureModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Create New Lecture</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="createLectureForm">
+                                    <div class="mb-3">
+                                        <label for="lectureTitle" class="form-label">Lecture Title</label>
+                                        <input type="text" class="form-control" id="lectureTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lectureDescription" class="form-label">Description</label>
+                                        <textarea class="form-control" id="lectureDescription" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lectureCohort" class="form-label">Cohort</label>
+                                        <select class="form-control" id="lectureCohort" required>
+                                            <option value="">Select a cohort</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lectureDate" class="form-label">Scheduled Date & Time</label>
+                                        <input type="datetime-local" class="form-control" id="lectureDate" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lectureDuration" class="form-label">Duration (minutes)</label>
+                                        <input type="number" class="form-control" id="lectureDuration" value="60" min="15" max="300">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createLecture()">Create Lecture</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('createLectureModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohorts for dropdown
+            loadCohortsForLecture();
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('createLectureModal'));
+            modalElement.show();
+        }
+
+        async function loadCohortsForLecture() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohortSelect = document.getElementById('lectureCohort');
+                    cohortSelect.innerHTML = '<option value="">Select a cohort</option>';
+                    
+                    data.cohorts.forEach(cohort => {
+                        const option = document.createElement('option');
+                        option.value = cohort.id;
+                        option.textContent = cohort.name;
+                        cohortSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+            }
+        }
+
+        async function createLecture() {
+            try {
+                const title = document.getElementById('lectureTitle').value;
+                const description = document.getElementById('lectureDescription').value;
+                const cohortId = document.getElementById('lectureCohort').value;
+                const scheduledTime = document.getElementById('lectureDate').value;
+                const duration = document.getElementById('lectureDuration').value;
+
+                if (!title || !cohortId || !scheduledTime) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/lectures', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        title,
+                        description,
+                        cohort_id: cohortId,
+                        scheduled_time: scheduledTime,
+                        duration: parseInt(duration)
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Lecture created successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createLectureModal')).hide();
+                    loadLectures(); // Refresh lectures list
+                } else {
+                    showToast(data.error || 'Failed to create lecture', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating lecture:', error);
+                showToast('Error creating lecture', 'error');
+            }
+        }
+
+        // Upload Material Modal
+        function showUploadMaterialModal() {
+            const modal = `
+                <div class="modal fade" id="uploadMaterialModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Upload Material</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="uploadMaterialForm" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="materialTitle" class="form-label">Title</label>
+                                        <input type="text" class="form-control" id="materialTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="materialCohort" class="form-label">Cohort</label>
+                                        <select class="form-control" id="materialCohort" required>
+                                            <option value="">Select a cohort</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="materialDescription" class="form-label">Description</label>
+                                        <textarea class="form-control" id="materialDescription" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="materialFile" class="form-label">File</label>
+                                        <input type="file" class="form-control" id="materialFile">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="uploadMaterial()">Upload Material</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('uploadMaterialModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohorts for dropdown
+            loadCohortsForMaterial();
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('uploadMaterialModal'));
+            modalElement.show();
+        }
+
+        async function uploadMaterial() {
+            try {
+                const title = document.getElementById('materialTitle').value;
+                const description = document.getElementById('materialDescription').value;
+                const cohortId = document.getElementById('materialCohort').value;
+                const file = document.getElementById('materialFile').files[0];
+
+                if (!title || !cohortId) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('description', description);
+                formData.append('cohort_id', cohortId);
+                if (file) {
+                    formData.append('file', file);
+                    formData.append('file_name', file.name);
+                    formData.append('file_type', file.type);
+                }
+
+                const response = await fetch('/api/teacher/materials', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Material uploaded successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('uploadMaterialModal')).hide();
+                    loadMaterials(); // Refresh materials list
+                } else {
+                    showToast(data.error || 'Failed to upload material', 'error');
+                }
+            } catch (error) {
+                console.error('Error uploading material:', error);
+                showToast('Error uploading material', 'error');
+            }
+        }
+
+        // Create Quiz Modal
+        function showCreateQuizModal() {
+            const modal = `
+                <div class="modal fade" id="createQuizModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Create Quiz</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="createQuizForm">
+                                    <div class="mb-3">
+                                        <label for="quizTitle" class="form-label">Quiz Title</label>
+                                        <input type="text" class="form-control" id="quizTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quizCohort" class="form-label">Cohort</label>
+                                        <select class="form-control" id="quizCohort" required>
+                                            <option value="">Select a cohort</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quizDescription" class="form-label">Description</label>
+                                        <textarea class="form-control" id="quizDescription" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quizDuration" class="form-label">Duration (minutes)</label>
+                                        <input type="number" class="form-control" id="quizDuration" value="30" min="5" max="180">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quizQuestions" class="form-label">Questions</label>
+                                        <div id="quizQuestions">
+                                            <div class="question-item mb-3 p-3 border rounded">
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control" placeholder="Question 1" required>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control" placeholder="Option A" required>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control" placeholder="Option B" required>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control" placeholder="Option C" required>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control" placeholder="Option D" required>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <select class="form-control">
+                                                        <option value="A">Correct Answer: A</option>
+                                                        <option value="B">Correct Answer: B</option>
+                                                        <option value="C">Correct Answer: C</option>
+                                                        <option value="D">Correct Answer: D</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addQuizQuestion()">Add Question</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createQuiz()">Create Quiz</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('createQuizModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modal);
+            
+            // Load cohorts for dropdown
+            loadCohortsForQuiz();
+            
+            // Show modal
+            const modalElement = new bootstrap.Modal(document.getElementById('createQuizModal'));
+            modalElement.show();
+        }
+
+        async function loadCohortsForQuiz() {
+            try {
+                const response = await fetch('/api/teacher/cohorts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cohortSelect = document.getElementById('quizCohort');
+                    cohortSelect.innerHTML = '<option value="">Select a cohort</option>';
+                    
+                    data.cohorts.forEach(cohort => {
+                        const option = document.createElement('option');
+                        option.value = cohort.id;
+                        option.textContent = cohort.name;
+                        cohortSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading cohorts:', error);
+            }
+        }
+
+        function addQuizQuestion() {
+            const questionsContainer = document.getElementById('quizQuestions');
+            const questionCount = questionsContainer.children.length + 1;
+            
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item mb-3 p-3 border rounded';
+            questionDiv.innerHTML = `
+                <div class="mb-2">
+                    <input type="text" class="form-control" placeholder="Question ${questionCount}" required>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control" placeholder="Option A" required>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control" placeholder="Option B" required>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control" placeholder="Option C" required>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control" placeholder="Option D" required>
+                </div>
+                <div class="mb-2">
+                    <select class="form-control">
+                        <option value="A">Correct Answer: A</option>
+                        <option value="B">Correct Answer: B</option>
+                        <option value="C">Correct Answer: C</option>
+                        <option value="D">Correct Answer: D</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuizQuestion(this)">Remove Question</button>
+            `;
+            
+            questionsContainer.appendChild(questionDiv);
+        }
+
+        function removeQuizQuestion(button) {
+            const questionsContainer = document.getElementById('quizQuestions');
+            if (questionsContainer.children.length > 1) {
+                button.parentElement.remove();
+            }
+        }
+
+        async function createQuiz() {
+            try {
+                const title = document.getElementById('quizTitle').value;
+                const cohortId = document.getElementById('quizCohort').value;
+                const description = document.getElementById('quizDescription').value;
+                const duration = document.getElementById('quizDuration').value;
+
+                if (!title || !cohortId) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                // Collect questions
+                const questions = [];
+                const questionItems = document.querySelectorAll('#quizQuestions .question-item');
+                
+                questionItems.forEach((item, index) => {
+                    const inputs = item.querySelectorAll('input, select');
+                    if (inputs.length >= 6) {
+                        questions.push({
+                            question: inputs[0].value,
+                            question_text: inputs[0].value, // Add question_text for database compatibility
+                            options: [inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value],
+                            correct_answer: inputs[5].value
+                        });
+                    }
+                });
+
+                if (questions.length === 0) {
+                    showToast('Please add at least one question', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/quizzes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        title,
+                        cohort_id: cohortId,
+                        description,
+                        duration: parseInt(duration),
+                        questions
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Quiz created successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createQuizModal')).hide();
+                } else {
+                    showToast(data.error || 'Failed to create quiz', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+                showToast('Error creating quiz', 'error');
+            }
+        }
+
+        // View Analytics
+        async function viewAnalytics() {
+            try {
+                const response = await fetch('/api/teacher/analytics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const analytics = data.analytics;
+                    
+                    // Create analytics modal
+                    const modal = `
+                        <div class="modal fade" id="analyticsModal" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Teacher Analytics</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row mb-4">
+                                            <div class="col-md-3">
+                                                <div class="card bg-primary text-white">
+                                                    <div class="card-body text-center">
+                                                        <h3>${analytics.total_lectures}</h3>
+                                                        <p class="mb-0">Total Lectures</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-success text-white">
+                                                    <div class="card-body text-center">
+                                                        <h3>${analytics.total_polls}</h3>
+                                                        <p class="mb-0">Total Polls</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-warning text-white">
+                                                    <div class="card-body text-center">
+                                                        <h3>${analytics.total_materials}</h3>
+                                                        <p class="mb-0">Total Materials</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-info text-white">
+                                                    <div class="card-body text-center">
+                                                        <h3>${analytics.total_cohorts}</h3>
+                                                        <p class="mb-0">Total Cohorts</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Recent Lectures</h6>
+                                                <div class="list-group">
+                                                    ${analytics.recent_lectures.map(lecture => `
+                                                        <div class="list-group-item">
+                                                            <h6 class="mb-1">${lecture.title}</h6>
+                                                            <small class="text-muted">${new Date(lecture.scheduled_time).toLocaleString()}</small>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Recent Materials</h6>
+                                                <div class="list-group">
+                                                    ${analytics.recent_materials.map(material => `
+                                                        <div class="list-group-item">
+                                                            <h6 class="mb-1">${material.title}</h6>
+                                                            <small class="text-muted">${new Date(material.uploaded_at).toLocaleString()}</small>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Remove existing modal if any
+                    const existingModal = document.getElementById('analyticsModal');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+                    
+                    // Add modal to body
+                    document.body.insertAdjacentHTML('beforeend', modal);
+                    
+                    // Show modal
+                    const modalElement = new bootstrap.Modal(document.getElementById('analyticsModal'));
+                    modalElement.show();
+                } else {
+                    showToast('Failed to load analytics', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                showToast('Error loading analytics', 'error');
+            }
+        }
+
+        // Edit and Delete Lecture Functions
+        async function editLecture(lectureId) {
+            // Implementation for editing lecture
+            showToast('Edit lecture functionality coming soon', 'info');
+        }
+
+        async function deleteLecture(lectureId) {
+            if (!confirm('Are you sure you want to delete this lecture?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/teacher/lectures/${lectureId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Lecture deleted successfully!', 'success');
+                    loadLectures(); // Refresh lectures list
+                } else {
+                    showToast(data.error || 'Failed to delete lecture', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting lecture:', error);
+                showToast('Error deleting lecture', 'error');
+            }
+        }
+
+        // Join Lecture Function
+        async function joinLecture(lectureId) {
+            try {
+                window.location.href = `/api/teacher/lectures/${lectureId}/join`;
+            } catch (error) {
+                console.error('Error joining lecture:', error);
+                showToast('Error joining lecture', 'error');
+            }
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const toast = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toast);
+            
+            const toastElement = new bootstrap.Toast(document.getElementById(toastId));
+            toastElement.show();
+        }
+
+        // Poll Functions
+        function showCreatePollModal() {
+            const modalElement = new bootstrap.Modal(document.getElementById('createPollModal'));
+            modalElement.show();
+        }
+
+        async function createPoll() {
+            try {
+                const question = document.getElementById('pollQuestion').value;
+                const cohortId = document.getElementById('pollCohort').value;
+                const options = Array.from(document.querySelectorAll('.poll-option')).map(opt => opt.value).filter(opt => opt.trim());
+
+                if (!question || !cohortId || options.length < 2) {
+                    showToast('Please fill in all required fields and add at least 2 options', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/polls', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cohort_id: cohortId,
+                        question: question,
+                        options: options
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Poll created successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createPollModal')).hide();
+                    loadPolls();
+                } else {
+                    showToast(data.error || 'Failed to create poll', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating poll:', error);
+                showToast('Error creating poll', 'error');
+            }
+        }
+
+        async function loadPolls() {
+            try {
+                const response = await fetch('/api/teacher/polls');
+                const polls = await response.json();
+                
+                const pollsList = document.getElementById('pollsList');
+                if (polls.length === 0) {
+                    pollsList.innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                            <p class="text-muted mt-2">No polls created yet</p>
+                        </div>
+                    `;
+                } else {
+                    pollsList.innerHTML = polls.map(poll => `
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title">${poll.question}</h6>
+                                <p class="card-text text-muted">Cohort: ${poll.cohort_id}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Created: ${new Date(poll.created_at).toLocaleString()}</small>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewPollResults('${poll.id}')">
+                                            <i class="bi bi-eye me-1"></i>View Results
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading polls:', error);
+                showToast('Error loading polls', 'error');
+            }
+        }
+
+        async function viewPollResults(pollId) {
+            try {
+                const response = await fetch(`/api/teacher/polls/${pollId}/results`);
+                const results = await response.json();
+                
+                // Show results in a modal or new page
+                showToast('Poll results loaded', 'success');
+            } catch (error) {
+                console.error('Error loading poll results:', error);
+                showToast('Error loading poll results', 'error');
+            }
+        }
+
+        // Quiz Functions
+        function showCreateQuizModal() {
+            const modalElement = new bootstrap.Modal(document.getElementById('createQuizModal'));
+            modalElement.show();
+        }
+
+        async function createQuiz() {
+            try {
+                const title = document.getElementById('quizTitle').value;
+                const description = document.getElementById('quizDescription').value;
+                const cohortId = document.getElementById('quizCohort').value;
+                const questions = getQuizQuestions();
+
+                if (!title || !cohortId || questions.length === 0) {
+                    showToast('Please fill in all required fields and add at least one question', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/teacher/quizzes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cohort_id: cohortId,
+                        title: title,
+                        description: description,
+                        questions: questions
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Quiz created successfully!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createQuizModal')).hide();
+                    loadQuizzes();
+                } else {
+                    showToast(data.error || 'Failed to create quiz', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+                showToast('Error creating quiz', 'error');
+            }
+        }
+
+        function getQuizQuestions() {
+            const questions = [];
+            const questionElements = document.querySelectorAll('.quiz-question');
+            
+            questionElements.forEach((element, index) => {
+                const questionText = element.querySelector('.question-text').value;
+                const options = Array.from(element.querySelectorAll('.question-option')).map(opt => opt.value).filter(opt => opt.trim());
+                const correctAnswer = element.querySelector('.correct-answer').value;
+                
+                if (questionText && options.length >= 2 && correctAnswer) {
+                    questions.push({
+                        question: questionText,
+                        type: 'multiple_choice',
+                        options: options,
+                        correct_answer: correctAnswer
+                    });
+                }
+            });
+            
+            return questions;
+        }
+
+        async function loadQuizzes() {
+            try {
+                const response = await fetch('/api/teacher/quizzes');
+                const quizzes = await response.json();
+                
+                const quizzesList = document.getElementById('quizzesList');
+                if (quizzes.length === 0) {
+                    quizzesList.innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="bi bi-question-circle fs-1 text-muted"></i>
+                            <p class="text-muted mt-2">No quizzes created yet</p>
+                        </div>
+                    `;
+                } else {
+                    quizzesList.innerHTML = quizzes.map(quiz => `
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title">${quiz.title}</h6>
+                                <p class="card-text">${quiz.description || ''}</p>
+                                <p class="card-text text-muted">Cohort: ${quiz.cohort_id}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Created: ${new Date(quiz.created_at).toLocaleString()}</small>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResponses('${quiz.id}')">
+                                            <i class="bi bi-eye me-1"></i>View Responses
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading quizzes:', error);
+                showToast('Error loading quizzes', 'error');
+            }
+        }
+
+        async function viewQuizResponses(quizId) {
+            try {
+                const response = await fetch(`/api/teacher/quiz-responses/${quizId}`);
+                const data = await response.json();
+                
+                // Show responses in a modal or new page
+                showToast('Quiz responses loaded', 'success');
+            } catch (error) {
+                console.error('Error loading quiz responses:', error);
+                showToast('Error loading quiz responses', 'error');
+            }
+        }
+
+        // Poll helper functions
+        function addPollOption() {
+            const optionsContainer = document.getElementById('pollOptions');
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'input-group mb-2';
+            optionDiv.innerHTML = `
+                <input type="text" class="form-control poll-option" placeholder="Option ${optionsContainer.children.length + 1}" required>
+                <button class="btn btn-outline-danger" type="button" onclick="removePollOption(this)">×</button>
+            `;
+            optionsContainer.appendChild(optionDiv);
+        }
+
+        function removePollOption(button) {
+            const optionsContainer = document.getElementById('pollOptions');
+            if (optionsContainer.children.length > 2) {
+                button.parentElement.remove();
+            } else {
+                showToast('At least 2 options are required', 'error');
+            }
+        }
+
+        // Quiz helper functions
+        function addQuizQuestion() {
+            const questionsContainer = document.getElementById('quizQuestions');
+            const questionNumber = questionsContainer.children.length + 1;
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'quiz-question border p-3 mb-3';
+            questionDiv.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Question ${questionNumber}</label>
+                    <input type="text" class="form-control question-text" placeholder="Enter question" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Options</label>
+                    <div class="question-options">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control question-option" placeholder="Option A" required>
+                            <button class="btn btn-outline-danger" type="button" onclick="removeQuestionOption(this)">×</button>
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control question-option" placeholder="Option B" required>
+                            <button class="btn btn-outline-danger" type="button" onclick="removeQuestionOption(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addQuestionOption(this)">+ Add Option</button>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correct Answer</label>
+                    <select class="form-select correct-answer" required>
+                        <option value="">Select correct answer</option>
+                        <option value="a">A</option>
+                        <option value="b">B</option>
+                    </select>
+                </div>
+            `;
+            questionsContainer.appendChild(questionDiv);
+        }
+
+        function addQuestionOption(button) {
+            const optionsContainer = button.previousElementSibling;
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'input-group mb-2';
+            optionDiv.innerHTML = `
+                <input type="text" class="form-control question-option" placeholder="Option ${String.fromCharCode(65 + optionsContainer.children.length)}" required>
+                <button class="btn btn-outline-danger" type="button" onclick="removeQuestionOption(this)">×</button>
+            `;
+            optionsContainer.appendChild(optionDiv);
+            updateCorrectAnswerOptions(button);
+        }
+
+        function removeQuestionOption(button) {
+            const optionsContainer = button.parentElement.parentElement;
+            if (optionsContainer.children.length > 2) {
+                button.parentElement.remove();
+                updateCorrectAnswerOptions(button);
+            } else {
+                showToast('At least 2 options are required', 'error');
+            }
+        }
+
+        function updateCorrectAnswerOptions(button) {
+            const questionDiv = button.closest('.quiz-question');
+            const correctAnswerSelect = questionDiv.querySelector('.correct-answer');
+            const options = questionDiv.querySelectorAll('.question-option');
+            
+            // Clear existing options
+            correctAnswerSelect.innerHTML = '<option value="">Select correct answer</option>';
+            
+            // Add new options
+            options.forEach((option, index) => {
+                const optionValue = String.fromCharCode(65 + index).toLowerCase();
+                const optionText = String.fromCharCode(65 + index);
+                const optionElement = document.createElement('option');
+                optionElement.value = optionValue;
+                optionElement.textContent = optionText;
+                correctAnswerSelect.appendChild(optionElement);
+            });
+        }
+
+        function renderQuizzes(quizzes) {
+            const container = document.getElementById('quizzesList');
+            
+            if (quizzes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-question-circle fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No quizzes created yet</p>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateQuizModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Create Quiz
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = quizzes.map(quiz => `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">${quiz.title}</h6>
+                            <p class="card-text">${quiz.description || ''}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Cohort: ${quiz.cohort_id}</small>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResponses('${quiz.id}')">
+                                        <i class="bi bi-eye me-1"></i>View Responses
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
     </script>
+
+    <!-- Create Poll Modal -->
+    <div class="modal fade" id="createPollModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Poll</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createPollForm">
+                        <div class="mb-3">
+                            <label class="form-label">Question</label>
+                            <input type="text" class="form-control" id="pollQuestion" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cohort</label>
+                            <select class="form-select" id="pollCohort" required>
+                                <option value="">Select a cohort</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Options</label>
+                            <div id="pollOptions">
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control poll-option" placeholder="Option 1" required>
+                                    <button class="btn btn-outline-danger" type="button" onclick="removePollOption(this)">×</button>
+                                </div>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control poll-option" placeholder="Option 2" required>
+                                    <button class="btn btn-outline-danger" type="button" onclick="removePollOption(this)">×</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPollOption()">+ Add Option</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createPoll()">Create Poll</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Quiz Modal -->
+    <div class="modal fade" id="createQuizModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Quiz</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createQuizForm">
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" id="quizTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="quizDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cohort</label>
+                            <select class="form-select" id="quizCohort" required>
+                                <option value="">Select a cohort</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Questions</label>
+                            <div id="quizQuestions">
+                                <div class="quiz-question border p-3 mb-3">
+                                    <div class="mb-3">
+                                        <label class="form-label">Question 1</label>
+                                        <input type="text" class="form-control question-text" placeholder="Enter question" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Options</label>
+                                        <div class="question-options">
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control question-option" placeholder="Option A" required>
+                                                <button class="btn btn-outline-danger" type="button" onclick="removeQuestionOption(this)">×</button>
+                                            </div>
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control question-option" placeholder="Option B" required>
+                                                <button class="btn btn-outline-danger" type="button" onclick="removeQuestionOption(this)">×</button>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addQuestionOption(this)">+ Add Option</button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Correct Answer</label>
+                                        <select class="form-select correct-answer" required>
+                                            <option value="">Select correct answer</option>
+                                            <option value="a">A</option>
+                                            <option value="b">B</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addQuizQuestion()">+ Add Question</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createQuiz()">Create Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

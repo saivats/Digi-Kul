@@ -636,6 +636,32 @@ if socketio:
         
         emit('session_message', message_data, room=session_id, include_self=False)
     
+    @socketio.on('chat_message')
+    def handle_chat_message(data):
+        """Handle chat messages in live session"""
+        session_id = data.get('session_id')
+        message = data.get('message')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not message or not user_id:
+            emit('error', {'message': 'Invalid message data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast message to all participants in the session
+        message_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('chat_message', message_data, room=session_id, include_self=False)
+    
     @socketio.on('session_control')
     def handle_session_control(data):
         """Handle session control commands (teacher only)"""
