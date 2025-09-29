@@ -1,255 +1,551 @@
 {% extends 'base.html' %}
-{% block title %}Register • Digi Kul{% endblock %}
+{% block title %}Register • Digi Kul Portal{% endblock %}
+
 {% block content %}
-<div class="register-container" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%); position: relative; overflow: hidden; margin: -2rem -1rem; padding: 2rem 1rem;">
-  <!-- Background Elements -->
-  <div class="bg-elements" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 1;">
-    <div class="bg-shape" style="position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: rgba(255,255,255,0.08); border-radius: 50%; animation: float 7s ease-in-out infinite;"></div>
-    <div class="bg-shape" style="position: absolute; bottom: -150px; left: -150px; width: 400px; height: 400px; background: rgba(255,255,255,0.05); border-radius: 50%; animation: float 9s ease-in-out infinite reverse;"></div>
-    <div class="bg-shape" style="position: absolute; top: 30%; right: 20%; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; animation: float 5s ease-in-out infinite;"></div>
-  </div>
-  
-  <div class="card" style="max-width: 550px; margin: 2rem; position: relative; z-index: 2; backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 25px 50px rgba(0,0,0,0.15);">
-    <div class="card-header" style="text-align: center; padding: 2rem 2rem 1rem 2rem;">
-      <div class="logo-container" style="margin-bottom: 1rem;">
-        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--secondary), var(--primary)); border-radius: 20px; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(118, 75, 162, 0.3);">
-          <span style="font-size: 2.5rem; color: white;">🚀</span>
-        </div>
-      </div>
-      <h2 class="card-title" style="margin-bottom: 0.5rem; color: var(--gray-900);">Join Digi Kul</h2>
-      <p class="card-subtitle" style="color: var(--gray-600);">Create your admin account to get started</p>
-    </div>
-    <div class="card-body" style="padding: 1rem 2rem 2rem 2rem;">
-      <form id="registerForm" onsubmit="registerUser(event)">
-        <div class="form-group">
-          <label for="reg_user_type" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">👑</span>
-            Account Type
-          </label>
-          <select id="reg_user_type" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50); width: 100%;">
-            <option value="admin">🔑 Admin Account</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="name" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">👤</span>
-            Full Name
-          </label>
-          <input type="text" id="name" placeholder="Enter your full name" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50);" />
-        </div>
-        <div class="form-group">
-          <label for="email" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">📧</span>
-            Email Address
-          </label>
-          <input type="email" id="email" placeholder="Enter your email address" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50);" />
-        </div>
-        <div id="institutionField" class="form-group">
-          <label for="institution" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">🏫</span>
-            Institution
-          </label>
-          <input type="text" id="institution" placeholder="Enter your institution name" style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50);" />
-        </div>
-        <div id="teacherFields" class="form-group" style="display: none;">
-          <label for="subject" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">📚</span>
-            Subject (Teachers)
-          </label>
-          <input type="text" id="subject" placeholder="Enter your subject" style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50);" />
-        </div>
-        <div class="form-group">
-          <label for="password" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--gray-700);">
-            <span style="font-size: 1.2rem;">🔒</span>
-            Password
-          </label>
-          <div style="position: relative;">
-            <input type="password" id="password" placeholder="Create a strong password" required style="padding: 1rem; border: 2px solid var(--gray-200); border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; background: var(--gray-50); width: 100%;" />
-            <button type="button" onclick="togglePassword()" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--gray-500);">👁️</button>
-          </div>
-          <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--gray-500);">
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-              <span id="length-check" style="color: var(--gray-400);">⚪</span>
-              <span>At least 8 characters</span>
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header text-center bg-warning text-white">
+                    <h3 class="mb-1">👨‍💼 Admin User Management</h3>
+                    <p class="mb-0">Create user accounts (Admin Only)</p>
+                </div>
+                <div class="card-body p-4">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Admin Access Required:</strong> Only administrators can create new user accounts. 
+                        Students and teachers cannot self-register.
+                    </div>
+                    <form id="registerForm">
+                        <!-- Personal Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">
+                                        <i class="bi bi-person me-2"></i>Full Name
+                                    </label>
+                                    <input type="text" class="form-control" id="name" required 
+                                           placeholder="Enter your full name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">
+                                        <i class="bi bi-envelope me-2"></i>Email Address
+                                    </label>
+                                    <input type="email" class="form-control" id="email" required 
+                                           placeholder="Enter your email">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Type Selection -->
+                        <div class="mb-3">
+                            <label for="userType" class="form-label">
+                                <i class="bi bi-person-badge me-2"></i>I am a
+                            </label>
+                            <select class="form-select" id="userType" required onchange="toggleSubjectField()">
+                                <option value="">Select user type</option>
+                                <option value="teacher">👨‍🏫 Teacher</option>
+                                <option value="student">👨‍🎓 Student</option>
+                            </select>
+                        </div>
+
+                        <!-- Subject Field (for teachers) -->
+                        <div class="mb-3" id="subjectField" style="display: none;">
+                            <label for="subject" class="form-label">
+                                <i class="bi bi-book me-2"></i>Subject/Department
+                            </label>
+                            <input type="text" class="form-control" id="subject" 
+                                   placeholder="e.g., Mathematics, Science, Computer Science">
+                            <div class="form-text">Enter the subject or department you teach</div>
+                        </div>
+
+                        <!-- Password Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">
+                                        <i class="bi bi-lock me-2"></i>Password
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="password" required 
+                                               placeholder="Create a password">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password')">
+                                            <i class="bi bi-eye" id="passwordToggleIcon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">Must be at least 8 characters long</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">
+                                        <i class="bi bi-lock-fill me-2"></i>Confirm Password
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="confirmPassword" required 
+                                               placeholder="Confirm your password">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword')">
+                                            <i class="bi bi-eye" id="confirmPasswordToggleIcon"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Strength Indicator -->
+                        <div class="mb-3">
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar" id="passwordStrength" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted" id="passwordStrengthText">Password strength</small>
+                        </div>
+
+                        <!-- Terms and Conditions -->
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                I agree to the <a href="#" onclick="showTerms()">Terms and Conditions</a> 
+                                and <a href="#" onclick="showPrivacy()">Privacy Policy</a>
+                            </label>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="agreeMarketing">
+                            <label class="form-check-label" for="agreeMarketing">
+                                I would like to receive updates and notifications
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 mb-3">
+                            <i class="bi bi-person-plus me-2"></i>Create Account
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-muted mb-0">Already have an account?</p>
+                            <a href="/login" class="btn btn-link">Sign In</a>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span id="strength-check" style="color: var(--gray-400);">⚪</span>
-              <span>Mix of letters, numbers, and symbols</span>
+
+            <!-- Additional Info Cards -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-shield-check text-success fs-1 mb-3"></i>
+                            <h6 class="card-title">Secure & Private</h6>
+                            <p class="card-text text-muted small">
+                                Your data is protected with enterprise-grade security.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-people text-primary fs-1 mb-3"></i>
+                            <h6 class="card-title">Join Community</h6>
+                            <p class="card-text text-muted small">
+                                Connect with teachers and students worldwide.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-        <div class="form-group" style="margin-top: 1.5rem;">
-          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: 600; border-radius: 12px; background: linear-gradient(135deg, var(--secondary), var(--primary)); box-shadow: 0 8px 25px rgba(118, 75, 162, 0.3); transition: all 0.3s ease;">
-            <span style="margin-right: 0.5rem;">✨</span>
-            Create Account
-          </button>
-        </div>
-      </form>
-      <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
-        <p style="color: var(--gray-600); margin-bottom: 0.5rem;">Already have an account?</p>
-        <a href="/login" style="color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 8px; background: rgba(102, 126, 234, 0.1); transition: all 0.3s ease;">
-          <span>🔑</span>
-          Sign In
-        </a>
-      </div>
-      <div id="regError" class="alert error" style="display:none; margin-top: 1rem; border-radius: 12px; padding: 1rem;"></div>
-      <div id="regSuccess" class="alert success" style="display:none; margin-top: 1rem; border-radius: 12px; padding: 1rem;"></div>
     </div>
-  </div>
 </div>
 
-<style>
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(5deg); }
-}
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Terms and Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Acceptance of Terms</h6>
+                <p>By using Digi Kul Portal, you agree to these terms and conditions.</p>
+                
+                <h6>2. User Responsibilities</h6>
+                <p>Users are responsible for maintaining the confidentiality of their accounts.</p>
+                
+                <h6>3. Privacy</h6>
+                <p>We respect your privacy and handle your data according to our privacy policy.</p>
+                
+                <h6>4. Content Policy</h6>
+                <p>Users must not upload inappropriate or copyrighted content.</p>
+                
+                <h6>5. Termination</h6>
+                <p>We reserve the right to terminate accounts that violate these terms.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-.register-container input:focus,
-.register-container select:focus {
-  outline: none;
-  border-color: var(--secondary);
-  box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
-  background: var(--white);
-}
+<!-- Privacy Policy Modal -->
+<div class="modal fade" id="privacyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Privacy Policy</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Information We Collect</h6>
+                <p>We collect information you provide directly to us, such as when you create an account.</p>
+                
+                <h6>2. How We Use Information</h6>
+                <p>We use your information to provide and improve our services.</p>
+                
+                <h6>3. Information Sharing</h6>
+                <p>We do not sell, trade, or otherwise transfer your personal information.</p>
+                
+                <h6>4. Data Security</h6>
+                <p>We implement appropriate security measures to protect your information.</p>
+                
+                <h6>5. Your Rights</h6>
+                <p>You have the right to access, update, or delete your personal information.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-.register-container .btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(118, 75, 162, 0.4);
-}
-
-.bg-elements .bg-shape {
-  animation-duration: 7s;
-}
-
-.bg-elements .bg-shape:nth-child(2) {
-  animation-duration: 9s;
-  animation-delay: -3s;
-}
-
-.bg-elements .bg-shape:nth-child(3) {
-  animation-duration: 5s;
-  animation-delay: -1s;
-}
-</style>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-function togglePassword() {
-  const passwordInput = document.getElementById('password');
-  const toggleButton = passwordInput.nextElementSibling;
-  
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    toggleButton.textContent = '🙈';
-  } else {
-    passwordInput.type = 'password';
-    toggleButton.textContent = '👁️';
-  }
-}
-
-function checkPasswordStrength() {
-  const password = document.getElementById('password').value;
-  const lengthCheck = document.getElementById('length-check');
-  const strengthCheck = document.getElementById('strength-check');
-  
-  // Length check
-  if (password.length >= 8) {
-    lengthCheck.textContent = '✅';
-    lengthCheck.style.color = 'var(--success)';
-  } else {
-    lengthCheck.textContent = '⚪';
-    lengthCheck.style.color = 'var(--gray-400)';
-  }
-  
-  // Strength check
-  const hasLetter = /[a-zA-Z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  
-  if (hasLetter && hasNumber && hasSymbol) {
-    strengthCheck.textContent = '✅';
-    strengthCheck.style.color = 'var(--success)';
-  } else if (hasLetter && (hasNumber || hasSymbol)) {
-    strengthCheck.textContent = '⚠️';
-    strengthCheck.style.color = 'var(--warning)';
-  } else {
-    strengthCheck.textContent = '⚪';
-    strengthCheck.style.color = 'var(--gray-400)';
-  }
-}
-
-const typeSelect = document.getElementById('reg_user_type');
-const teacherFields = document.getElementById('teacherFields');
-const institutionField = document.getElementById('institutionField');
-
-typeSelect.addEventListener('change', () => {
-  const userType = typeSelect.value;
-  teacherFields.style.display = userType === 'teacher' ? 'block' : 'none';
-  institutionField.style.display = userType === 'admin' ? 'none' : 'block';
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add fade-in animation
+    document.querySelector('.card').style.opacity = '0';
+    document.querySelector('.card').style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        document.querySelector('.card').style.transition = 'all 0.5s ease';
+        document.querySelector('.card').style.opacity = '1';
+        document.querySelector('.card').style.transform = 'translateY(0)';
+    }, 100);
+    
+    // Focus on name field
+    document.getElementById('name').focus();
+    
+    // Add password strength checker
+    document.getElementById('password').addEventListener('input', checkPasswordStrength);
 });
 
-// Add password strength checking
-document.getElementById('password').addEventListener('input', checkPasswordStrength);
+// Toggle subject field based on user type
+function toggleSubjectField() {
+    const userType = document.getElementById('userType').value;
+    const subjectField = document.getElementById('subjectField');
+    const subjectInput = document.getElementById('subject');
+    
+    if (userType === 'teacher') {
+        subjectField.style.display = 'block';
+        subjectInput.required = true;
+    } else {
+        subjectField.style.display = 'none';
+        subjectInput.required = false;
+        subjectInput.value = '';
+    }
+}
 
-async function registerUser(e){
-  e.preventDefault();
-  const user_type = document.getElementById('reg_user_type').value;
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const submitButton = document.querySelector('button[type="submit"]');
+// Toggle password visibility
+function togglePassword(fieldId) {
+    const passwordField = document.getElementById(fieldId);
+    const toggleIcon = document.getElementById(fieldId + 'ToggleIcon');
+    
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        toggleIcon.className = 'bi bi-eye-slash';
+    } else {
+        passwordField.type = 'password';
+        toggleIcon.className = 'bi bi-eye';
+    }
+}
 
-  const errorBox = document.getElementById('regError');
-  const successBox = document.getElementById('regSuccess');
-  errorBox.style.display = 'none';
-  successBox.style.display = 'none';
-
-  // Add loading state
-  const originalText = submitButton.innerHTML;
-  submitButton.innerHTML = '<span style="margin-right: 0.5rem;">⏳</span>Creating Account...';
-  submitButton.disabled = true;
-
-  try {
-    const endpoint = '/api/register/admin';
-    const payload = { name, email, password };
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success){
-      errorBox.textContent = data.error || 'Registration failed';
-      errorBox.style.display = 'block';
-      return;
+// Check password strength
+function checkPasswordStrength() {
+    const password = document.getElementById('password').value;
+    const strengthBar = document.getElementById('passwordStrength');
+    const strengthText = document.getElementById('passwordStrengthText');
+    
+    let strength = 0;
+    let strengthLabel = 'Very Weak';
+    let strengthColor = 'bg-danger';
+    
+    // Check password criteria
+    if (password.length >= 8) strength += 25;
+    if (/[a-z]/.test(password)) strength += 25;
+    if (/[A-Z]/.test(password)) strength += 25;
+    if (/[0-9]/.test(password)) strength += 25;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+    
+    // Determine strength level
+    if (strength >= 75) {
+        strengthLabel = 'Strong';
+        strengthColor = 'bg-success';
+    } else if (strength >= 50) {
+        strengthLabel = 'Medium';
+        strengthColor = 'bg-warning';
+    } else if (strength >= 25) {
+        strengthLabel = 'Weak';
+        strengthColor = 'bg-danger';
     }
     
-    // Success animation
-    submitButton.innerHTML = '<span style="margin-right: 0.5rem;">✅</span>Account Created!';
-    submitButton.style.background = 'linear-gradient(135deg, var(--success), #059669)';
-    
-    successBox.textContent = 'Registration successful! Redirecting to login...';
-    successBox.style.display = 'block';
-    
-    setTimeout(() => {
-      window.location.href = '/login';
-    }, 2000);
-    
-  } catch (err){
-    errorBox.textContent = 'Network error';
-    errorBox.style.display = 'block';
-  } finally {
-    // Reset button state
-    setTimeout(() => {
-      submitButton.innerHTML = originalText;
-      submitButton.disabled = false;
-      submitButton.style.background = 'linear-gradient(135deg, var(--secondary), var(--primary))';
-    }, 3000);
-  }
+    // Update UI
+    strengthBar.style.width = strength + '%';
+    strengthBar.className = `progress-bar ${strengthColor}`;
+    strengthText.textContent = `Password strength: ${strengthLabel}`;
+    strengthText.className = strength >= 50 ? 'text-success' : 'text-danger';
 }
+
+// Handle form submission
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const userType = document.getElementById('userType').value;
+    const subject = document.getElementById('subject').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const agreeTerms = document.getElementById('agreeTerms').checked;
+    
+    // Validation
+    if (!name || !email || !userType || !password || !confirmPassword) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    if (userType === 'teacher' && !subject) {
+        showToast('Please enter your subject/department', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+    
+    if (password.length < 8) {
+        showToast('Password must be at least 8 characters long', 'error');
+        return;
+    }
+    
+    if (!agreeTerms) {
+        showToast('Please agree to the terms and conditions', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Creating Account...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/auth/register/${userType}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name, 
+                email, 
+                password,
+                subject: userType === 'teacher' ? subject : null,
+                agree_marketing: document.getElementById('agreeMarketing').checked
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Account created successfully! Redirecting to login...', 'success');
+            
+            // Redirect to login page after a delay
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            showToast(data.error || 'Registration failed. Please try again.', 'error');
+            
+            // Reset button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        showToast('Network error. Please try again.', 'error');
+        
+        // Reset button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+// Show terms modal
+function showTerms() {
+    const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+    modal.show();
+}
+
+// Show privacy modal
+function showPrivacy() {
+    const modal = new bootstrap.Modal(document.getElementById('privacyModal'));
+    modal.show();
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// Real-time password confirmation validation
+document.getElementById('confirmPassword').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = this.value;
+    
+    if (confirmPassword && password !== confirmPassword) {
+        this.setCustomValidity('Passwords do not match');
+        this.classList.add('is-invalid');
+    } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+    }
+});
+
+// Email validation
+document.getElementById('email').addEventListener('input', function() {
+    const email = this.value;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (email && !emailRegex.test(email)) {
+        this.setCustomValidity('Please enter a valid email address');
+        this.classList.add('is-invalid');
+    } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+    }
+});
 </script>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+}
+
+.form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-1px);
+}
+
+.input-group .btn {
+    border-color: #ced4da;
+}
+
+.input-group .btn:hover {
+    background-color: #e9ecef;
+}
+
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+/* Password strength indicator */
+.progress {
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    transition: all 0.3s ease;
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* Form validation styles */
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-valid {
+    border-color: #28a745;
+}
+</style>
 {% endblock %}
-
-
-

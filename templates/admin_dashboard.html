@@ -1,1186 +1,944 @@
 {% extends 'base.html' %}
 {% block title %}Admin Dashboard • Digi Kul{% endblock %}
 {% block header_title %}Admin Dashboard{% endblock %}
+
 {% block content %}
-<div class="tabs">
-    <button class="tab active" onclick="switchTab('cohorts', event)">🏫 Manage Cohorts</button>
-    <button class="tab" onclick="switchTab('teachers', event)">👨‍🏫 Teachers</button>
-    <button class="tab" onclick="switchTab('students', event)">👨‍🎓 Students</button>
-    <button class="tab" onclick="switchTab('create', event)">➕ Create Cohort</button>
-</div>
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 
-<!-- Cohorts Tab -->
-<div id="cohorts" class="tab-content active">
-    <div class="card-header">
-        <h2 class="card-title">All Cohorts</h2>
-        <p class="card-subtitle">Manage cohorts, students, and lectures</p>
-    </div>
-    <div id="cohorts-list"></div>
-    <div id="cohort-manage" style="display:none; margin-top:1rem;" class="cohort-card">
-        <h3 id="manage-cohort-title">Manage Cohort</h3>
-        <div id="cohort-code-display" style="display:none; background: #e3f2fd; padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid #2196f3;">
-            <h4 style="margin: 0 0 0.5rem 0; color: #1976d2;">📋 Cohort Code for Students</h4>
-            <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; color: #1976d2;">
-                <span id="display-cohort-code"></span>
-                <button class="btn-copy" onclick="copyCohortCode(document.getElementById('display-cohort-code').textContent, 'display-cohort-code')" title="Copy to clipboard">📋</button>
-            </p>
-            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #666;">Share this code with students so they can join the cohort</p>
-        </div>
-        <div>
-            <h4>Students in Cohort</h4>
-            <div id="cohort-students"></div>
-        </div>
-        <div style="margin-top:1rem;">
-            <h4>Add Student</h4>
-            <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
-                <select id="add-student-select" style="flex:1; padding:.6rem; border:1px solid #e9ecef; border-radius:6px;">
-                    <option value="">Select a student...</option>
-                </select>
-                <span class="muted">or</span>
-                <input id="add-student-email" type="email" placeholder="student@example.com" style="flex:1; padding:.6rem; border:1px solid #e9ecef; border-radius:6px;">
-                <button class="btn" id="add-student-btn">Add</button>
-            </div>
-        </div>
-    </div>
-    <div id="cohortLectures" style="display:none; margin-top:1rem;" class="cohort-card">
-        <h4>Lectures in Cohort</h4>
-        <div id="cohort-lectures-list"></div>
-    </div>
-    <div id="cohortPolls" style="display:none; margin-top:1rem;" class="cohort-card">
-        <h4>Polls in Cohort</h4>
-        <div style="margin-bottom: 1rem;">
-            <button class="btn" onclick="showCreateCohortPollModal()">📊 Create Poll</button>
-        </div>
-        <div id="cohort-polls-list"></div>
-    </div>
-    
-    <!-- Poll Creation Modal -->
-    <div id="pollModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Poll</h3>
-                <span class="close" onclick="closePollModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="pollQuestion">Poll Question</label>
-                    <textarea id="pollQuestion" placeholder="Enter your poll question..." rows="3"></textarea>
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">Admin Dashboard</h1>
+                    <p class="text-muted">Welcome back, {{ session.get('user_name') }}!</p>
                 </div>
-                <div class="form-group">
-                    <label>Poll Options</label>
-                    <div id="pollOptions">
-                        <div class="option-row">
-                            <input type="text" placeholder="Option 1" class="poll-option-input">
-                            <button class="btn-remove" onclick="removePollOption(this)">×</button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" onclick="showCreateInstitutionModal()">
+                        <i class="bi bi-building me-2"></i>Create Institution
+                    </button>
+                    <button class="btn btn-success" onclick="showCreateCohortModal()">
+                        <i class="bi bi-people me-2"></i>Create Cohort
+                    </button>
+                    <button class="btn btn-warning" onclick="showCreateUserModal()">
+                        <i class="bi bi-person-plus me-2"></i>Create User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-building fs-1 mb-3"></i>
+                    <h3 class="mb-1" id="totalInstitutions">0</h3>
+                    <p class="mb-0">Institutions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill fs-1 mb-3"></i>
+                    <h3 class="mb-1" id="totalCohorts">0</h3>
+                    <p class="mb-0">Cohorts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-badge fs-1 mb-3"></i>
+                    <h3 class="mb-1" id="totalTeachers">0</h3>
+                    <p class="mb-0">Teachers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-mortarboard fs-1 mb-3"></i>
+                    <h3 class="mb-1" id="totalStudents">0</h3>
+                    <p class="mb-0">Students</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="institutions-tab" data-bs-toggle="tab" data-bs-target="#institutions" type="button" role="tab">
+                        <i class="bi bi-building me-2"></i>Institutions
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
+                        <i class="bi bi-people me-2"></i>Cohorts
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+                        <i class="bi bi-people-fill me-2"></i>Users
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+                        <i class="bi bi-graph-up me-2"></i>Analytics
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="dashboardTabsContent">
+                <!-- Institutions Tab -->
+                <div class="tab-pane fade show active" id="institutions" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Institutions</h5>
+                            <button class="btn btn-primary btn-sm" onclick="showCreateInstitutionModal()">
+                                <i class="bi bi-plus-circle me-1"></i>New Institution
+                            </button>
                         </div>
-                        <div class="option-row">
-                            <input type="text" placeholder="Option 2" class="poll-option-input">
-                            <button class="btn-remove" onclick="removePollOption(this)">×</button>
-                        </div>
-                    </div>
-                    <button class="btn-add" onclick="addPollOption()">+ Add Option</button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="createCohortPollFromModal()">Create Poll</button>
-                <button class="btn btn-secondary" onclick="closePollModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-    <input type="hidden" id="current-cohort-id" value="">
-    <input type="hidden" id="current-cohort-name" value="">
-    <input type="hidden" id="current-cohort-code" value="">
-    <input type="hidden" id="current-cohort-teacher" value="">
-    <input type="hidden" id="current-cohort-subject" value="">
-    <input type="hidden" id="current-cohort-created-at" value="">
-    <input type="hidden" id="current-cohort-student-count" value="">
-    <input type="hidden" id="current-cohort-description" value="">
-</div>
-
-<!-- Teachers Tab -->
-<div id="teachers" class="tab-content">
-    <div class="card-header">
-        <h2 class="card-title">All Teachers</h2>
-        <p class="card-subtitle">Manage teacher accounts and permissions</p>
-    </div>
-    <div style="margin-bottom: 1rem;">
-        <button class="btn" onclick="showCreateTeacherModal()">➕ Add Teacher</button>
-    </div>
-    <div id="teachers-list"></div>
-    
-    <!-- Create Teacher Modal -->
-    <div id="createTeacherModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add New Teacher</h3>
-                <span class="close" onclick="closeCreateTeacherModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="create-teacher-form">
-                    <div class="form-group">
-                        <label for="teacher-name">Name</label>
-                        <input type="text" id="teacher-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="teacher-email">Email</label>
-                        <input type="email" id="teacher-email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="teacher-institution">Institution</label>
-                        <input type="text" id="teacher-institution" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="teacher-subject">Subject</label>
-                        <input type="text" id="teacher-subject" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="teacher-password">Password</label>
-                        <input type="password" id="teacher-password" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="createTeacher()">Create Teacher</button>
-                <button class="btn btn-secondary" onclick="closeCreateTeacherModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Students Tab -->
-<div id="students" class="tab-content">
-    <div class="card-header">
-        <h2 class="card-title">All Students</h2>
-        <p class="card-subtitle">Manage student accounts and enrollments</p>
-    </div>
-    <div style="margin-bottom: 1rem;">
-        <button class="btn" onclick="showCreateStudentModal()">➕ Add Student</button>
-    </div>
-    <div id="students-list"></div>
-    
-    <!-- Create Student Modal -->
-    <div id="createStudentModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add New Student</h3>
-                <span class="close" onclick="closeCreateStudentModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="create-student-form">
-                    <div class="form-group">
-                        <label for="student-name">Name</label>
-                        <input type="text" id="student-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-email">Email</label>
-                        <input type="email" id="student-email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-institution">Institution</label>
-                        <input type="text" id="student-institution" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-password">Password</label>
-                        <input type="password" id="student-password" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="createStudent()">Create Student</button>
-                <button class="btn btn-secondary" onclick="closeCreateStudentModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create Cohort Tab -->
-<div id="create" class="tab-content">
-    <div class="card-header">
-        <h2 class="card-title">Create New Cohort</h2>
-        <p class="card-subtitle">Set up a new cohort with teacher and subject details</p>
-    </div>
-    <form id="cohort-form">
-        <div class="form-group">
-            <label for="cohort-name">Cohort Name</label>
-            <input type="text" id="cohort-name" name="name" required>
-        </div>
-        <div class="form-group">
-            <label for="cohort-description">Description</label>
-            <textarea id="cohort-description" name="description" rows="3"></textarea>
-        </div>
-        <div class="form-group">
-            <label for="cohort-subject">Subject</label>
-            <input type="text" id="cohort-subject" name="subject" required>
-        </div>
-        <div class="form-group">
-            <label for="cohort-teacher">Assign Teacher</label>
-            <select id="cohort-teacher" name="teacher_id" required>
-                <option value="">Select a teacher...</option>
-            </select>
-        </div>
-        <button type="submit" class="btn">Create Cohort</button>
-    </form>
-</div>
-
-<div id="alert" class="alert"></div>
-
-<style>
-.tabs {
-    display: flex;
-    margin-bottom: 2rem;
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.tab {
-    flex: 1;
-    padding: 1rem;
-    background: #f8f9fa;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-.tab.active {
-    background: #667eea;
-    color: white;
-}
-
-.tab-content {
-    display: none;
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-    color: #333;
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
-    width: 100%;
-    padding: 0.8rem;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.btn {
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    color: white;
-    border: none;
-    padding: 12px 30px;
-    border-radius: 25px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-    margin-right: 10px;
-    margin-bottom: 10px;
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.btn-danger {
-    background: linear-gradient(45deg, #dc3545, #e83e8c);
-}
-
-.cohort-card, .user-card {
-    background: white;
-    border: 1px solid #e9ecef;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.cohort-card h3, .user-card h3 {
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.cohort-card p, .user-card p {
-    color: #666;
-    margin-bottom: 1rem;
-}
-
-.cohort-actions, .user-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.alert {
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    display: none;
-}
-
-.alert-success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.alert-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1.5rem;
-    border-radius: 10px;
-    text-align: center;
-}
-
-.stat-card h3 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-}
-
-.cohort-code-section {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 1rem 0;
-    border: 1px solid #e9ecef;
-}
-
-.cohort-code {
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-    color: #667eea;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-}
-
-.btn-copy {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 0.3rem 0.6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 0.5rem;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease;
-}
-
-.btn-copy:hover {
-    background: #218838;
-}
-
-.btn-copy.copied {
-    background: #17a2b8;
-}
-
-/* Modal Styles */
-.modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background-color: white;
-    border-radius: 10px;
-    width: 90%;
-    max-width: 500px;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-
-.modal-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: #333;
-}
-
-.close {
-    color: #aaa;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.close:hover {
-    color: #000;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #e9ecef;
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-}
-
-.option-row {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    align-items: center;
-}
-
-.option-row input {
-    flex: 1;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-.btn-remove {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-add {
-    background: #17a2b8;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 0.5rem;
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background: #5a6268;
-}
-
-@media (max-width: 768px) {
-    .tabs {
-        flex-direction: column;
-    }
-    
-    .cohort-actions, .user-actions {
-        flex-direction: column;
-    }
-    
-    .btn {
-        width: 100%;
-        margin-right: 0;
-    }
-}
-</style>
-
-<script>
-function switchTab(tabName, event) {
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    // Remove active class from all tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Show selected tab content
-    document.getElementById(tabName).classList.add('active');
-    
-    // Add active class to clicked tab
-    if (event && event.target) {
-        event.target.classList.add('active');
-    }
-    
-    // Load content based on tab
-    if (tabName === 'cohorts') {
-        loadCohorts();
-    } else if (tabName === 'teachers') {
-        loadTeachers();
-    } else if (tabName === 'students') {
-        loadStudents();
-    } else if (tabName === 'create') {
-        loadTeachersForSelect();
-    }
-}
-
-async function loadCohorts() {
-    try {
-        const res = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
-        const data = await res.json();
-        const container = document.getElementById('cohorts-list');
-        
-        if (!data.success) {
-            container.innerHTML = '<p>Failed to load cohorts</p>';
-            return;
-        }
-        
-        if (data.cohorts.length === 0) {
-            container.innerHTML = '<p>No cohorts found. Create your first cohort!</p>';
-            return;
-        }
-        
-                container.innerHTML = data.cohorts.map(cohort => `
-            <div class="cohort-card">
-                <h3>${cohort.name}</h3>
-                <p>${cohort.description || 'No description'}</p>
-                <p><strong>Subject:</strong> ${cohort.subject}</p>
-                <p><strong>Teacher:</strong> ${cohort.teacher_name || 'Unassigned'}</p>
-                <p><strong>Students:</strong> ${cohort.student_count || 0}</p>
-                <div class="cohort-code-section">
-                    <p><strong>Cohort Code:</strong> <span class="cohort-code" id="code-${cohort.id}">${cohort.code}</span>
-                    <button class="btn-copy" onclick="copyCohortCode('${cohort.code}', 'code-${cohort.id}')" title="Copy to clipboard">📋</button></p>
-                </div>
-                <div class="cohort-actions">
-                            <button class="btn" onclick="manageCohort('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">Manage Students</button>
-                            <button class="btn" onclick="viewCohortLectures('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">View Lectures</button>
-                            <button class="btn" onclick="viewCohortPolls('${cohort.id}', '${cohort.name.replace(/'/g, "\'")}')">📊 Polls</button>
-                    <button class="btn btn-danger" onclick="deleteCohort('${cohort.id}')">Delete</button>
-                </div>
-            </div>
-        `).join('');
-    } catch (error) {
-        showAlert('Failed to load cohorts: ' + error.message, 'error');
-    }
-}
-
-async function loadTeachers() {
-    try {
-        const res = await fetch('/api/admin/teachers', { credentials: 'same-origin' });
-        const data = await res.json();
-        const container = document.getElementById('teachers-list');
-        
-        if (!data.success) {
-            container.innerHTML = '<p>Failed to load teachers</p>';
-            return;
-        }
-        
-        if (data.teachers.length === 0) {
-            container.innerHTML = '<p>No teachers found.</p>';
-            return;
-        }
-        
-        container.innerHTML = data.teachers.map(teacher => `
-            <div class="user-card">
-                <h3>${teacher.name}</h3>
-                <p><strong>Email:</strong> ${teacher.email}</p>
-                <p><strong>Institution:</strong> ${teacher.institution}</p>
-                <p><strong>Subject:</strong> ${teacher.subject}</p>
-                <p><strong>Cohorts:</strong> ${teacher.cohort_count || 0}</p>
-            </div>
-        `).join('');
-    } catch (error) {
-        showAlert('Failed to load teachers: ' + error.message, 'error');
-    }
-}
-
-async function loadStudents() {
-    try {
-        const res = await fetch('/api/admin/students', { credentials: 'same-origin' });
-        const data = await res.json();
-        const container = document.getElementById('students-list');
-        
-        if (!data.success) {
-            container.innerHTML = '<p>Failed to load students</p>';
-            return;
-        }
-        
-        if (data.students.length === 0) {
-            container.innerHTML = '<p>No students found.</p>';
-            return;
-        }
-        
-        container.innerHTML = data.students.map(student => `
-            <div class="user-card">
-                <h3>${student.name}</h3>
-                <p><strong>Email:</strong> ${student.email}</p>
-                <p><strong>Institution:</strong> ${student.institution}</p>
-                <p><strong>Cohorts:</strong> ${student.cohort_count || 0}</p>
-            </div>
-        `).join('');
-    } catch (error) {
-        showAlert('Failed to load students: ' + error.message, 'error');
-    }
-}
-
-async function loadTeachersForSelect() {
-    try {
-        const res = await fetch('/api/admin/teachers', { credentials: 'same-origin' });
-        const data = await res.json();
-        const select = document.getElementById('cohort-teacher');
-        
-        if (!data.success) {
-            select.innerHTML = '<option value="">Failed to load teachers</option>';
-            return;
-        }
-        
-        select.innerHTML = '<option value="">Select a teacher...</option>' +
-            data.teachers.map(teacher => 
-                `<option value="${teacher.id}">${teacher.name} (${teacher.subject})</option>`
-            ).join('');
-    } catch (error) {
-        showAlert('Failed to load teachers: ' + error.message, 'error');
-    }
-}
-
-document.getElementById('cohort-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const payload = {
-        name: document.getElementById('cohort-name').value.trim(),
-        description: document.getElementById('cohort-description').value.trim(),
-        subject: document.getElementById('cohort-subject').value.trim(),
-        teacher_id: document.getElementById('cohort-teacher').value
-    };
-    
-    try {
-        const res = await fetch('/api/admin/cohorts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(payload)
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-            showAlert('Cohort created successfully!', 'success');
-            this.reset();
-            switchTab('cohorts', null);
-            loadCohorts();
-        } else {
-            showAlert(data.error || 'Failed to create cohort', 'error');
-        }
-    } catch (error) {
-        showAlert('Error creating cohort: ' + error.message, 'error');
-    }
-});
-
-async function editCohort(cohortId) {
-    showAlert('Edit functionality coming soon!', 'success');
-}
-
-async function deleteCohort(cohortId) {
-    if (!confirm('Are you sure you want to delete this cohort?')) {
-        return;
-    }
-    
-    try {
-        const res = await fetch(`/api/admin/cohorts/${cohortId}`, {
-            method: 'DELETE',
-            credentials: 'same-origin'
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-            showAlert('Cohort deleted successfully!', 'success');
-            loadCohorts();
-        } else {
-            showAlert(data.error || 'Failed to delete cohort', 'error');
-        }
-    } catch (error) {
-        showAlert('Error deleting cohort: ' + error.message, 'error');
-    }
-}
-
-function showAlert(message, type) {
-    const alert = document.getElementById('alert');
-    alert.textContent = message;
-    alert.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
-    alert.style.display = 'block';
-    
-    setTimeout(() => {
-        alert.style.display = 'none';
-    }, 5000);
-}
-
-async function copyCohortCode(code, elementId) {
-    try {
-        await navigator.clipboard.writeText(code);
-        const button = document.querySelector(`#${elementId}`).nextElementSibling;
-        const originalText = button.textContent;
-        button.textContent = '✓';
-        button.classList.add('copied');
-        
-        setTimeout(() => {
-            button.textContent = originalText;
-            button.classList.remove('copied');
-        }, 2000);
-        
-        showAlert('Cohort code copied to clipboard!', 'success');
-    } catch (err) {
-        // Fallback for older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = code;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showAlert('Cohort code copied to clipboard!', 'success');
-    }
-}
-
-// Load initial data
-loadCohorts();
-
-// Cohort Management UI
-async function manageCohort(cohortId, name){
-    document.getElementById('cohort-manage').style.display = 'block';
-    document.getElementById('manage-cohort-title').textContent = `Manage Cohort • ${name}`;
-    document.getElementById('current-cohort-id').value = cohortId;
-    
-    // Get cohort details to display the code
-    try {
-        const res = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.success) {
-            const cohort = data.cohorts.find(c => c.id === cohortId);
-            if (cohort) {
-                document.getElementById('current-cohort-code').value = cohort.code;
-                document.getElementById('display-cohort-code').textContent = cohort.code;
-                document.getElementById('cohort-code-display').style.display = 'block';
-                // Update the title to include the cohort code
-                document.getElementById('manage-cohort-title').innerHTML = 
-                    `Manage Cohort • ${name} <span style="font-size: 0.8em; color: #666;">(Code: ${cohort.code})</span>`;
-            }
-        }
-    } catch (e) {
-        console.error('Failed to get cohort details:', e);
-    }
-    
-    await refreshCohortStudents();
-    const addBtn = document.getElementById('add-student-btn');
-    addBtn.onclick = addStudentToCohort;
-    await populateStudentSelect();
-}
-
-async function refreshCohortStudents(){
-    const cohortId = document.getElementById('current-cohort-id').value;
-    if(!cohortId) return;
-    try{
-        const res = await fetch(`/api/admin/cohort/${cohortId}/students`, { credentials: 'same-origin' });
-        const data = await res.json();
-        const container = document.getElementById('cohort-students');
-        if(!data.success){ container.innerHTML = '<p>Failed to load students</p>'; return; }
-        if(data.students.length === 0){ container.innerHTML = '<p>No students in this cohort yet.</p>'; return; }
-        container.innerHTML = data.students.map(s => `
-            <div class="user-card">
-                <h3>${s.name}</h3>
-                <p><strong>Email:</strong> ${s.email}</p>
-                <p><strong>Institution:</strong> ${s.institution}</p>
-                <div class="user-actions">
-                    <button class="btn btn-danger" onclick="removeStudent('${s.id}')">Remove</button>
-                </div>
-            </div>
-        `).join('');
-    } catch (e){
-        showAlert('Failed to load cohort students: ' + e.message, 'error');
-    }
-}
-
-async function addStudentToCohort(){
-    const cohortId = document.getElementById('current-cohort-id').value;
-    const select = document.getElementById('add-student-select');
-    const selectedId = select.value;
-    const email = document.getElementById('add-student-email').value.trim();
-    if(!selectedId && !email){ showAlert('Select a student or enter email', 'error'); return; }
-    try{
-        const res = await fetch(`/api/admin/cohort/${cohortId}/students`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(selectedId ? { student_id: selectedId } : { student_email: email })
-        });
-        const data = await res.json();
-        if(data.success){
-            showAlert('Student added to cohort', 'success');
-            document.getElementById('add-student-email').value = '';
-            select.value = '';
-            refreshCohortStudents();
-            loadCohorts();
-        } else {
-            showAlert(data.error || 'Failed to add student', 'error');
-        }
-    } catch(e){
-        showAlert('Failed to add student: ' + e.message, 'error');
-    }
-}
-
-async function populateStudentSelect(){
-    try{
-        const res = await fetch('/api/admin/students', { credentials: 'same-origin' });
-        const data = await res.json();
-        const select = document.getElementById('add-student-select');
-        if(!data.success){ select.innerHTML = '<option value="">Failed to load students</option>'; return; }
-        select.innerHTML = '<option value="">Select a student...</option>' + data.students.map(s => `<option value="${s.id}">${s.name} (${s.email})</option>`).join('');
-    } catch(e){
-        // ignore
-    }
-}
-
-async function removeStudent(studentId){
-    const cohortId = document.getElementById('current-cohort-id').value;
-    if(!confirm('Remove this student from the cohort?')) return;
-    try{
-        const res = await fetch(`/api/admin/cohort/${cohortId}/students/${studentId}`, { method: 'DELETE', credentials: 'same-origin' });
-        const data = await res.json();
-        if(data.success){
-            showAlert('Removed student from cohort', 'success');
-            refreshCohortStudents();
-            loadCohorts();
-        } else {
-            showAlert(data.error || 'Failed to remove student', 'error');
-        }
-    } catch (e){
-        showAlert('Failed to remove student: ' + e.message, 'error');
-    }
-}
-
-async function viewCohortLectures(cohortId, name){
-    document.getElementById('cohortLectures').style.display = 'block';
-    const container = document.getElementById('cohort-lectures-list');
-    container.innerHTML = '<p>Loading...</p>';
-    try{
-        const res = await fetch(`/api/admin/cohort/${cohortId}/lectures`, { credentials: 'same-origin' });
-        const data = await res.json();
-        if(!data.success){ container.innerHTML = '<p>Failed to load cohort lectures</p>'; return; }
-        if(data.lectures.length === 0){ container.innerHTML = '<p>No lectures in this cohort yet.</p>'; return; }
-        container.innerHTML = data.lectures.map(lecture => `
-            <div class="cohort-card">
-                <h3>${lecture.title}</h3>
-                <p>${lecture.description || 'No description'}</p>
-                <p><strong>Scheduled:</strong> ${new Date(lecture.scheduled_time).toLocaleString()}</p>
-                <p><strong>Teacher:</strong> ${lecture.teacher_name || 'Unknown'}</p>
-                <span class="status-badge ${lecture.session_active ? 'status-active' : 'status-scheduled'}">
-                    ${lecture.session_active ? 'Live Now' : 'Scheduled'}
-                </span>
-            </div>
-        `).join('');
-    } catch(e){
-        container.innerHTML = '<p>Failed to load cohort lectures</p>';
-    }
-}
-
-async function viewCohortPolls(cohortId, name){
-    // Set the current cohort ID for poll creation
-    document.getElementById('current-cohort-id').value = cohortId;
-    
-    document.getElementById('cohortPolls').style.display = 'block';
-    const container = document.getElementById('cohort-polls-list');
-    container.innerHTML = '<p>Loading...</p>';
-    try{
-        const res = await fetch(`/api/cohorts/${cohortId}/polls`, { credentials: 'same-origin' });
-        const data = await res.json();
-        if(!data.success){ container.innerHTML = '<p>Failed to load cohort polls</p>'; return; }
-        if(data.polls.length === 0){ container.innerHTML = '<p>No polls in this cohort yet.</p>'; return; }
-        container.innerHTML = data.polls.map(poll => `
-            <div class="cohort-card">
-                <h3>${poll.question}</h3>
-                <p><strong>Options:</strong> ${poll.options.join(', ')}</p>
-                <p><strong>Created:</strong> ${new Date(poll.created_at).toLocaleString()}</p>
-                <div class="cohort-actions">
-                    <button class="btn" onclick="viewPollResults('${poll.id}')">View Results</button>
-                </div>
-            </div>
-        `).join('');
-    } catch(e){
-        container.innerHTML = '<p>Failed to load cohort polls</p>';
-    }
-}
-
-function showCreateCohortPollModal(){
-    const cohortId = document.getElementById('current-cohort-id').value;
-    if(!cohortId){
-        showAlert('Please select a cohort first', 'error');
-        return;
-    }
-    
-    // Reset form
-    document.getElementById('pollQuestion').value = '';
-    const optionsContainer = document.getElementById('pollOptions');
-    optionsContainer.innerHTML = `
-        <div class="option-row">
-            <input type="text" placeholder="Option 1" class="poll-option-input">
-            <button class="btn-remove" onclick="removePollOption(this)">×</button>
-        </div>
-        <div class="option-row">
-            <input type="text" placeholder="Option 2" class="poll-option-input">
-            <button class="btn-remove" onclick="removePollOption(this)">×</button>
-        </div>
-    `;
-    
-    // Show modal
-    document.getElementById('pollModal').style.display = 'flex';
-}
-
-function closePollModal(){
-    document.getElementById('pollModal').style.display = 'none';
-}
-
-function addPollOption(){
-    const optionsContainer = document.getElementById('pollOptions');
-    const optionCount = optionsContainer.children.length + 1;
-    
-    const optionDiv = document.createElement('div');
-    optionDiv.className = 'option-row';
-    optionDiv.innerHTML = `
-        <input type="text" placeholder="Option ${optionCount}" class="poll-option-input">
-        <button class="btn-remove" onclick="removePollOption(this)">×</button>
-    `;
-    
-    optionsContainer.appendChild(optionDiv);
-}
-
-function removePollOption(button){
-    const optionRow = button.parentElement;
-    if(optionRow.parentElement.children.length > 2){
-        optionRow.remove();
-    }
-}
-
-function createCohortPollFromModal(){
-    const cohortId = document.getElementById('current-cohort-id').value;
-    const question = document.getElementById('pollQuestion').value.trim();
-    const optionInputs = document.querySelectorAll('.poll-option-input');
-    const options = Array.from(optionInputs)
-        .map(input => input.value.trim())
-        .filter(option => option.length > 0);
-    
-    if(!question){
-        showAlert('Please enter a poll question', 'error');
-        return;
-    }
-    
-    if(options.length < 2){
-        showAlert('Please enter at least 2 options', 'error');
-        return;
-    }
-    
-    createCohortPoll(cohortId, question, options);
-    closePollModal();
-}
-
-async function createCohortPoll(cohortId, question, options){
-    try{
-        const res = await fetch(`/api/cohorts/${cohortId}/polls`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ question, options })
-        });
-        
-        const data = await res.json();
-        if(data.success){
-            showAlert('Poll created successfully!', 'success');
-            viewCohortPolls(cohortId, '');
-        } else {
-            showAlert(data.error || 'Failed to create poll', 'error');
-        }
-    } catch(e){
-        showAlert('Failed to create poll: ' + e.message, 'error');
-    }
-}
-
-// Teacher Management Functions
-function showCreateTeacherModal() {
-    document.getElementById('createTeacherModal').style.display = 'flex';
-    document.getElementById('create-teacher-form').reset();
-}
-
-function closeCreateTeacherModal() {
-    document.getElementById('createTeacherModal').style.display = 'none';
-}
-
-async function createTeacher() {
-    const name = document.getElementById('teacher-name').value.trim();
-    const email = document.getElementById('teacher-email').value.trim();
-    const institution = document.getElementById('teacher-institution').value.trim();
-    const subject = document.getElementById('teacher-subject').value.trim();
-    const password = document.getElementById('teacher-password').value;
-
-    if (!name || !email || !institution || !subject || !password) {
-        showAlert('Please fill in all fields', 'error');
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/register/teacher', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ name, email, institution, subject, password })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            showAlert('Teacher created successfully!', 'success');
-            closeCreateTeacherModal();
-            loadTeachers();
-        } else {
-            showAlert(data.error || 'Failed to create teacher', 'error');
-        }
-    } catch (error) {
-        showAlert('Failed to create teacher: ' + error.message, 'error');
-    }
-}
-
-// Student Management Functions
-function showCreateStudentModal() {
-    document.getElementById('createStudentModal').style.display = 'flex';
-    document.getElementById('create-student-form').reset();
-}
-
-function closeCreateStudentModal() {
-    document.getElementById('createStudentModal').style.display = 'none';
-}
-
-async function createStudent() {
-    const name = document.getElementById('student-name').value.trim();
-    const email = document.getElementById('student-email').value.trim();
-    const institution = document.getElementById('student-institution').value.trim();
-    const password = document.getElementById('student-password').value;
-
-    if (!name || !email || !institution || !password) {
-        showAlert('Please fill in all fields', 'error');
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/register/student', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ name, email, institution, password })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            showAlert('Student created successfully!', 'success');
-            closeCreateStudentModal();
-            loadStudents();
-        } else {
-            showAlert(data.error || 'Failed to create student', 'error');
-        }
-    } catch (error) {
-        showAlert('Failed to create student: ' + error.message, 'error');
-    }
-}
-
-async function viewPollResults(pollId){
-    try{
-        const res = await fetch(`/api/polls/${pollId}/results`, { credentials: 'same-origin' });
-        const data = await res.json();
-        if(data.success){
-            const results = data.results;
-            let resultsHTML = `
-                <h3>${results.question}</h3>
-                <p><strong>Total Votes:</strong> ${results.total_votes}</p>
-                <div style="margin-top: 1rem;">
-            `;
-            
-            results.results.forEach(result => {
-                resultsHTML += `
-                    <div style="margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span>${result.option}</span>
-                            <span>${result.votes} votes (${result.percentage}%)</span>
-                        </div>
-                        <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden;">
-                            <div style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: ${result.percentage}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
-                                ${result.percentage}%
+                        <div class="card-body">
+                            <div id="institutionsList" class="row">
+                                <div class="col-12 text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading institutions...</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                `;
-            });
-            
-            resultsHTML += '</div>';
-            
-            // Show results in a modal or alert
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background: rgba(0,0,0,0.8); display: flex; align-items: center; 
-                justify-content: center; z-index: 1000;
-            `;
-            modal.innerHTML = `
-                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80%; overflow-y: auto;">
-                    ${resultsHTML}
-                    <button class="btn" onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem;">Close</button>
                 </div>
-            `;
-            document.body.appendChild(modal);
-        } else {
-            showAlert(data.error || 'Failed to load poll results', 'error');
-        }
-    } catch(e){
-        showAlert('Failed to load poll results: ' + e.message, 'error');
+
+                <!-- Cohorts Tab -->
+                <div class="tab-pane fade" id="cohorts" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Cohorts</h5>
+                            <button class="btn btn-success btn-sm" onclick="showCreateCohortModal()">
+                                <i class="bi bi-plus-circle me-1"></i>New Cohort
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="cohortsList" class="row">
+                                <div class="col-12 text-center py-5">
+                                    <div class="spinner-border text-success" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading cohorts...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div class="tab-pane fade" id="users" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Users</h5>
+                            <button class="btn btn-warning btn-sm" onclick="showCreateUserModal()">
+                                <i class="bi bi-plus-circle me-1"></i>New User
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="userSearch" placeholder="Search users...">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="userTypeFilter">
+                                        <option value="">All Users</option>
+                                        <option value="teacher">Teachers</option>
+                                        <option value="student">Students</option>
+                                        <option value="admin">Admins</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="institutionFilter">
+                                        <option value="">All Institutions</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="usersList" class="row">
+                                <div class="col-12 text-center py-5">
+                                    <div class="spinner-border text-warning" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading users...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div class="tab-pane fade" id="analytics" role="tabpanel">
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">User Growth</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="userGrowthChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Institution Distribution</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="institutionChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Active Sessions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="sessionsChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">System Health</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="systemHealth">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Database</span>
+                                            <span class="badge bg-success">Healthy</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Email Service</span>
+                                            <span class="badge bg-success">Healthy</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>File Storage</span>
+                                            <span class="badge bg-success">Healthy</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>WebSocket</span>
+                                            <span class="badge bg-success">Healthy</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Institution Modal -->
+<div class="modal fade" id="createInstitutionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Institution</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createInstitutionForm">
+                    <div class="mb-3">
+                        <label for="institutionName" class="form-label">Institution Name</label>
+                        <input type="text" class="form-control" id="institutionName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="institutionDomain" class="form-label">Domain</label>
+                        <input type="text" class="form-control" id="institutionDomain" placeholder="example.edu">
+                    </div>
+                    <div class="mb-3">
+                        <label for="institutionDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="institutionDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createInstitution()">Create Institution</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Cohort Modal -->
+<div class="modal fade" id="createCohortModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Cohort</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createCohortForm">
+                    <div class="mb-3">
+                        <label for="cohortName" class="form-label">Cohort Name</label>
+                        <input type="text" class="form-control" id="cohortName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cohortSubject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="cohortSubject" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cohortDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="cohortDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cohortInstitution" class="form-label">Institution</label>
+                        <select class="form-select" id="cohortInstitution" required>
+                            <option value="">Select Institution</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cohortTeacher" class="form-label">Teacher</label>
+                        <select class="form-select" id="cohortTeacher" required>
+                            <option value="">Select Teacher</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createCohort()">Create Cohort</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userName" class="form-label">Name</label>
+                                <input type="text" class="form-control" id="userName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="userEmail" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userType" class="form-label">User Type</label>
+                                <select class="form-select" id="userType" required onchange="toggleUserTypeFields()">
+                                    <option value="">Select Type</option>
+                                    <option value="teacher">Teacher</option>
+                                    <option value="student">Student</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userInstitution" class="form-label">Institution</label>
+                                <select class="form-select" id="userInstitution" required>
+                                    <option value="">Select Institution</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="subjectField" style="display: none;">
+                        <label for="userSubject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="userSubject">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userPassword" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="userPassword" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userPasswordConfirm" class="form-label">Confirm Password</label>
+                                <input type="password" class="form-control" id="userPasswordConfirm" required>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="createUser()">Create User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Global variables
+let institutions = [];
+let cohorts = [];
+let users = [];
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadAdminData();
+    initializeCharts();
+});
+
+// Load admin data
+async function loadAdminData() {
+    try {
+        await loadInstitutions();
+        await loadCohorts();
+        await loadUsers();
+        updateStats();
+    } catch (error) {
+        console.error('Error loading admin data:', error);
+        showToast('Failed to load dashboard data', 'error');
     }
+}
+
+// Load institutions
+async function loadInstitutions() {
+    try {
+        const response = await fetch('/api/admin/institutions');
+        const data = await response.json();
+        
+        if (data.success) {
+            institutions = data.institutions;
+            displayInstitutions(institutions);
+            populateInstitutionSelects();
+        }
+    } catch (error) {
+        console.error('Error loading institutions:', error);
+    }
+}
+
+// Display institutions
+function displayInstitutions(institutionsList) {
+    const container = document.getElementById('institutionsList');
+    
+    if (institutionsList.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-building text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">No institutions found</h5>
+                <p class="text-muted">Create your first institution to get started</p>
+                <button class="btn btn-primary" onclick="showCreateInstitutionModal()">
+                    <i class="bi bi-plus-circle me-2"></i>Create Institution
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = institutionsList.map(institution => `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card institution-card">
+                <div class="card-body">
+                    <h6 class="card-title">${institution.name}</h6>
+                    <p class="card-text text-muted small">${institution.description || 'No description'}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-globe me-1"></i>
+                            ${institution.domain || 'No domain'}
+                        </small>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            ${new Date(institution.created_at).toLocaleDateString()}
+                        </small>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="editInstitution('${institution.id}')">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteInstitution('${institution.id}')">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load cohorts
+async function loadCohorts() {
+    try {
+        const response = await fetch('/api/admin/cohorts');
+        const data = await response.json();
+        
+        if (data.success) {
+            cohorts = data.cohorts;
+            displayCohorts(cohorts);
+        }
+    } catch (error) {
+        console.error('Error loading cohorts:', error);
+    }
+}
+
+// Display cohorts
+function displayCohorts(cohortsList) {
+    const container = document.getElementById('cohortsList');
+    
+    if (cohortsList.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">No cohorts found</h5>
+                <p class="text-muted">Create your first cohort to get started</p>
+                <button class="btn btn-success" onclick="showCreateCohortModal()">
+                    <i class="bi bi-plus-circle me-2"></i>Create Cohort
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = cohortsList.map(cohort => `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card cohort-card">
+                <div class="card-body">
+                    <h6 class="card-title">${cohort.name}</h6>
+                    <p class="card-text text-muted small">${cohort.description || 'No description'}</p>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-book me-1"></i>
+                            ${cohort.subject}
+                        </small>
+                        <small class="text-muted">
+                            <i class="bi bi-people me-1"></i>
+                            ${cohort.student_count || 0} students
+                        </small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-building me-1"></i>
+                            ${cohort.institution_name}
+                        </small>
+                        <span class="badge bg-success">Active</span>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="editCohort('${cohort.id}')">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteCohort('${cohort.id}')">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load users
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/admin/users');
+        const data = await response.json();
+        
+        if (data.success) {
+            users = data.users;
+            displayUsers(users);
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+// Display users
+function displayUsers(usersList) {
+    const container = document.getElementById('usersList');
+    
+    if (usersList.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">No users found</h5>
+                <p class="text-muted">Create your first user to get started</p>
+                <button class="btn btn-warning" onclick="showCreateUserModal()">
+                    <i class="bi bi-plus-circle me-2"></i>Create User
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = usersList.map(user => `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card user-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">${user.name}</h6>
+                        <span class="badge ${getUserTypeBadge(user.user_type)}">${user.user_type}</span>
+                    </div>
+                    <p class="card-text text-muted small">${user.email}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-building me-1"></i>
+                            ${user.institution_name || 'No institution'}
+                        </small>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            ${new Date(user.created_at).toLocaleDateString()}
+                        </small>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="editUser('${user.id}')">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteUser('${user.id}')">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update dashboard stats
+function updateStats() {
+    document.getElementById('totalInstitutions').textContent = institutions.length;
+    document.getElementById('totalCohorts').textContent = cohorts.length;
+    document.getElementById('totalTeachers').textContent = users.filter(u => u.user_type === 'teacher').length;
+    document.getElementById('totalStudents').textContent = users.filter(u => u.user_type === 'student').length;
+}
+
+// Initialize charts
+function initializeCharts() {
+    // User Growth Chart
+    const userGrowthCtx = document.getElementById('userGrowthChart');
+    if (userGrowthCtx) {
+        new Chart(userGrowthCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'New Users',
+                    data: [12, 19, 3, 5, 2, 3],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    
+    // Institution Chart
+    const institutionCtx = document.getElementById('institutionChart');
+    if (institutionCtx) {
+        new Chart(institutionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Inactive'],
+                datasets: [{
+                    data: [institutions.length, 0],
+                    backgroundColor: ['#28a745', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    
+    // Sessions Chart
+    const sessionsCtx = document.getElementById('sessionsChart');
+    if (sessionsCtx) {
+        new Chart(sessionsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Active Sessions',
+                    data: [12, 19, 3, 5, 2, 3, 9],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+}
+
+// Utility functions
+function getUserTypeBadge(userType) {
+    switch (userType) {
+        case 'admin': return 'bg-danger';
+        case 'teacher': return 'bg-warning';
+        case 'student': return 'bg-info';
+        default: return 'bg-secondary';
+    }
+}
+
+// Modal functions
+function showCreateInstitutionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createInstitutionModal'));
+    modal.show();
+}
+
+function showCreateCohortModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createCohortModal'));
+    modal.show();
+}
+
+function showCreateUserModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createUserModal'));
+    modal.show();
+}
+
+// Populate institution selects
+function populateInstitutionSelects() {
+    const selects = ['cohortInstitution', 'userInstitution', 'institutionFilter'];
+    
+    selects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.innerHTML = '<option value="">Select Institution</option>' +
+                institutions.map(inst => 
+                    `<option value="${inst.id}">${inst.name}</option>`
+                ).join('');
+        }
+    });
+}
+
+// Toggle user type fields
+function toggleUserTypeFields() {
+    const userType = document.getElementById('userType').value;
+    const subjectField = document.getElementById('subjectField');
+    
+    if (userType === 'teacher') {
+        subjectField.style.display = 'block';
+        document.getElementById('userSubject').required = true;
+    } else {
+        subjectField.style.display = 'none';
+        document.getElementById('userSubject').required = false;
+    }
+}
+
+// Create functions
+async function createInstitution() {
+    const name = document.getElementById('institutionName').value.trim();
+    const domain = document.getElementById('institutionDomain').value.trim();
+    const description = document.getElementById('institutionDescription').value.trim();
+    
+    if (!name) {
+        showToast('Please enter institution name', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/institutions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name, domain, description })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createInstitutionModal')).hide();
+            document.getElementById('createInstitutionForm').reset();
+            loadAdminData();
+        } else {
+            showToast(data.error || 'Failed to create institution', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating institution:', error);
+        showToast('Failed to create institution', 'error');
+    }
+}
+
+async function createCohort() {
+    const name = document.getElementById('cohortName').value.trim();
+    const subject = document.getElementById('cohortSubject').value.trim();
+    const description = document.getElementById('cohortDescription').value.trim();
+    const institutionId = document.getElementById('cohortInstitution').value;
+    const teacherId = document.getElementById('cohortTeacher').value;
+    
+    if (!name || !subject || !institutionId || !teacherId) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/cohorts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name, subject, description, institution_id: institutionId, teacher_id: teacherId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createCohortModal')).hide();
+            document.getElementById('createCohortForm').reset();
+            loadAdminData();
+        } else {
+            showToast(data.error || 'Failed to create cohort', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating cohort:', error);
+        showToast('Failed to create cohort', 'error');
+    }
+}
+
+async function createUser() {
+    const name = document.getElementById('userName').value.trim();
+    const email = document.getElementById('userEmail').value.trim();
+    const userType = document.getElementById('userType').value;
+    const institutionId = document.getElementById('userInstitution').value;
+    const subject = document.getElementById('userSubject').value.trim();
+    const password = document.getElementById('userPassword').value;
+    const passwordConfirm = document.getElementById('userPasswordConfirm').value;
+    
+    if (!name || !email || !userType || !institutionId || !password) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name, 
+                email, 
+                user_type: userType, 
+                institution_id: institutionId, 
+                subject: userType === 'teacher' ? subject : null,
+                password 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+            document.getElementById('createUserForm').reset();
+            loadAdminData();
+        } else {
+            showToast(data.error || 'Failed to create user', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
+        showToast('Failed to create user', 'error');
+    }
+}
+
+// Placeholder functions for edit/delete actions
+function editInstitution(id) {
+    showToast('Edit institution functionality coming soon', 'info');
+}
+
+function deleteInstitution(id) {
+    if (confirm('Are you sure you want to delete this institution?')) {
+        showToast('Delete institution functionality coming soon', 'info');
+    }
+}
+
+function editCohort(id) {
+    showToast('Edit cohort functionality coming soon', 'info');
+}
+
+function deleteCohort(id) {
+    if (confirm('Are you sure you want to delete this cohort?')) {
+        showToast('Delete cohort functionality coming soon', 'info');
+    }
+}
+
+function editUser(id) {
+    showToast('Edit user functionality coming soon', 'info');
+}
+
+function deleteUser(id) {
+    if (confirm('Are you sure you want to delete this user?')) {
+        showToast('Delete user functionality coming soon', 'info');
+    }
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
 }
 </script>
 {% endblock %}

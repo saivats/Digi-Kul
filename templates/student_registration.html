@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - {{ institution.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: {{ institution.primary_color or '#667eea' }};
+            --secondary-color: {{ institution.secondary_color or '#764ba2' }};
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .registration-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .registration-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .institution-logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .registration-body {
+            padding: 2rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .image-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .image-upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(102, 126, 234, 0.05);
+        }
+
+        .image-upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .preview-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-color);
+            margin: 0 auto 1rem;
+            display: block;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-line {
+            width: 50px;
+            height: 2px;
+            background: #e9ecef;
+            margin: 0 5px;
+            align-self: center;
+        }
+
+        .step-line.completed {
+            background: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="registration-container">
+            <div class="registration-header">
+                <div class="institution-logo">
+                    {% if institution.logo_url %}
+                        <img src="{{ institution.logo_url }}" alt="{{ institution.name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                    {% else %}
+                        <i class="bi bi-building"></i>
+                    {% endif %}
+                </div>
+                <h2>Student Registration</h2>
+                <p>{{ institution.name }} - Join our learning community</p>
+            </div>
+
+            <div class="registration-body">
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                    <div class="step active" id="step1">1</div>
+                    <div class="step-line"></div>
+                    <div class="step" id="step2">2</div>
+                    <div class="step-line"></div>
+                    <div class="step" id="step3">3</div>
+                </div>
+
+                <form id="registrationForm" enctype="multipart/form-data">
+                    <!-- Step 1: Personal Information -->
+                    <div class="step-content" id="step1-content">
+                        <h4 class="mb-4"><i class="bi bi-person me-2"></i>Personal Information</h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" class="form-control" name="first_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" name="email" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" name="phone">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date of Birth *</label>
+                                <input type="date" class="form-control" name="date_of_birth" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Gender *</label>
+                                <select class="form-select" name="gender" required>
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="3"></textarea>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                                Next <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Academic Information -->
+                    <div class="step-content d-none" id="step2-content">
+                        <h4 class="mb-4"><i class="bi bi-book me-2"></i>Academic Information</h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Grade/Class *</label>
+                                <input type="text" class="form-control" name="grade" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Student ID</label>
+                                <input type="text" class="form-control" name="student_id">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Previous School</label>
+                                <input type="text" class="form-control" name="previous_school">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Parent/Guardian Name</label>
+                                <input type="text" class="form-control" name="parent_name">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Parent/Guardian Email</label>
+                                <input type="email" class="form-control" name="parent_email">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Parent/Guardian Phone</label>
+                                <input type="tel" class="form-control" name="parent_phone">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Emergency Contact</label>
+                            <input type="text" class="form-control" name="emergency_contact">
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
+                                <i class="bi bi-arrow-left me-1"></i>Previous
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+                                Next <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Profile Picture & Account Setup -->
+                    <div class="step-content d-none" id="step3-content">
+                        <h4 class="mb-4"><i class="bi bi-camera me-2"></i>Profile Picture & Account Setup</h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">Profile Picture</label>
+                                <div class="image-upload-area" onclick="document.getElementById('profileImage').click()">
+                                    <div id="imagePreview" class="d-none">
+                                        <img id="previewImg" class="preview-image" alt="Preview">
+                                        <p class="text-muted">Click to change image</p>
+                                    </div>
+                                    <div id="imagePlaceholder">
+                                        <i class="bi bi-cloud-upload fs-1 text-muted mb-3"></i>
+                                        <h5>Upload Profile Picture</h5>
+                                        <p class="text-muted">Click here or drag and drop an image</p>
+                                        <small class="text-muted">JPG, PNG, GIF up to 5MB</small>
+                                    </div>
+                                </div>
+                                <input type="file" id="profileImage" name="profile_image" accept="image/*" class="d-none">
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Password *</label>
+                                    <input type="password" class="form-control" name="password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Confirm Password *</label>
+                                    <input type="password" class="form-control" name="confirm_password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="termsCheck" required>
+                                        <label class="form-check-label" for="termsCheck">
+                                            I agree to the <a href="#" class="text-primary">Terms and Conditions</a>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                                <i class="bi bi-arrow-left me-1"></i>Previous
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Complete Registration
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/app.js"></script>
+
+    <script>
+        let currentStep = 1;
+
+        function nextStep(step) {
+            if (validateStep(currentStep)) {
+                document.getElementById(`step${currentStep}-content`).classList.add('d-none');
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                document.getElementById(`step${currentStep}`).classList.add('completed');
+                
+                if (currentStep < 3) {
+                    document.querySelector(`#step${currentStep} + .step-line`).classList.add('completed');
+                }
+                
+                currentStep = step;
+                document.getElementById(`step${currentStep}-content`).classList.remove('d-none');
+                document.getElementById(`step${currentStep}`).classList.add('active');
+            }
+        }
+
+        function prevStep(step) {
+            document.getElementById(`step${currentStep}-content`).classList.add('d-none');
+            document.getElementById(`step${currentStep}`).classList.remove('active');
+            
+            if (currentStep > 1) {
+                document.querySelector(`#step${currentStep-1} + .step-line`).classList.remove('completed');
+            }
+            
+            currentStep = step;
+            document.getElementById(`step${currentStep}-content`).classList.remove('d-none');
+            document.getElementById(`step${currentStep}`).classList.add('active');
+        }
+
+        function validateStep(step) {
+            const stepContent = document.getElementById(`step${step}-content`);
+            const requiredFields = stepContent.querySelectorAll('[required]');
+            
+            for (let field of requiredFields) {
+                if (!field.value.trim()) {
+                    showToast(`Please fill in ${field.previousElementSibling.textContent}`, 'error');
+                    field.focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Image upload handling
+        document.getElementById('profileImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast('Image size must be less than 5MB', 'error');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('imagePreview').classList.remove('d-none');
+                    document.getElementById('imagePlaceholder').classList.add('d-none');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.image-upload-area');
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('profileImage').files = files;
+                document.getElementById('profileImage').dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Form submission
+        document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!validateStep(3)) return;
+            
+            const formData = new FormData(this);
+            formData.append('institution_id', '{{ institution.id }}');
+            
+            const password = formData.get('password');
+            const confirmPassword = formData.get('confirm_password');
+            
+            if (password !== confirmPassword) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/register/student', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Registration successful! Redirecting to login...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/institution/{{ institution.subdomain }}/login';
+                    }, 2000);
+                } else {
+                    showToast(data.error || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showToast('Registration failed. Please try again.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

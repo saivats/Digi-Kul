@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Digi Kul Teachers Portal{% endblock %}</title>
     
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+    
     <!-- Security and Cache Prevention Headers -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, private">
     <meta http-equiv="Pragma" content="no-cache">
@@ -137,7 +144,17 @@
         }
         
         /* ===== BUTTONS ===== */
+        /* Let Bootstrap handle button styles - only add custom overrides for specific cases */
         .btn {
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* Custom button styles for non-Bootstrap buttons */
+        .custom-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -153,78 +170,15 @@
             min-height: 2.5rem;
         }
         
-        .btn-primary {
+        .custom-btn-primary {
             background: var(--primary);
             color: var(--white);
         }
         
-        .btn-primary:hover {
+        .custom-btn-primary:hover {
             background: var(--primary-dark);
             transform: translateY(-1px);
             box-shadow: var(--shadow-md);
-        }
-        
-        .btn-secondary {
-            background: var(--gray-200);
-            color: var(--gray-700);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--gray-300);
-            transform: translateY(-1px);
-        }
-        
-        .btn-success {
-            background: var(--success);
-            color: var(--white);
-        }
-        
-        .btn-success:hover {
-            background: #059669;
-            transform: translateY(-1px);
-        }
-        
-        .btn-warning {
-            background: var(--warning);
-            color: var(--white);
-        }
-        
-        .btn-warning:hover {
-            background: #d97706;
-            transform: translateY(-1px);
-        }
-        
-        .btn-error {
-            background: var(--error);
-            color: var(--white);
-        }
-        
-        .btn-error:hover {
-            background: #dc2626;
-            transform: translateY(-1px);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-        }
-        
-        .btn-outline:hover {
-            background: var(--primary);
-            color: var(--white);
-        }
-        
-        .btn-sm {
-            padding: var(--space-2) var(--space-4);
-            font-size: var(--font-size-xs);
-            min-height: 2rem;
-        }
-        
-        .btn-lg {
-            padding: var(--space-4) var(--space-8);
-            font-size: var(--font-size-lg);
-            min-height: 3rem;
         }
         
         .logout-btn {
@@ -386,73 +340,18 @@
         }
         
         /* ===== MODALS ===== */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
+        /* Let Bootstrap handle modal styles - only add custom overrides if needed */
         .modal-content {
-            background: var(--white);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-xl);
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow: hidden;
-            width: 100%;
-            max-width: 600px;
         }
         
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-6);
             border-bottom: 1px solid var(--gray-200);
         }
         
-        .modal-title {
-            font-size: var(--font-size-xl);
-            font-weight: 700;
-            color: var(--gray-900);
-            margin: 0;
-        }
-        
-        .modal-close {
-            font-size: var(--font-size-2xl);
-            cursor: pointer;
-            color: var(--gray-400);
-            background: none;
-            border: none;
-            padding: var(--space-2);
-            border-radius: var(--radius);
-            transition: all 0.3s ease;
-        }
-        
-        .modal-close:hover {
-            color: var(--gray-600);
-            background: var(--gray-100);
-        }
-        
-        .modal-body {
-            padding: var(--space-6);
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-        
         .modal-footer {
-            padding: var(--space-6);
             border-top: 1px solid var(--gray-200);
-            display: flex;
-            gap: var(--space-3);
-            justify-content: flex-end;
         }
         
         /* ===== ALERTS ===== */
@@ -701,6 +600,15 @@
 
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
     <script>
         async function logout(){

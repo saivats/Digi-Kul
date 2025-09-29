@@ -1,278 +1,292 @@
-# 🎓 DigiKul - Low Bandwidth E-Learning Platform
+# Digi Kul Teachers Portal
 
-A comprehensive e-learning platform designed specifically for rural areas with limited internet connectivity. DigiKul provides audio-first live classes, offline content delivery, and device-to-device sharing capabilities optimized for 2G/3G networks.
+A comprehensive educational platform built with Flask that supports institution-based cohort management, live lecture sessions, quiz systems, and session recording.
 
-## 🌟 Key Features
+## 🚀 Features
 
-### 🎤 Audio-First Live Classes
-- **WebRTC Integration**: Real-time communication with adaptive quality
-- **Audio Priority**: Prioritizes audio streams over video for low bandwidth
-- **Adaptive Bitrate**: Automatically adjusts quality based on network conditions
-- **Push-to-Talk**: Bandwidth optimization for student interactions
+### 🏢 Institution-Based Cohort Management
+- **Multiple Institutions**: Support for multiple educational institutions
+- **Cohort Organization**: Students belong to one cohort with scoped access
+- **Teacher Multi-Cohort Access**: Teachers can belong to multiple cohorts and select one upon login
+- **Proper Database Relationships**: Institution → Cohorts → Users with proper foreign keys
 
-### 📱 Mobile-First Design
-- **Responsive Interface**: Works seamlessly on smartphones and tablets
-- **Offline Mode**: Download materials for offline access
-- **Progressive Web App**: Can be installed on mobile devices
-- **Touch-Optimized**: Intuitive touch controls for all interactions
+### 📧 SMTP Email Notifications
+- **Welcome Emails**: Automatic welcome emails upon student/teacher registration
+- **Cohort Notifications**: Email notifications when students join cohorts
+- **Lecture Updates**: Email notifications for lecture changes
+- **Quiz Notifications**: Email alerts for new quizzes
+- **Configurable SMTP**: Support for various SMTP providers
 
-### 🌐 Low Bandwidth Optimization
-- **Smart Compression**: Automatic compression of audio, images, and documents
-- **Quality Monitoring**: Real-time bandwidth and quality monitoring
-- **Fallback Mechanisms**: Graceful degradation when connectivity is poor
-- **Efficient Signaling**: Minimal overhead WebSocket communication
+### 📚 Lecture & Material Management
+- **Lecture Scheduling**: 
+  - Prevent scheduling lectures in the past
+  - Allow "now" lectures for immediate start
+  - Future scheduling with validation
+- **Lecture Expiry Logic**: Lectures expire after ending, not joinable but logged
+- **Material Access**: Students can access uploaded resources and past attended lectures
+- **File Compression**: Automatic compression of audio, image, and PDF files
 
-### 📚 Asynchronous Learning
-- **Content Download**: Download complete lecture packages
-- **Offline Quizzes**: Interactive assessments that work offline
-- **Local Storage**: Cached materials for offline access
-- **Sync on Connect**: Automatic synchronization when online
+### 🎯 Comprehensive Quiz System
+- **Quiz Creation**: Teachers can create quizzes within cohorts
+- **Multiple Choice Questions**: Support for multiple-choice questions with correct answers
+- **Time Limits**: Optional time limits for quizzes
+- **Multiple Attempts**: Configurable maximum attempts per student
+- **Analytics Dashboard**: 
+  - Individual student performance tracking
+  - Aggregate performance metrics
+  - Graphical analytics with charts
+  - Question-level analytics
+- **Real-time Results**: Dynamic results and performance tracking
 
-### 🤝 Device-to-Device Sharing
-- **Local Network Sharing**: Share content via Wi-Fi Direct
-- **QR Code Integration**: Easy session joining via QR codes
-- **Peer-to-Peer**: Direct device communication without internet
-- **Content Distribution**: Efficient content sharing among nearby devices
+### 📹 Session Recording
+- **Live Session Recording**: Record video, audio, and chat during live sessions
+- **Multiple Recording Types**: Full recording, audio-only, or chat-only
+- **Participant Activity Logging**: Track participant joins, leaves, and activities
+- **Chat Logging**: Automatic logging of all chat messages during sessions
+- **Recording Management**: Start, stop, and manage recordings
+- **File Organization**: Organized storage of recording chunks and metadata
 
-## 🚀 Quick Start
+### 🎨 Modern UI/UX
+- **Responsive Design**: Modern, responsive design with Bootstrap/Tailwind
+- **Card-Based Layout**: Replace lists/forms with modern cards
+- **Modal Popups**: Modal popups for creating/editing lectures, materials, quizzes
+- **Toast Notifications**: Real-time toast notifications for user feedback
+- **Cohort Selection**: Dropdown for teachers to select active cohort
+- **Interactive Dashboards**: Modern dashboard with cards for materials, lectures, quizzes
+- **Chart Integration**: Quiz analytics with graphs and charts
+
+### 🔐 Security & Access Control
+- **Cohort Scoping**: Middleware for data access scoping by cohort
+- **Role-Based Access**: Different access levels for students, teachers, and admins
+- **Session Management**: Enhanced session security with proper expiration
+- **Row Level Security**: Database-level security with RLS policies
+
+## 🏗️ Architecture
+
+### Modular Structure
+```
+Digi_Kul_TeachersPortal/
+├── main.py                 # Main application entry point
+├── config.py              # Configuration settings
+├── supabase_schema.sql    # Database schema
+├── middlewares/           # Authentication and cohort middleware
+├── services/              # Business logic services
+├── routes/                # API route blueprints
+├── utils/                 # Utility functions
+├── templates/             # HTML templates
+└── static/               # Static assets
+```
+
+### Services
+- **CohortService**: Institution and cohort management
+- **LectureService**: Lecture scheduling and management
+- **QuizService**: Quiz creation, taking, and analytics
+- **AdminService**: Administrative operations
+- **SessionRecordingService**: Live session recording
+- **EmailService**: SMTP email notifications
+
+### Middleware
+- **AuthMiddleware**: Authentication decorators
+- **CohortMiddleware**: Cohort-based access control
+
+## 🛠️ Installation
 
 ### Prerequisites
 - Python 3.8+
-- pip (Python package installer)
+- Supabase account
+- SMTP email service (optional)
 
-### Installation
-
+### Setup
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd DigiKul_TeachersPortal
+   cd Digi_Kul_TeachersPortal
    ```
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
+2. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables**
+3. **Configure environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   # Copy example config
+   cp config.example.py config.py
+   
+   # Edit config.py with your settings
    ```
+
+4. **Database setup**
+   - Create a Supabase project
+   - Run the SQL schema from `supabase_schema.sql`
+   - Update your Supabase URL and key in config.py
 
 5. **Run the application**
    ```bash
-   python app.py
+   python main.py
    ```
 
-6. **Access the platform**
-   - Open your browser and go to `http://localhost:5000`
-   - Teacher Portal: `http://localhost:5000/teacher`
-   - Student Portal: `http://localhost:5000/student`
+## 📊 Database Schema
 
-## 📖 API Documentation
+### Core Tables
+- **institutions**: Educational institutions
+- **teachers**: Teacher accounts with institution association
+- **students**: Student accounts with institution association
+- **cohorts**: Learning cohorts within institutions
+- **lectures**: Lecture schedules and details
+- **materials**: Teaching materials and resources
 
-### Authentication Endpoints
-- `POST /api/register` - Teacher registration
-- `POST /api/login` - Teacher login
-- `POST /api/students/register` - Student registration
+### Quiz System Tables
+- **quiz_sets**: Quiz containers with metadata
+- **quizzes**: Individual quiz questions
+- **quiz_attempts**: Student quiz attempts
+- **quiz_responses**: Individual question responses
 
-### Lecture Management
-- `POST /api/lectures` - Create new lecture
-- `GET /api/lectures` - Get teacher's lectures
-- `GET /api/lectures/public` - Get public lectures for students
+### Session Recording Tables
+- **session_recordings**: Recording metadata and statistics
+- **recording_chunks**: Video/audio chunks for recordings
 
-### Live Sessions
-- `POST /api/live_session/start` - Start live session
-- `POST /api/live_session/<session_id>/stop` - Stop live session
-- `POST /api/live_session/<session_id>/join` - Join live session
+## 🔌 API Endpoints
 
-### Content Management
-- `POST /api/upload_material` - Upload teaching material
-- `GET /api/lecture/<lecture_id>/materials` - Get lecture materials
-- `GET /api/download/<material_id>` - Download material (compressed)
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/register/teacher` - Teacher registration (admin only)
+- `POST /api/auth/register/student` - Student registration (admin only)
 
-### Mobile App Endpoints
-- `POST /api/mobile/register_student` - Mobile student registration
-- `GET /api/mobile/lectures/available` - Get available lectures
-- `GET /api/mobile/lecture/<lecture_id>/materials` - Get materials for mobile
-- `POST /api/mobile/session/join` - Join session from mobile
+### Cohorts
+- `GET /api/cohorts/` - Get all cohorts
+- `POST /api/cohorts/` - Create cohort (admin only)
+- `GET /api/cohorts/teacher` - Get teacher's cohorts
+- `POST /api/cohorts/student/join` - Join cohort with code
 
-### Device Sharing
-- `POST /api/sharing/create_session` - Create sharing session
-- `POST /api/sharing/<session_id>/join` - Join sharing session
-- `GET /api/sharing/<session_id>/materials` - Get shared materials
+### Lectures
+- `POST /api/lectures` - Create lecture
+- `POST /api/lectures/instant` - Create instant lecture
+- `GET /api/lectures` - Get user's lectures
+- `POST /api/lectures/<id>/materials` - Upload material
+
+### Quizzes
+- `POST /api/quiz/sets` - Create quiz set
+- `POST /api/quiz/sets/<id>/questions` - Add quiz question
+- `POST /api/quiz/sets/<id>/start` - Start quiz attempt
+- `GET /api/quiz/sets/<id>/analytics` - Get quiz analytics
+
+### Session Recording
+- `POST /api/recordings/start` - Start recording
+- `POST /api/recordings/stop` - Stop recording
+- `GET /api/recordings/status/<session_id>` - Get recording status
+- `GET /api/lectures/<id>/recordings` - Get lecture recordings
 
 ## 🔧 Configuration
 
 ### Environment Variables
-```env
-# Database Configuration
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-
-# Application Settings
-SECRET_KEY=your_secret_key
-MAX_CONTENT_LENGTH=10485760
-
-# WebRTC Configuration
-SOCKETIO_CORS_ALLOWED_ORIGINS=*
-SOCKETIO_ASYNC_MODE=threading
-```
-
-### Compression Settings
 ```python
-# Audio compression
-AUDIO_BITRATE = '48k'  # Adjust for bandwidth
+# Supabase Configuration
+SUPABASE_URL = "your-supabase-url"
+SUPABASE_KEY = "your-supabase-key"
 
-# Image compression
-IMAGE_QUALITY = 30  # Lower = more compression
+# SMTP Configuration
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_USERNAME = "your-email@gmail.com"
+SMTP_PASSWORD = "your-app-password"
+SMTP_SENDER_EMAIL = "your-email@gmail.com"
 
-# PDF compression
-PDF_COMPRESSION_LEVEL = 3  # 1-9, higher = more compression
+# Application Configuration
+SECRET_KEY = "your-secret-key"
+UPLOAD_FOLDER = "uploads"
+COMPRESSED_FOLDER = "compressed"
 ```
 
-## 📱 Mobile App Integration
+## 🌐 WebSocket Events
 
-### Android API Usage
-The platform provides RESTful APIs specifically designed for mobile app integration:
+### Live Sessions
+- `join_session` - Join a live session
+- `leave_session` - Leave a live session
+- `chat_message` - Send chat message
+- `webrtc_offer/answer` - WebRTC signaling
+- `ice_candidate` - ICE candidate exchange
 
+### Recording
+- `start_recording` - Start session recording
+- `stop_recording` - Stop session recording
+- `recording_chunk` - Send video/audio chunk
+- `get_recording_status` - Get recording status
+
+## 📱 Usage Examples
+
+### Creating a Lecture
 ```javascript
-// Register student
-const response = await fetch('/api/mobile/register_student', {
+// Create a scheduled lecture
+fetch('/api/lectures', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-        name: 'John Doe',
-        email: 'john@example.com',
-        institution: 'Rural College'
+        title: 'Mathematics 101',
+        description: 'Introduction to algebra',
+        scheduled_time: '2024-01-15T10:00:00Z',
+        duration: 60,
+        cohort_id: 'cohort-uuid'
     })
 });
-
-// Get available lectures
-const lectures = await fetch('/api/mobile/lectures/available');
-
-// Join live session
-const session = await fetch('/api/mobile/session/join', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        session_id: 'session_123',
-        student_id: 'student_456',
-        student_name: 'John Doe'
-    })
-});
 ```
 
-### WebRTC Integration
-For mobile apps, integrate WebRTC using the signaling server:
-
+### Starting a Quiz
 ```javascript
-// Connect to signaling server
-const socket = io('http://your-server:5000');
-
-// Join session
-socket.emit('join_session', {
-    session_id: 'session_123',
-    user_id: 'student_456',
-    user_type: 'student',
-    user_name: 'John Doe'
-});
-
-// Handle WebRTC offers/answers
-socket.on('webrtc_offer', async (data) => {
-    // Handle WebRTC offer
+// Start a quiz attempt
+fetch('/api/quiz/sets/quiz-uuid/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'}
 });
 ```
 
-## 🌍 Deployment
-
-### Local Development
-```bash
-python app.py
+### Starting Recording
+```javascript
+// Start session recording
+socket.emit('start_recording', {
+    session_id: 'session-uuid',
+    lecture_id: 'lecture-uuid',
+    recording_type: 'full'
+});
 ```
-
-### Production Deployment
-1. **Use a production WSGI server**:
-   ```bash
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 app:app
-   ```
-
-2. **Use a reverse proxy** (Nginx):
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       
-       location / {
-           proxy_pass http://127.0.0.1:5000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-       
-       location /socket.io/ {
-           proxy_pass http://127.0.0.1:5000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-       }
-   }
-   ```
-
-3. **Environment setup**:
-   ```bash
-   export FLASK_ENV=production
-   export SECRET_KEY=your_production_secret_key
-   ```
-
-## 📊 Performance Optimization
-
-### For Low Bandwidth Networks
-1. **Audio-First Approach**: Prioritize audio over video
-2. **Adaptive Quality**: Monitor bandwidth and adjust accordingly
-3. **Compression**: Use efficient compression algorithms
-4. **Caching**: Implement aggressive caching strategies
-5. **Offline Mode**: Allow full offline functionality
-
-### Network Requirements
-- **Minimum**: 100 Kbps for audio-only
-- **Recommended**: 500 Kbps for audio + low-quality video
-- **Optimal**: 1 Mbps for full functionality
 
 ## 🔒 Security Features
 
-- **JWT Authentication**: Secure token-based authentication
-- **File Validation**: Strict file type and size validation
-- **CORS Protection**: Configurable CORS settings
-- **Input Sanitization**: Protection against injection attacks
+- **Row Level Security (RLS)**: Database-level access control
+- **Cohort Scoping**: Users can only access data from their cohorts
+- **Session Security**: Enhanced session management with proper expiration
+- **Input Validation**: Comprehensive input validation and sanitization
+- **File Upload Security**: Secure file handling with type validation
 
-## 🧪 Testing
+## 🚀 Deployment
 
-### Run Tests
-```bash
-python test_backend.py
+### Production Considerations
+1. **Environment Variables**: Set all required environment variables
+2. **Database**: Use production Supabase instance
+3. **File Storage**: Configure proper file storage (AWS S3, etc.)
+4. **SMTP**: Use production SMTP service
+5. **SSL**: Enable HTTPS for production
+6. **Monitoring**: Set up logging and monitoring
+
+### Docker Deployment
+```dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["python", "main.py"]
 ```
-
-### Test Coverage
-- Authentication flows
-- File upload and compression
-- WebRTC signaling
-- Database operations
-- API endpoints
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📄 License
 
@@ -281,26 +295,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
-- Create an issue on GitHub
-- Contact the development team
-- Check the documentation wiki
+- Create an issue in the repository
+- Check the documentation
+- Review the API endpoints
 
-## 🎯 Roadmap
+## 🔄 Version History
 
-- [ ] Advanced analytics and reporting
-- [ ] Multi-language support
-- [ ] Advanced offline synchronization
-- [ ] Integration with learning management systems
-- [ ] Mobile app development (iOS/Android)
-- [ ] Advanced AI-powered content recommendations
+### v2.0.0
+- Added institution-based cohort management
+- Implemented comprehensive quiz system
+- Added session recording functionality
+- Enhanced UI/UX with modern design
+- Added SMTP email notifications
+- Implemented cohort scoping middleware
 
-## 🙏 Acknowledgments
-
-- WebRTC community for real-time communication
-- Flask and SocketIO for the backend framework
-- Open source contributors
-- Rural education advocates
-
----
-
-**Built with ❤️ for rural education**
+### v1.0.0
+- Basic lecture management
+- Simple user authentication
+- File upload functionality
+- Live session support
