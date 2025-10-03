@@ -123,6 +123,25 @@
             border: 1px solid #e9ecef;
         }
         
+        /* Fix text visibility on dark backgrounds */
+        .card-text, .text-muted, .card-title {
+            color: #333 !important;
+        }
+        
+        .card-body {
+            background: #fff;
+            color: #333;
+        }
+        
+        .card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+        }
+        
+        .badge {
+            color: #fff !important;
+        }
+        
         .chatbot-input {
             padding: 15px;
             border-top: 1px solid #e9ecef;
@@ -275,6 +294,26 @@
                     <i class="bi bi-question-circle me-2"></i>Quizzes
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="polls-tab" data-bs-toggle="tab" data-bs-target="#polls" type="button" role="tab">
+                    <i class="bi bi-bar-chart me-2"></i>Polls
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab">
+                    <i class="bi bi-chat-dots me-2"></i>Discussions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="grades-tab" data-bs-toggle="tab" data-bs-target="#grades" type="button" role="tab">
+                    <i class="bi bi-award me-2"></i>Grades
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="recordings-tab" data-bs-toggle="tab" data-bs-target="#recordings" type="button" role="tab">
+                    <i class="bi bi-play-circle me-2"></i>Recordings
+                </button>
+            </li>
         </ul>
 
         <div class="tab-content" id="dashboardTabContent">
@@ -343,6 +382,74 @@
                             <div class="text-center py-4">
                                 <i class="bi bi-question-circle fs-1 text-muted"></i>
                                 <p class="text-muted mt-2">No quizzes available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Polls Tab -->
+            <div class="tab-pane fade" id="polls" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Active Polls</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="pollsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No polls available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discussions Tab -->
+            <div class="tab-pane fade" id="discussions" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Cohort Discussions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="discussionsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No discussions available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grades Tab -->
+            <div class="tab-pane fade" id="grades" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">My Grades</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="gradesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-award fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No grades available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recordings Tab -->
+            <div class="tab-pane fade" id="recordings" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recorded Lectures</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recordingsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-play-circle fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No recordings available</p>
                             </div>
                         </div>
                     </div>
@@ -455,7 +562,11 @@
                     loadCohorts(),
                     loadLectures(),
                     loadMaterials(),
-                    loadQuizzes()
+                    loadQuizzes(),
+                    loadPolls(),
+                    loadDiscussions(),
+                    loadGrades(),
+                    loadRecordings()
                 ]);
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -575,7 +686,12 @@
                                 <i class="bi bi-clock me-1"></i>
                                 ${new Date(lecture.scheduled_time).toLocaleString()}
                             </small>
-                            <span class="badge bg-primary">${lecture.duration} min</span>
+                            <div>
+                                <span class="badge bg-primary me-2">${lecture.duration} min</span>
+                                <button class="btn btn-sm btn-success" onclick="joinLiveSession('${lecture.id}')">
+                                    <i class="bi bi-play-circle me-1"></i>Join Live
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -715,12 +831,10 @@
             showTypingIndicator();
             
             try {
-                // Simulate AI response (replace with actual AI integration)
-                setTimeout(() => {
-                    hideTypingIndicator();
-                    const response = generateAshaResponse(message);
-                    addMessage(response, 'asha');
-                }, 1000 + Math.random() * 2000);
+                // Get AI response
+                const response = await generateAshaResponse(message);
+                hideTypingIndicator();
+                addMessage(response, 'asha');
             } catch (error) {
                 hideTypingIndicator();
                 addMessage('Sorry, I encountered an error. Please try again.', 'asha');
@@ -770,7 +884,38 @@
             }
         }
 
-        function generateAshaResponse(userMessage) {
+        async function generateAshaResponse(userMessage) {
+            try {
+                // Check if API keys are configured
+                const response = await fetch('/api/student/chatbot/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: userMessage,
+                        user_id: currentUser.id,
+                        user_name: currentUser.name
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.response) {
+                        return data.response;
+                    }
+                }
+                
+                // Fallback to simple responses if API is not available
+                return generateFallbackResponse(userMessage);
+                
+            } catch (error) {
+                console.error('Chatbot API error:', error);
+                return generateFallbackResponse(userMessage);
+            }
+        }
+        
+        function generateFallbackResponse(userMessage) {
             const message = userMessage.toLowerCase();
             
             // Simple response patterns
@@ -824,14 +969,350 @@
             }
         }
 
-        function downloadMaterial(materialId) {
-            // Implement material download
-            showToast('Download feature coming soon!', 'info');
+        async function downloadMaterial(materialId) {
+            try {
+                const response = await fetch(`/api/student/materials/${materialId}/download`);
+                
+                if (response.ok) {
+                    // If it's a redirect to Supabase Storage, the browser will handle it
+                    if (response.redirected) {
+                        window.open(response.url, '_blank');
+                    } else {
+                        // For local files, trigger download
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `material_${materialId}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    }
+                    showToast('Material downloaded successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to download material', 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download material', 'error');
+            }
         }
 
-        function startQuiz(quizId) {
-            // Implement quiz start
-            showToast('Quiz feature coming soon!', 'info');
+        async function startQuiz(quizId) {
+            try {
+                const response = await fetch('/api/student/quiz-attempts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ quiz_set_id: quizId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Quiz started! Redirecting...', 'success');
+                    // Redirect to quiz page
+                    window.location.href = `/quiz/${data.attempt_id}`;
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Quiz start error:', error);
+                showToast('Failed to start quiz', 'error');
+            }
+        }
+
+        // Additional loading functions
+        async function loadPolls() {
+            try {
+                const response = await fetch('/api/student/polls');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderPolls(data.polls);
+                }
+            } catch (error) {
+                console.error('Error loading polls:', error);
+            }
+        }
+
+        async function loadDiscussions() {
+            try {
+                const response = await fetch('/api/student/discussions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderDiscussions(data.discussions);
+                }
+            } catch (error) {
+                console.error('Error loading discussions:', error);
+            }
+        }
+
+        async function loadGrades() {
+            try {
+                const response = await fetch('/api/student/grades');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderGrades(data.grades);
+                }
+            } catch (error) {
+                console.error('Error loading grades:', error);
+            }
+        }
+
+        async function loadRecordings() {
+            try {
+                const response = await fetch('/api/student/recordings');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderRecordings(data.recordings);
+                }
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+            }
+        }
+
+        function renderPolls(polls) {
+            const container = document.getElementById('pollsList');
+            
+            if (polls.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No polls available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = polls.map(poll => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${poll.question}</h6>
+                        <div class="mb-3">
+                            ${poll.options.map((option, index) => `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="poll_${poll.id}" id="option_${poll.id}_${index}" value="${option}">
+                                    <label class="form-check-label" for="option_${poll.id}_${index}">${option}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${new Date(poll.created_at).toLocaleDateString()}
+                            </small>
+                            <div>
+                                <button class="btn btn-sm btn-primary me-2" onclick="votePoll('${poll.id}')">Vote</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="viewPollResults('${poll.id}')">Results</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDiscussions(discussions) {
+            const container = document.getElementById('discussionsList');
+            
+            if (discussions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No discussions available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = discussions.map(discussion => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${discussion.title}</h6>
+                        <p class="card-text text-muted">${discussion.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-people me-1"></i>
+                                ${discussion.cohort_name || 'Unknown Cohort'}
+                            </small>
+                            <button class="btn btn-sm btn-primary" onclick="viewDiscussion('${discussion.id}')">
+                                <i class="bi bi-chat-dots me-1"></i>View Discussion
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGrades(grades) {
+            const container = document.getElementById('gradesList');
+            
+            if (grades.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-award fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No grades available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = grades.map(grade => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${grade.lecture_title || 'Assignment'}</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Grade:</strong> ${grade.grade}/${grade.max_grade}</p>
+                                <p class="mb-1"><strong>Percentage:</strong> ${grade.percentage.toFixed(1)}%</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Type:</strong> ${grade.grade_type}</p>
+                                <p class="mb-1"><strong>Date:</strong> ${new Date(grade.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        ${grade.comments ? `<p class="mt-2"><strong>Comments:</strong> ${grade.comments}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRecordings(recordings) {
+            const container = document.getElementById('recordingsList');
+            
+            if (recordings.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-play-circle fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No recordings available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recordings.map(recording => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${recording.title || 'Lecture Recording'}</h6>
+                        <p class="card-text text-muted">${recording.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${recording.duration ? Math.floor(recording.duration / 60) + ' min' : 'Unknown duration'}
+                                <span class="ms-3">
+                                    <i class="bi bi-download me-1"></i>
+                                    ${recording.download_count || 0} downloads
+                                </span>
+                            </small>
+                            <button class="btn btn-sm btn-primary" onclick="downloadRecording('${recording.id}')">
+                                <i class="bi bi-download me-1"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Additional functionality
+        async function votePoll(pollId) {
+            const selectedOption = document.querySelector(`input[name="poll_${pollId}"]:checked`);
+            if (!selectedOption) {
+                showToast('Please select an option', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/student/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ selected_option: selectedOption.value })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Vote submitted successfully!', 'success');
+                    loadPolls(); // Refresh polls
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Vote error:', error);
+                showToast('Failed to submit vote', 'error');
+            }
+        }
+
+        async function viewPollResults(pollId) {
+            try {
+                const response = await fetch(`/api/student/polls/${pollId}/results`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show results in a modal or new page
+                    showToast('Poll results loaded', 'info');
+                    // Implement results display
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Results error:', error);
+                showToast('Failed to load results', 'error');
+            }
+        }
+
+        function viewDiscussion(forumId) {
+            // Navigate to discussion page
+            window.location.href = `/discussion/${forumId}`;
+        }
+
+        async function joinLiveSession(lectureId) {
+            try {
+                const response = await fetch(`/api/student/live-session/${lectureId}`);
+                
+                if (response.ok) {
+                    // Redirect to live session
+                    window.location.href = `/api/student/live-session/${lectureId}`;
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to join live session', 'error');
+                }
+            } catch (error) {
+                console.error('Join live session error:', error);
+                showToast('Failed to join live session', 'error');
+            }
+        }
+
+        async function downloadRecording(recordingId) {
+            try {
+                const response = await fetch(`/api/student/recordings/${recordingId}/download`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `recording_${recordingId}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showToast('Recording downloaded successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to download recording', 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download recording', 'error');
+            }
         }
     </script>
 </body>

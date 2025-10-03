@@ -32,9 +32,17 @@ class SupabaseDatabaseManager:
         self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
         
         # Initialize storage manager
-        self.storage = SupabaseStorageManager(self.supabase_url, self.supabase_key)
-        # Create storage buckets
-        self.storage.create_buckets()
+        try:
+            self.storage = SupabaseStorageManager(self.supabase_url, self.supabase_key)
+            # Create storage buckets
+            bucket_created = self.storage.create_buckets()
+            if bucket_created:
+                print("✅ Supabase Storage buckets created successfully")
+            else:
+                print("⚠️ Warning: Failed to create some storage buckets")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to initialize storage manager: {e}")
+            self.storage = None
     
     def init_database(self):
         """Initialize database - tables should be created via SQL schema"""
@@ -332,7 +340,33 @@ class SupabaseDatabaseManager:
         except Exception:
             return []
     
-    # Material methods
+    # Material methods - REFACTORED
+    def upload_material_to_storage(self, file, title: str, file_type: str, folder_path: str = None) -> Tuple[Optional[str], str]:
+        """Upload material file to Supabase Storage"""
+        try:
+            if not self.storage:
+                return None, "Storage manager not available"
+            
+            # Generate unique filename
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{title}_{timestamp}.{file_type}"
+            
+            # Upload to Supabase Storage
+            storage_url, message = self.storage.upload_file(
+                file=file,
+                bucket_name='materials',
+                folder_path=folder_path or 'general',
+                custom_filename=filename
+            )
+            
+            if storage_url:
+                return storage_url, "File uploaded successfully"
+            else:
+                return None, f"Upload failed: {message}"
+                
+        except Exception as e:
+            return None, f"Upload error: {str(e)}"
+    
     def add_material(self, lecture_id: str, title: str, description: str, file_path: str, compressed_path: str, file_size: int, file_type: str) -> Tuple[Optional[str], str]:
         """Add material to lecture using Supabase Storage"""
         try:
@@ -393,7 +427,7 @@ class SupabaseDatabaseManager:
     def add_material_to_cohort(self, cohort_id: str, teacher_id: str, title: str, description: str, file_path: str, file_size: int, file_type: str) -> Tuple[Optional[str], str]:
         """Add material to cohort using Supabase Storage"""
         try:
-            if not self.supabase or not self.storage:
+            if not self.supabase:
                 return None, "Database connection not available"
             
             # Get cohort details to find required fields
@@ -403,16 +437,22 @@ class SupabaseDatabaseManager:
             
             cohort = cohort_result.data[0]
             
-            # Upload file to Supabase Storage
-            storage_url, message = self.storage.upload_file_from_path(
-                file_path=file_path,
-                bucket_name='materials',
-                folder_path=f"cohort_{cohort_id}",
-                custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}"
-            )
-            
-            if not storage_url:
-                return None, f"Failed to upload file: {message}"
+            # If file_path is already a Supabase Storage URL, use it directly
+            # Otherwise, upload to Supabase Storage
+            storage_url = file_path
+            if file_path and not file_path.startswith('http') and os.path.exists(file_path):
+                if self.storage:
+                    storage_url, message = self.storage.upload_file_from_path(
+                        file_path=file_path,
+                        bucket_name='materials',
+                        folder_path=f"cohort_{cohort_id}",
+                        custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}"
+                    )
+                    
+                    if not storage_url:
+                        return None, f"Failed to upload file: {message}"
+                else:
+                    return None, "Storage manager not available"
             
             material_data = {
                 'institution_id': cohort['institution_id'],
@@ -421,7 +461,7 @@ class SupabaseDatabaseManager:
                 'teacher_id': teacher_id,
                 'title': title,
                 'description': description,
-                'file_path': storage_url,  # Now using Supabase Storage URL
+                'file_path': storage_url,  # Supabase Storage URL
                 'file_name': f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}",
                 'file_type': file_type,
                 'file_size': file_size,
@@ -440,6 +480,75 @@ class SupabaseDatabaseManager:
                 
         except Exception as e:
             return None, str(e)
+    
+    def get_material_download_url(self, material_id: str) -> Tuple[Optional[str], str]:
+        """Get download URL for a material"""
+        try:
+            if not self.supabase:
+                return None, "Database not available"
+            
+            # Get material details
+            result = self.supabase.table('materials').select('file_path, file_name').eq('id', material_id).eq('is_active', True).execute()
+            if not result.data:
+                return None, "Material not found"
+            
+            material = result.data[0]
+            file_path = material.get('file_path')
+            file_name = material.get('file_name', 'material')
+            
+            if not file_path:
+                return None, "File path not found"
+            
+            # If it's already a Supabase Storage URL, return it directly
+            if file_path.startswith('http'):
+                return file_path, "Download URL ready"
+            
+            # If it's a local file, try to get a signed URL from storage
+            if self.storage:
+                try:
+                    # Extract bucket and file path from storage URL
+                    if 'supabase.co/storage/v1/object/public/' in file_path:
+                        # It's already a public URL
+                        return file_path, "Download URL ready"
+                    else:
+                        # Try to get signed URL
+                        signed_url = self.storage.get_signed_url('materials', file_path)
+                        if signed_url:
+                            return signed_url, "Download URL ready"
+                        else:
+                            return file_path, "Using direct file path"
+                except Exception as e:
+                    print(f"Error getting signed URL: {e}")
+                    return file_path, "Using direct file path"
+            
+            return file_path, "Using direct file path"
+            
+        except Exception as e:
+            return None, f"Error getting download URL: {str(e)}"
+    
+    def get_materials_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get all materials for a cohort"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('materials').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('uploaded_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting cohort materials: {e}")
+            return []
+    
+    def get_materials_by_lecture(self, lecture_id: str) -> List[Dict[str, Any]]:
+        """Get all materials for a lecture"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('materials').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('uploaded_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lecture materials: {e}")
+            return []
     
     def get_lecture_materials(self, lecture_id: str) -> List[Dict]:
         """Get all materials for a lecture"""
@@ -688,36 +797,164 @@ class SupabaseDatabaseManager:
         except Exception:
             return []
     
-    # Discussion methods
-    def add_discussion_message(self, lecture_id: str, user_id: str, message: str, user_type: str = 'student') -> Tuple[Optional[str], str]:
-        """Add message to discussion"""
+    # Discussion methods - REFACTORED
+    def create_discussion_forum(self, institution_id: str, cohort_id: str, title: str, description: str = None, created_by: str = None) -> Tuple[Optional[str], str]:
+        """Create a new discussion forum"""
         try:
-            message_data = {
-                'lecture_id': lecture_id,
-                'user_id': user_id,
-                'user_type': user_type,
-                'message': message,
-                'created_at': datetime.now().isoformat()
+            if not self.supabase:
+                return None, "Database not available"
+            
+            forum_data = {
+                'institution_id': institution_id,
+                'cohort_id': cohort_id,
+                'title': title,
+                'description': description,
+                'is_active': True,
+                'created_by': created_by,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
             }
             
-            result = self.supabase.table('discussion_messages').insert(message_data).execute()
+            result = self.supabase.table('discussion_forums').insert(forum_data).execute()
             
             if result.data:
-                return result.data[0]['id'], "Message added successfully"
+                return result.data[0]['id'], "Discussion forum created successfully"
             else:
-                return None, "Failed to add message"
+                return None, "Failed to create discussion forum"
                 
         except Exception as e:
             return None, str(e)
     
-    def get_discussion_messages(self, lecture_id: str) -> List[Dict]:
-        """Get discussion messages for lecture"""
+    def create_discussion_post(self, institution_id: str, forum_id: str, author_id: str, author_type: str, content: str, title: str = None, parent_post_id: str = None) -> Tuple[Optional[str], str]:
+        """Create a new discussion post"""
         try:
-            # This is a complex query that would need to be handled differently in Supabase
-            # For now, we'll get basic messages and handle user names in the application
-            result = self.supabase.table('discussion_messages').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=False).execute()
-            return result.data
-        except Exception:
+            if not self.supabase:
+                return None, "Database not available"
+            
+            post_data = {
+                'institution_id': institution_id,
+                'forum_id': forum_id,
+                'parent_post_id': parent_post_id,
+                'author_id': author_id,
+                'author_type': author_type,
+                'title': title,
+                'content': content,
+                'is_pinned': False,
+                'is_locked': False,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('discussion_posts').insert(post_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Discussion post created successfully"
+            else:
+                return None, "Failed to create discussion post"
+                
+        except Exception as e:
+            return None, str(e)
+    
+    def get_discussion_forums_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get discussion forums for a cohort"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('discussion_forums').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting discussion forums: {e}")
+            return []
+    
+    def get_discussion_posts(self, forum_id: str) -> List[Dict[str, Any]]:
+        """Get all posts for a discussion forum with author names"""
+        try:
+            if not self.supabase:
+                return []
+            
+            # First get all posts for the forum
+            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).execute()
+            
+            if not result.data:
+                print(f"No posts found for forum {forum_id}")
+                return []
+            
+            posts = result.data
+            print(f"Found {len(posts)} posts for forum {forum_id}")
+            
+            # For each post, get the author information
+            for post in posts:
+                author_id = post.get('author_id')
+                author_type = post.get('author_type')
+                
+                if author_type == 'teacher':
+                    try:
+                        teacher_result = self.supabase.table('teachers').select('name, email').eq('id', author_id).execute()
+                        if teacher_result.data:
+                            teacher = teacher_result.data[0]
+                            post['author_name'] = teacher.get('name', 'Unknown Teacher')
+                            post['author_email'] = teacher.get('email', '')
+                        else:
+                            post['author_name'] = 'Unknown Teacher'
+                            post['author_email'] = ''
+                    except Exception as e:
+                        print(f"Error getting teacher info: {e}")
+                        post['author_name'] = 'Unknown Teacher'
+                        post['author_email'] = ''
+                
+                elif author_type == 'student':
+                    try:
+                        student_result = self.supabase.table('students').select('name, email').eq('id', author_id).execute()
+                        if student_result.data:
+                            student = student_result.data[0]
+                            post['author_name'] = student.get('name', 'Unknown Student')
+                            post['author_email'] = student.get('email', '')
+                        else:
+                            post['author_name'] = 'Unknown Student'
+                            post['author_email'] = ''
+                    except Exception as e:
+                        print(f"Error getting student info: {e}")
+                        post['author_name'] = 'Unknown Student'
+                        post['author_email'] = ''
+                
+                print(f"  - Post by {post.get('author_name')} ({author_type}): {post.get('content', '')[:50]}...")
+            
+            return posts
+            
+        except Exception as e:
+            print(f"Error getting discussion posts: {e}")
+            return []
+    
+    def get_cohort_discussions(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get discussions for a cohort with post counts"""
+        try:
+            if not self.supabase:
+                return []
+            
+            # Get discussion forums for the cohort with post count
+            result = self.supabase.table('discussion_forums').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
+            discussions = result.data if result.data else []
+            
+            # Add post count and latest post info to each discussion
+            for discussion in discussions:
+                try:
+                    # Get post count
+                    posts_result = self.supabase.table('discussion_posts').select('id').eq('forum_id', discussion['id']).execute()
+                    discussion['post_count'] = len(posts_result.data) if posts_result.data else 0
+                    
+                    # Get latest post
+                    latest_post = self.supabase.table('discussion_posts').select('*').eq('forum_id', discussion['id']).order('created_at', desc=True).limit(1).execute()
+                    if latest_post.data:
+                        discussion['latest_post'] = latest_post.data[0]
+                except Exception as e:
+                    print(f"Error getting discussion details: {e}")
+                    discussion['post_count'] = 0
+                    discussion['latest_post'] = None
+            
+            return discussions
+        except Exception as e:
+            print(f"Error getting cohort discussions: {e}")
             return []
     
     # Cohort methods
@@ -1635,76 +1872,6 @@ class SupabaseDatabaseManager:
     # DISCUSSION FORUM METHODS
     # ========================================
     
-    def create_discussion_forum(self, institution_id: str, cohort_id: str, 
-                               title: str, description: str = None, 
-                               created_by: str = None) -> Tuple[Optional[str], str]:
-        """Create a new discussion forum"""
-        try:
-            if not self.supabase:
-                return None, "Database not available"
-            
-            forum_data = {
-                'institution_id': institution_id,
-                'cohort_id': cohort_id,
-                'title': title,
-                'description': description,
-                'is_active': True,
-                'created_by': created_by,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            
-            result = self.supabase.table('discussion_forums').insert(forum_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Discussion forum created successfully"
-            else:
-                return None, "Failed to create discussion forum"
-                
-        except Exception as e:
-            return None, str(e)
-    
-    def create_discussion_post(self, institution_id: str, forum_id: str, 
-                              author_id: str, author_type: str, content: str,
-                              title: str = None, parent_post_id: str = None) -> Tuple[Optional[str], str]:
-        """Create a new discussion post"""
-        try:
-            if not self.supabase:
-                return None, "Database not available"
-            
-            post_data = {
-                'institution_id': institution_id,
-                'forum_id': forum_id,
-                'parent_post_id': parent_post_id,
-                'author_id': author_id,
-                'author_type': author_type,
-                'title': title,
-                'content': content,
-                'is_pinned': False,
-                'is_locked': False,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            
-            result = self.supabase.table('discussion_posts').insert(post_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Discussion post created successfully"
-            else:
-                return None, "Failed to create discussion post"
-                
-        except Exception as e:
-            return None, str(e)
-    
-    def get_forum_posts(self, forum_id: str) -> List[Dict]:
-        """Get all posts for a forum"""
-        try:
-            if not self.supabase:
-                return []
-            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=True).execute()
-            return result.data if result.data else []
-        except Exception:
-            return []
 
     # ========================================
     # GRADEBOOK METHODS
@@ -2980,6 +3147,9 @@ class SupabaseDatabaseManager:
             if not teacher:
                 return None, "Teacher not found"
             
+            # Generate a unique session_id
+            session_id = f"session_{lecture_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
             # If recording_path is already a Supabase Storage URL, use it directly
             # Otherwise, upload to Supabase Storage
             storage_url = recording_path
@@ -2998,6 +3168,7 @@ class SupabaseDatabaseManager:
                     return None, "Storage manager not available"
             
             recording_data = {
+                'session_id': session_id,  # Add the required session_id
                 'lecture_id': lecture_id,
                 'cohort_id': cohort_id,
                 'teacher_id': teacher_id,
@@ -3009,6 +3180,7 @@ class SupabaseDatabaseManager:
                 'duration': duration,
                 'download_count': 0,
                 'is_active': True,
+                'started_at': datetime.now().isoformat(),
                 'created_at': datetime.now().isoformat()
             }
             
@@ -3172,8 +3344,14 @@ class SupabaseDatabaseManager:
             return []
         try:
             result = self.supabase.table('discussion_posts').select(
-                '*, teachers(name), students(name)'
+                '*, teachers(name, email), students(name, email)'
             ).eq('forum_id', forum_id).order('created_at', desc=False).execute()
+            
+            print(f"Discussion posts query result: {len(result.data) if result.data else 0} posts found")
+            if result.data:
+                for post in result.data:
+                    print(f"  - Post by {post.get('author_type')}: {post.get('content', '')[:50]}...")
+            
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting discussion posts: {e}")
@@ -3476,83 +3654,227 @@ class SupabaseDatabaseManager:
             print(f"Error getting poll results: {e}")
             return {}
 
-    def create_discussion_post(self, institution_id: str, forum_id: str, author_id: str, author_type: str, content: str, title: str = None, parent_post_id: str = None) -> Tuple[Optional[str], str]:
-        """Create a discussion post"""
-        if not self.supabase:
-            return None, "Database connection not available"
-        
+    # ========================================
+    # GRADEBOOK METHODS
+    # ========================================
+    
+    def create_gradebook_entry(self, student_id: str, lecture_id: str, teacher_id: str, 
+                              grade: float, max_grade: float = 100.0, 
+                              comments: str = None, grade_type: str = 'assignment') -> Tuple[Optional[str], str]:
+        """Create a gradebook entry for a student"""
         try:
-            post_data = {
-                'institution_id': institution_id,
-                'forum_id': forum_id,
-                'author_id': author_id,
-                'author_type': author_type,
-                'content': content,
-                'created_at': datetime.now().isoformat()
+            if not self.supabase:
+                return None, "Database connection not available"
+            
+            # Get lecture details to find cohort_id
+            lecture_result = self.supabase.table('lectures').select('cohort_id, institution_id').eq('id', lecture_id).execute()
+            if not lecture_result.data:
+                return None, "Lecture not found"
+            
+            lecture = lecture_result.data[0]
+            
+            gradebook_data = {
+                'student_id': student_id,
+                'lecture_id': lecture_id,
+                'teacher_id': teacher_id,
+                'cohort_id': lecture['cohort_id'],
+                'institution_id': lecture['institution_id'],
+                'grade': grade,
+                'max_grade': max_grade,
+                'percentage': (grade / max_grade) * 100 if max_grade > 0 else 0,
+                'grade_type': grade_type,
+                'comments': comments,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
             }
             
-            if title:
-                post_data['title'] = title
-            if parent_post_id:
-                post_data['parent_post_id'] = parent_post_id
-            
-            result = self.supabase.table('discussion_posts').insert(post_data).execute()
+            result = self.supabase.table('gradebook').insert(gradebook_data).execute()
             
             if result.data:
-                return result.data[0]['id'], "Post created successfully"
+                return result.data[0]['id'], "Gradebook entry created successfully"
             else:
-                return None, "Failed to create post"
+                return None, "Failed to create gradebook entry"
+                
         except Exception as e:
-            print(f"Error creating discussion post: {e}")
-            return None, f"Error creating discussion post: {str(e)}"
+            return None, str(e)
 
-    def get_discussion_posts(self, forum_id: str) -> List[Dict[str, Any]]:
-        """Get discussion posts for a forum"""
-        if not self.supabase:
-            return []
+    def get_student_grades(self, student_id: str, cohort_id: str = None) -> List[Dict[str, Any]]:
+        """Get all grades for a student"""
         try:
-            result = self.supabase.table('discussion_posts').select('*, teachers(name), students(name)').eq('forum_id', forum_id).order('created_at', desc=True).execute()
+            if not self.supabase:
+                return []
+            
+            query = self.supabase.table('gradebook').select(
+                '*, lectures(title, scheduled_time), teachers(name)'
+            ).eq('student_id', student_id)
+            
+            if cohort_id:
+                query = query.eq('cohort_id', cohort_id)
+            
+            result = query.order('created_at', desc=True).execute()
             return result.data if result.data else []
+            
         except Exception as e:
-            print(f"Error getting discussion posts: {e}")
+            print(f"Error getting student grades: {e}")
+            return []
+    
+    def get_cohort_grades(self, cohort_id: str, lecture_id: str = None) -> List[Dict[str, Any]]:
+        """Get all grades for a cohort"""
+        try:
+            if not self.supabase:
+                return []
+            
+            query = self.supabase.table('gradebook').select(
+                '*, students(name, email), lectures(title, scheduled_time), teachers(name)'
+            ).eq('cohort_id', cohort_id)
+            
+            if lecture_id:
+                query = query.eq('lecture_id', lecture_id)
+            
+            result = query.order('created_at', desc=True).execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting cohort grades: {e}")
             return []
 
-    def create_discussion_forum(self, institution_id: str, cohort_id: str, title: str, description: str = None, created_by: str = None) -> Tuple[Optional[str], str]:
-        """Create a discussion forum"""
-        if not self.supabase:
-            return None, "Database connection not available"
-        
+    def update_gradebook_entry(self, gradebook_id: str, grade: float = None, 
+                              max_grade: float = None, comments: str = None) -> Tuple[bool, str]:
+        """Update a gradebook entry"""
         try:
-            forum_data = {
-                'institution_id': institution_id,
-                'cohort_id': cohort_id,
-                'title': title,
-                'description': description,
-                'created_by': created_by,
-                'is_active': True,
-                'created_at': datetime.now().isoformat()
+            if not self.supabase:
+                return False, "Database connection not available"
+            
+            update_data = {'updated_at': datetime.now().isoformat()}
+            
+            if grade is not None:
+                update_data['grade'] = grade
+            if max_grade is not None:
+                update_data['max_grade'] = max_grade
+            if comments is not None:
+                update_data['comments'] = comments
+            
+            # Recalculate percentage if grade or max_grade changed
+            if 'grade' in update_data or 'max_grade' in update_data:
+                # Get current values
+                current = self.supabase.table('gradebook').select('grade, max_grade').eq('id', gradebook_id).execute()
+                if current.data:
+                    current_grade = update_data.get('grade', current.data[0]['grade'])
+                    current_max = update_data.get('max_grade', current.data[0]['max_grade'])
+                    update_data['percentage'] = (current_grade / current_max) * 100 if current_max > 0 else 0
+            
+            result = self.supabase.table('gradebook').update(update_data).eq('id', gradebook_id).execute()
+            
+            if result.data:
+                return True, "Gradebook entry updated successfully"
+            else:
+                return False, "Failed to update gradebook entry"
+                
+        except Exception as e:
+            return False, str(e)
+    
+    def delete_gradebook_entry(self, gradebook_id: str) -> Tuple[bool, str]:
+        """Delete a gradebook entry"""
+        try:
+            if not self.supabase:
+                return False, "Database connection not available"
+            
+            result = self.supabase.table('gradebook').delete().eq('id', gradebook_id).execute()
+            
+            if result.data:
+                return True, "Gradebook entry deleted successfully"
+            else:
+                return False, "Failed to delete gradebook entry"
+                
+        except Exception as e:
+            return False, str(e)
+
+    def get_student_grade_summary(self, student_id: str, cohort_id: str = None) -> Dict[str, Any]:
+        """Get grade summary for a student"""
+        try:
+            if not self.supabase:
+                return {}
+            
+            query = self.supabase.table('gradebook').select('grade, max_grade, percentage').eq('student_id', student_id)
+            
+            if cohort_id:
+                query = query.eq('cohort_id', cohort_id)
+            
+            result = query.execute()
+            
+            if not result.data:
+                return {
+                    'total_assignments': 0,
+                    'average_grade': 0,
+                    'average_percentage': 0,
+                    'highest_grade': 0,
+                    'lowest_grade': 0
+                }
+            
+            grades = result.data
+            total_assignments = len(grades)
+            total_grade = sum(grade['grade'] for grade in grades)
+            total_max = sum(grade['max_grade'] for grade in grades)
+            percentages = [grade['percentage'] for grade in grades]
+            
+            return {
+                'total_assignments': total_assignments,
+                'average_grade': total_grade / total_assignments if total_assignments > 0 else 0,
+                'average_percentage': sum(percentages) / len(percentages) if percentages else 0,
+                'highest_grade': max(grade['grade'] for grade in grades),
+                'lowest_grade': min(grade['grade'] for grade in grades),
+                'total_points': total_grade,
+                'max_points': total_max
             }
             
-            result = self.supabase.table('discussion_forums').insert(forum_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Forum created successfully"
-            else:
-                return None, "Failed to create forum"
         except Exception as e:
-            print(f"Error creating discussion forum: {e}")
-            return None, f"Error creating discussion forum: {str(e)}"
-
-    def get_discussion_forums_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
-        """Get discussion forums for a cohort"""
-        if not self.supabase:
-            return []
+            print(f"Error getting grade summary: {e}")
+            return {}
+    
+    def get_cohort_grade_statistics(self, cohort_id: str, lecture_id: str = None) -> Dict[str, Any]:
+        """Get grade statistics for a cohort"""
         try:
-            result = self.supabase.table('discussion_forums').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('created_at', desc=True).execute()
-            return result.data if result.data else []
+            if not self.supabase:
+                return {}
+            
+            query = self.supabase.table('gradebook').select('grade, max_grade, percentage, student_id').eq('cohort_id', cohort_id)
+            
+            if lecture_id:
+                query = query.eq('lecture_id', lecture_id)
+            
+            result = query.execute()
+            
+            if not result.data:
+                return {
+                    'total_students': 0,
+                    'average_grade': 0,
+                    'average_percentage': 0,
+                    'highest_grade': 0,
+                    'lowest_grade': 0,
+                    'pass_rate': 0
+                }
+            
+            grades = result.data
+            percentages = [grade['percentage'] for grade in grades]
+            student_ids = set(grade['student_id'] for grade in grades)
+            
+            # Calculate pass rate (assuming 60% is passing)
+            passing_grades = [p for p in percentages if p >= 60]
+            pass_rate = (len(passing_grades) / len(percentages)) * 100 if percentages else 0
+            
+            return {
+                'total_students': len(student_ids),
+                'total_assignments': len(grades),
+                'average_grade': sum(grade['grade'] for grade in grades) / len(grades),
+                'average_percentage': sum(percentages) / len(percentages) if percentages else 0,
+                'highest_grade': max(grade['grade'] for grade in grades),
+                'lowest_grade': min(grade['grade'] for grade in grades),
+                'pass_rate': pass_rate
+            }
+            
         except Exception as e:
-            print(f"Error getting discussion forums: {e}")
-            return []
+            print(f"Error getting cohort grade statistics: {e}")
+            return {}
 
 
 # Create a global instance for compatibility

@@ -352,6 +352,7 @@
         <div class="sidebar-tabs">
             <button class="sidebar-tab active" onclick="switchSidebarTab('polls')">📊 Polls</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('materials')">📁 Materials</button>
+            <button class="sidebar-tab" onclick="switchSidebarTab('whiteboard')">🎨 Whiteboard</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('chat')">💬 Chat</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('participants')">👥 People</button>
         </div>
@@ -388,6 +389,25 @@
                 <div id="materials-list">
                     <!-- Materials will be added here -->
                 </div>
+            </div>
+        </div>
+        
+        <!-- Whiteboard Panel -->
+        <div id="whiteboard-panel" class="tab-panel">
+            <div class="polls-container" id="whiteboard-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4>Whiteboard</h4>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="clearWhiteboard()" style="padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button onclick="setWhiteboardTool('pen')" id="pen-tool" style="padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">✏️ Pen</button>
+                    <button onclick="setWhiteboardTool('eraser')" id="eraser-tool" style="padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">🧹 Eraser</button>
+                    <input type="color" id="color-picker" onchange="setWhiteboardColor(this.value)" style="width: 40px; height: 35px; border: none; border-radius: 4px; cursor: pointer;">
+                    <input type="range" id="brush-size" min="1" max="10" value="3" onchange="setBrushSize(this.value)" style="width: 80px;">
+                </div>
+                <canvas id="whiteboard-canvas" width="300" height="400" style="border: 2px solid #ddd; border-radius: 8px; cursor: crosshair; background: white;"></canvas>
             </div>
         </div>
         
@@ -438,6 +458,7 @@
     let isScreenSharing = false;
     let isRecording = false;
     let localStream = null;
+    let originalCameraStream = null; // Store original camera stream for restoration
     let peerConnections = new Map();
     let remoteStreams = new Map();
     let mediaRecorder = null;
@@ -445,6 +466,18 @@
     let currentLectureId = null;
     let polls = [];
     let userVotes = new Map();
+    let connectionQuality = 'high'; // Track connection quality
+    let bandwidthMonitor = null; // Monitor bandwidth
+    
+    // Whiteboard variables
+    let whiteboardCanvas = null;
+    let whiteboardCtx = null;
+    let isDrawing = false;
+    let currentTool = 'pen';
+    let currentColor = '#000000';
+    let brushSize = 3;
+    let lastX = 0;
+    let lastY = 0;
     
     // WebRTC configuration
     const rtcConfig = {
@@ -507,6 +540,12 @@
                 console.warn('No valid lecture ID found, polls will not be loaded');
             }
             
+            // Initialize whiteboard
+            initializeWhiteboard();
+            
+            // Start bandwidth monitoring
+            startBandwidthMonitoring();
+            
         } catch (error) {
             console.error('Failed to initialize session:', error);
             showError('Failed to join session: ' + error.message);
@@ -554,6 +593,7 @@
         });
         
         socket.on('chat_message', (data) => {
+            console.log('Received chat message:', data);
             addChatMessage(data.user_name, data.message, data.timestamp, data.user_id === currentUser.id);
         });
         
@@ -564,6 +604,24 @@
         
         socket.on('poll_vote', (data) => {
             updatePollResults(data.poll_id, data.results);
+        });
+        
+        socket.on('whiteboard_draw', (data) => {
+            // Don't process our own drawing events
+            if (data.user_id === currentUser.id) return;
+            
+            // Draw the received drawing data
+            drawRemoteWhiteboard(data.drawing_data);
+        });
+        
+        socket.on('whiteboard_clear', (data) => {
+            // Don't process our own clear events
+            if (data.user_id === currentUser.id) return;
+            
+            // Clear the whiteboard
+            if (whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
         });
     }
     
@@ -836,20 +894,48 @@
     async function toggleScreenShare() {
         try {
             if (!isScreenSharing) {
+                console.log('Starting screen share...');
+                
+                // Get screen share stream with optimized settings
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: true
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 15, max: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
                 
-                // Stop current video track
+                // Store original camera stream for restoration
+                if (localStream && !originalCameraStream) {
+                    originalCameraStream = localStream.clone();
+                }
+                
+                // Stop current video track but keep audio
                 if (localStream) {
                     localStream.getVideoTracks().forEach(track => track.stop());
                 }
                 
-                // Create new stream with screen share
+                // Create new stream with screen share video and original audio
                 const newStream = new MediaStream();
-                screenStream.getVideoTracks().forEach(track => newStream.addTrack(track));
-                if (localStream) {
+                screenStream.getVideoTracks().forEach(track => {
+                    track.applyConstraints({
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 15 }
+                    });
+                    newStream.addTrack(track);
+                });
+                
+                // Keep original audio track if available
+                if (originalCameraStream) {
+                    originalCameraStream.getAudioTracks().forEach(track => newStream.addTrack(track));
+                } else if (localStream) {
                     localStream.getAudioTracks().forEach(track => newStream.addTrack(track));
                 }
                 
@@ -862,76 +948,114 @@
                     localVideo.srcObject = localStream;
                 }
                 
-                // Update all peer connections with new stream
+                // Update all peer connections with new video track
+                const videoTrack = screenStream.getVideoTracks()[0];
                 peerConnections.forEach((peerConnection, userId) => {
                     const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                    if (sender && videoTrack) {
+                        sender.replaceTrack(videoTrack).catch(err => {
+                            console.warn('Failed to replace video track:', err);
+                        });
                     }
                 });
                 
                 isScreenSharing = true;
                 document.getElementById('screen-btn').classList.add('active');
+                document.getElementById('screen-btn').innerHTML = '<i class="bi bi-stop-circle"></i>';
                 
                 // Handle screen share end
-                screenStream.getVideoTracks()[0].onended = () => {
+                videoTrack.onended = () => {
+                    console.log('Screen share ended by user');
                     toggleScreenShare();
                 };
                 
-                console.log('Screen sharing started');
+                console.log('Screen sharing started successfully');
                 
                 // Notify students about screen sharing
                 socket.emit('screen_share_started', {
                     session_id: sessionId,
-                    user_id: userId
+                    user_id: currentUser.id
                 });
+                
             } else {
+                console.log('Stopping screen share...');
+                
                 // Stop screen sharing and restore camera
-                const cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
-                });
-                
-                // Stop current video track
-                if (localStream) {
-                    localStream.getVideoTracks().forEach(track => track.stop());
-                }
-                
-                // Create new stream with camera
-                const newStream = new MediaStream();
-                cameraStream.getVideoTracks().forEach(track => newStream.addTrack(track));
-                cameraStream.getAudioTracks().forEach(track => newStream.addTrack(track));
-                
-                // Update local stream
-                localStream = newStream;
-                
-                // Update local video element
-                const localVideo = document.getElementById('local-video');
-                if (localVideo) {
-                    localVideo.srcObject = localStream;
-                }
-                
-                // Update all peer connections with new stream
-                peerConnections.forEach((peerConnection, userId) => {
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(cameraStream.getVideoTracks()[0]);
+                try {
+                    const cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 },
+                            frameRate: { ideal: 15, max: 30 }
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                    
+                    // Stop current screen share tracks
+                    if (localStream) {
+                        localStream.getVideoTracks().forEach(track => track.stop());
                     }
-                });
-                
-                isScreenSharing = false;
-                document.getElementById('screen-btn').classList.remove('active');
-                
-                console.log('Screen sharing stopped, camera restored');
-                
-                // Notify students about screen sharing stop
-                socket.emit('screen_share_stopped', {
-                    session_id: sessionId,
-                    user_id: userId
-                });
+                    
+                    // Create new stream with camera
+                    const newStream = new MediaStream();
+                    cameraStream.getVideoTracks().forEach(track => {
+                        track.applyConstraints({
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 15 }
+                        });
+                        newStream.addTrack(track);
+                    });
+                    
+                    // Keep audio track
+                    if (localStream) {
+                        localStream.getAudioTracks().forEach(track => newStream.addTrack(track));
+                    }
+                    
+                    // Update local stream
+                    localStream = newStream;
+                    
+                    // Update local video element
+                    const localVideo = document.getElementById('local-video');
+                    if (localVideo) {
+                        localVideo.srcObject = localStream;
+                    }
+                    
+                    // Update all peer connections with camera track
+                    const videoTrack = cameraStream.getVideoTracks()[0];
+                    peerConnections.forEach((peerConnection, userId) => {
+                        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender && videoTrack) {
+                            sender.replaceTrack(videoTrack).catch(err => {
+                                console.warn('Failed to replace video track:', err);
+                            });
+                        }
+                    });
+                    
+                    isScreenSharing = false;
+                    document.getElementById('screen-btn').classList.remove('active');
+                    document.getElementById('screen-btn').innerHTML = '<i class="bi bi-display"></i>';
+                    
+                    console.log('Screen sharing stopped, camera restored successfully');
+                    
+                    // Notify students about screen sharing stop
+                    socket.emit('screen_share_stopped', {
+                        session_id: sessionId,
+                        user_id: currentUser.id
+                    });
+                    
+                } catch (cameraError) {
+                    console.error('Failed to restore camera:', cameraError);
+                    showAlert('Failed to restore camera. Please refresh the page.', 'error');
+                }
             }
         } catch (error) {
             console.error('Failed to toggle screen share:', error);
+            showAlert('Screen sharing failed: ' + error.message, 'error');
         }
     }
 
@@ -1070,21 +1194,49 @@
     
     function addParticipant(participant) {
         const participantsList = document.getElementById('participants-list');
+        if (!participantsList) {
+            console.error('Participants list element not found');
+            return;
+        }
+        
+        // Check if participant already exists
+        const existingParticipant = document.getElementById(`participant-${participant.user_id}`);
+        if (existingParticipant) {
+            console.log('Participant already exists:', participant.user_name);
+            return;
+        }
+        
         const participantDiv = document.createElement('div');
         participantDiv.className = `participant ${participant.user_type}`;
         participantDiv.id = `participant-${participant.user_id}`;
+        participantDiv.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            min-height: 60px;
+        `;
         
-        const avatar = participant.user_name.charAt(0).toUpperCase();
+        const avatar = participant.user_name ? participant.user_name.charAt(0).toUpperCase() : '?';
+        const userName = participant.user_name || 'Unknown User';
+        const userType = participant.user_type || 'student';
         
         participantDiv.innerHTML = `
-            <div class="participant-avatar">${avatar}</div>
-            <div class="participant-info">
-                <h4>${participant.user_name}</h4>
-                <p>${participant.user_type}</p>
+            <div style="width: 40px; height: 40px; background: #007bff; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; flex-shrink: 0;">${avatar}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                <div style="font-size: 12px; color: #666; text-transform: capitalize;">${userType}</div>
             </div>
         `;
         
         participantsList.appendChild(participantDiv);
+        console.log('Added participant:', userName, 'Type:', userType);
+        
+        // Update participants count
+        updateParticipantsCount();
     }
     
     function removeParticipant(userId) {
@@ -1138,6 +1290,7 @@
         const message = input.value.trim();
         
         if (message && socket) {
+            console.log('Sending chat message:', message);
             socket.emit('chat_message', {
                 session_id: sessionId,
                 message: message,
@@ -1145,6 +1298,8 @@
                 user_name: currentUser.name
             });
             
+            // Add message to chat immediately for better UX
+            addChatMessage(currentUser.name, message, new Date().toISOString(), true);
             input.value = '';
         }
     }
@@ -1317,28 +1472,43 @@
     async function loadMaterials() {
         if (!currentLectureId) {
             console.warn('No lecture ID available for loading materials');
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">No lecture selected</p>';
             return;
         }
         
         console.log('Loading materials for lecture ID:', currentLectureId);
         
         try {
-            const res = await fetch(`/api/teacher/lecture/${currentLectureId}/materials`, {
-                credentials: 'same-origin'
-            });
-            const data = await res.json();
+            // Show loading indicator
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">Loading materials...</p>';
             
+            const res = await fetch(`/api/teacher/lecture/${currentLectureId}/materials`, {
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
+            const data = await res.json();
             console.log('Materials API response:', data);
             
-            if (data.success) {
-                renderMaterials(data.materials);
+            if (data.success && data.materials) {
+                if (data.materials.length > 0) {
+                    renderMaterials(data.materials);
+                } else {
+                    document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">No materials available for this lecture</p>';
+                }
             } else {
                 console.error('Failed to load materials:', data.error);
-                document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+                document.getElementById('materials-list').innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load materials: ' + (data.error || 'Unknown error') + '</p>';
             }
         } catch (error) {
             console.error('Failed to load materials:', error);
-            document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load materials: ' + error.message + '</p>';
         }
     }
     
@@ -1396,6 +1566,256 @@
             alert.style.display = 'none';
         }, 3000);
     }
+    
+    // Whiteboard Functions
+    function initializeWhiteboard() {
+        whiteboardCanvas = document.getElementById('whiteboard-canvas');
+        if (whiteboardCanvas) {
+            whiteboardCtx = whiteboardCanvas.getContext('2d');
+            setupWhiteboardEventListeners();
+            console.log('Whiteboard initialized');
+        }
+    }
+    
+    function setupWhiteboardEventListeners() {
+        if (!whiteboardCanvas) return;
+        
+        whiteboardCanvas.addEventListener('mousedown', startDrawing);
+        whiteboardCanvas.addEventListener('mousemove', draw);
+        whiteboardCanvas.addEventListener('mouseup', stopDrawing);
+        whiteboardCanvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events for mobile
+        whiteboardCanvas.addEventListener('touchstart', handleTouch);
+        whiteboardCanvas.addEventListener('touchmove', handleTouch);
+        whiteboardCanvas.addEventListener('touchend', stopDrawing);
+    }
+    
+    function handleTouch(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        whiteboardCanvas.dispatchEvent(mouseEvent);
+    }
+    
+    function startDrawing(e) {
+        isDrawing = true;
+        const rect = whiteboardCanvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = whiteboardCanvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(lastX, lastY);
+        whiteboardCtx.lineTo(currentX, currentY);
+        whiteboardCtx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
+        whiteboardCtx.lineWidth = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.stroke();
+        
+        // Broadcast drawing data to other participants
+        if (socket) {
+            socket.emit('whiteboard_draw', {
+                session_id: sessionId,
+                drawing_data: {
+                    fromX: lastX,
+                    fromY: lastY,
+                    toX: currentX,
+                    toY: currentY,
+                    color: currentTool === 'eraser' ? '#ffffff' : currentColor,
+                    lineWidth: currentTool === 'eraser' ? brushSize * 3 : brushSize,
+                    tool: currentTool
+                }
+            });
+        }
+        
+        lastX = currentX;
+        lastY = currentY;
+    }
+    
+    function stopDrawing() {
+        isDrawing = false;
+    }
+    
+    function setWhiteboardTool(tool) {
+        currentTool = tool;
+        
+        // Update button styles
+        document.getElementById('pen-tool').style.background = tool === 'pen' ? '#0056b3' : '#007bff';
+        document.getElementById('eraser-tool').style.background = tool === 'eraser' ? '#545b62' : '#6c757d';
+        
+        // Update cursor
+        whiteboardCanvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
+    }
+    
+    function setWhiteboardColor(color) {
+        currentColor = color;
+    }
+    
+    function setBrushSize(size) {
+        brushSize = parseInt(size);
+    }
+    
+    function clearWhiteboard() {
+        if (whiteboardCtx) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            
+            // Broadcast clear event to other participants
+            if (socket) {
+                socket.emit('whiteboard_clear', {
+                    session_id: sessionId
+                });
+            }
+            
+            showAlert('Whiteboard cleared', 'success');
+        }
+    }
+    
+    function drawRemoteWhiteboard(drawingData) {
+        if (!whiteboardCtx) return;
+        
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(drawingData.fromX, drawingData.fromY);
+        whiteboardCtx.lineTo(drawingData.toX, drawingData.toY);
+        whiteboardCtx.strokeStyle = drawingData.color;
+        whiteboardCtx.lineWidth = drawingData.lineWidth;
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.stroke();
+    }
+    
+    // Bandwidth monitoring and adaptive quality
+    function startBandwidthMonitoring() {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+        
+        bandwidthMonitor = setInterval(async () => {
+            try {
+                // Test connection speed
+                const startTime = performance.now();
+                const response = await fetch('/api/teacher/debug/storage', {
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                const endTime = performance.now();
+                
+                const latency = endTime - startTime;
+                const newQuality = determineQuality(latency);
+                
+                if (newQuality !== connectionQuality) {
+                    connectionQuality = newQuality;
+                    adjustStreamQuality();
+                    console.log(`Connection quality changed to: ${connectionQuality}`);
+                }
+            } catch (error) {
+                console.warn('Bandwidth monitoring failed:', error);
+            }
+        }, 10000); // Check every 10 seconds
+    }
+    
+    function determineQuality(latency) {
+        if (latency < 100) return 'high';
+        if (latency < 300) return 'medium';
+        return 'low';
+    }
+    
+    function adjustStreamQuality() {
+        if (!localStream) return;
+        
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            const constraints = getQualityConstraints(connectionQuality);
+            track.applyConstraints(constraints).catch(err => {
+                console.warn('Failed to apply quality constraints:', err);
+            });
+        });
+        
+        // Update peer connections
+        peerConnections.forEach((peerConnection, userId) => {
+            const senders = peerConnection.getSenders();
+            senders.forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                    const params = sender.getParameters();
+                    if (params.encodings) {
+                        params.encodings.forEach(encoding => {
+                            encoding.maxBitrate = getMaxBitrate(connectionQuality);
+                            encoding.scaleResolutionDownBy = getScaleFactor(connectionQuality);
+                        });
+                        sender.setParameters(params).catch(err => {
+                            console.warn('Failed to set encoding parameters:', err);
+                        });
+                    }
+                }
+            });
+        });
+    }
+    
+    function getQualityConstraints(quality) {
+        switch (quality) {
+            case 'high':
+                return {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 30, max: 60 }
+                };
+            case 'medium':
+                return {
+                    width: { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 15, max: 30 }
+                };
+            case 'low':
+                return {
+                    width: { ideal: 320, max: 640 },
+                    height: { ideal: 240, max: 480 },
+                    frameRate: { ideal: 10, max: 15 }
+                };
+            default:
+                return {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 15 }
+                };
+        }
+    }
+    
+    function getMaxBitrate(quality) {
+        switch (quality) {
+            case 'high': return 2000000; // 2 Mbps
+            case 'medium': return 1000000; // 1 Mbps
+            case 'low': return 500000; // 500 Kbps
+            default: return 1000000;
+        }
+    }
+    
+    function getScaleFactor(quality) {
+        switch (quality) {
+            case 'high': return 1;
+            case 'medium': return 1.5;
+            case 'low': return 2;
+            default: return 1.5;
+        }
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+    });
+    
 </script>
 
     <!-- Bootstrap JS -->

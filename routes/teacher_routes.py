@@ -150,31 +150,26 @@ def download_material(material_id):
         if material.get('teacher_id') != teacher_id:
             return jsonify({'error': 'Access denied to this material'}), 403
         
-        # Get file URL from Supabase Storage
-        file_url = material.get('file_path')
-        print(f"File URL: {file_url}")
+        # Get download URL using the new method
+        download_url, message = db.get_material_download_url(material_id)
+        print(f"Download URL: {download_url}")
         
-        if not file_url:
-            return jsonify({'error': 'Material file URL not found'}), 404
+        if not download_url:
+            return jsonify({'error': f'Failed to get download URL: {message}'}), 404
         
-        # Check if it's a Supabase Storage URL or any HTTP URL
-        if file_url.startswith('http'):
-            # It's already a public URL, redirect to it
-            db.increment_material_download_count(material_id)
-            return redirect(file_url)
+        # Increment download count
+        db.increment_material_download_count(material_id)
+        
+        # If it's a Supabase Storage URL, redirect to it
+        if download_url.startswith('http'):
+            return redirect(download_url)
         else:
             # Fallback for local files (legacy support)
-            file_path = file_url
-            if not file_path.startswith('uploads/'):
-                file_path = f"uploads/{file_path}"
-            file_path = file_path.replace('//', '/')
+            if not os.path.exists(download_url):
+                return jsonify({'error': f'Material file not found at path: {download_url}'}), 404
             
-            if not os.path.exists(file_path):
-                return jsonify({'error': f'Material file not found at path: {file_path}'}), 404
-            
-            db.increment_material_download_count(material_id)
             return send_file(
-                file_path,
+                download_url,
                 as_attachment=True,
                 download_name=material.get('file_name', 'material')
             )
@@ -260,15 +255,38 @@ def upload_recording():
             return jsonify({'error': 'Lecture ID and Cohort ID are required'}), 400
         
         # Upload directly to Supabase Storage
-        storage_url, message = db.storage.upload_file(
-            file=file,
-            bucket_name='recordings',
-            folder_path=f"lecture_{lecture_id}",
-            custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        )
+        storage_url = None
+        if db.storage:
+            try:
+                storage_url, message = db.storage.upload_file(
+                    file=file,
+                    bucket_name='recordings',
+                    folder_path=f"lecture_{lecture_id}",
+                    custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                )
+                
+                if not storage_url:
+                    print(f"Storage upload failed: {message}")
+                    storage_url = None
+            except Exception as e:
+                print(f"Storage upload error: {e}")
+                storage_url = None
         
+        # Fallback to local storage if Supabase Storage is not available
         if not storage_url:
-            return jsonify({'error': f'Failed to upload recording: {message}'}), 500
+            # Create upload directory if it doesn't exist
+            upload_dir = 'recordings/videos'
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Generate unique filename
+            file_extension = os.path.splitext(file.filename)[1]
+            unique_filename = f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            
+            # Save file locally
+            file.save(file_path)
+            storage_url = file_path
+            print(f"Saved recording locally: {file_path}")
         
         # Get file size
         file_size = len(file.read())
@@ -296,6 +314,135 @@ def upload_recording():
         else:
             return jsonify({'error': message}), 500
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@teacher_bp.route('/debug/storage', methods=['GET'])
+@teacher_required
+def debug_storage():
+    """Debug storage connection"""
+    try:
+        if not db.storage:
+            return jsonify({
+                'success': False,
+                'message': 'Storage manager not initialized',
+                'storage_available': False
+            }), 500
+        
+        # Test storage connection
+        try:
+            # Try to list files in materials bucket
+            files = db.storage.list_files('materials')
+            return jsonify({
+                'success': True,
+                'message': 'Storage connection working',
+                'storage_available': True,
+                'materials_files': len(files) if files else 0
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Storage connection failed: {str(e)}',
+                'storage_available': False
+            }), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@teacher_bp.route('/debug/email', methods=['GET'])
+@teacher_required
+def debug_email():
+    """Debug email service"""
+    try:
+        teacher_id = session.get('user_id')
+        teacher = db.get_teacher_by_id(teacher_id)
+        
+        if not teacher:
+            return jsonify({'error': 'Teacher not found'}), 404
+        
+        # Test email configuration
+        email_config = {
+            'smtp_host': email_service.smtp_host,
+            'smtp_port': email_service.smtp_port,
+            'smtp_username': email_service.smtp_username,
+            'from_email': email_service.from_email,
+            'smtp_configured': bool(email_service.smtp_username and email_service.smtp_password)
+        }
+        
+        # Try to send a test email
+        try:
+            test_result = email_service.send_lecture_notification(
+                user_email=teacher['email'],
+                user_name=teacher['name'],
+                lecture_title='Test Lecture',
+                teacher_name=teacher['name'],
+                scheduled_time='2024-01-01 10:00:00',
+                cohort_name='Test Cohort'
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Email service test completed',
+                'email_config': email_config,
+                'test_email_sent': test_result,
+                'teacher_email': teacher['email']
+            }), 200
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Email test failed: {str(e)}',
+                'email_config': email_config,
+                'teacher_email': teacher['email']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@teacher_bp.route('/lecture/<lecture_id>/materials', methods=['GET'])
+@teacher_required
+def get_lecture_materials(lecture_id):
+    """Get materials for a specific lecture in live session"""
+    try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture or lecture['teacher_id'] != teacher_id:
+            return jsonify({'error': 'Access denied to this lecture'}), 403
+        
+        # Get materials for this lecture
+        materials = db.get_lecture_materials(lecture_id)
+        
+        return jsonify({
+            'success': True,
+            'materials': materials
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@teacher_bp.route('/lecture/<lecture_id>/polls', methods=['GET'])
+@teacher_required
+def get_lecture_polls(lecture_id):
+    """Get polls for a specific lecture in live session"""
+    try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture or lecture['teacher_id'] != teacher_id:
+            return jsonify({'error': 'Access denied to this lecture'}), 403
+        
+        # Get polls for this lecture
+        polls = db.get_lecture_polls(lecture_id)
+        
+        return jsonify({
+            'success': True,
+            'polls': polls
+        }), 200
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -384,24 +531,56 @@ def create_lecture():
         )
         
         if lecture_id:
+            print(f"✅ Lecture created successfully: {lecture_id}")
+            print(f"📧 Starting email notification process...")
+            
+            # Check email service configuration
+            if not email_service.smtp_username or not email_service.smtp_password:
+                print("⚠️ Email service not configured - SMTP credentials missing")
+                return jsonify({
+                    'success': True,
+                    'lecture_id': lecture_id,
+                    'message': 'Lecture created successfully (email notifications disabled)'
+                }), 201
+            
             # Send email notifications to students in the cohort
             try:
                 # Get cohort details
                 cohort = db.get_cohort_by_id(data['cohort_id'])
                 if cohort:
-                    # Get students in the cohort
-                    students = db.get_cohort_students(data['cohort_id'])
-                    
-                    # Send email to each student
-                    for student in students:
+                    print(f"📋 Cohort found: {cohort['name']} (ID: {cohort['id']})")
+                    # Send confirmation email to teacher
+                    try:
                         email_service.send_lecture_notification(
-                            user_email=student['email'],
-                            user_name=student['name'],
+                            user_email=teacher['email'],
+                            user_name=teacher['name'],
                             lecture_title=data['title'],
                             teacher_name=teacher['name'],
                             scheduled_time=data['scheduled_time'],
                             cohort_name=cohort['name']
                         )
+                        print(f"✅ Sent lecture creation confirmation to teacher: {teacher['email']}")
+                    except Exception as teacher_email_error:
+                        print(f"❌ Error sending confirmation to teacher: {teacher_email_error}")
+                    
+                    # Get students in the cohort
+                    students = db.get_cohort_students(data['cohort_id'])
+                    print(f"📧 Sending lecture notifications to {len(students)} students")
+                    
+                    # Send email to each student
+                    for student in students:
+                        try:
+                            email_service.send_lecture_notification(
+                                user_email=student['email'],
+                                user_name=student['name'],
+                                lecture_title=data['title'],
+                                teacher_name=teacher['name'],
+                                scheduled_time=data['scheduled_time'],
+                                cohort_name=cohort['name']
+                            )
+                            print(f"✅ Sent notification to student: {student['email']}")
+                        except Exception as student_email_error:
+                            print(f"❌ Error sending notification to student {student['email']}: {student_email_error}")
             except Exception as email_error:
                 print(f"Error sending lecture notifications: {email_error}")
                 # Don't fail the lecture creation if email fails
@@ -646,25 +825,39 @@ def upload_material():
             return jsonify({'error': 'Teacher not found'}), 404
         
         # Upload directly to Supabase Storage
-        if lecture_id:
-            # Upload to lecture folder
-            storage_url, message = db.storage.upload_file(
-                file=file,
-                bucket_name='materials',
-                folder_path=f"lecture_{lecture_id}",
-                custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
+        storage_url = None
+        if db.storage:
+            try:
+                print(f"Attempting to upload to Supabase Storage...")
+                if lecture_id:
+                    # Upload to lecture folder
+                    storage_url, message = db.storage.upload_file(
+                        file=file,
+                        bucket_name='materials',
+                        folder_path=f"lecture_{lecture_id}",
+                        custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    )
+                else:
+                    # Upload to cohort folder
+                    storage_url, message = db.storage.upload_file(
+                        file=file,
+                        bucket_name='materials',
+                        folder_path=f"cohort_{cohort_id}",
+                        custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    )
+                
+                if storage_url:
+                    print(f"✅ Successfully uploaded to Supabase Storage: {storage_url}")
+                else:
+                    print(f"❌ Storage upload failed: {message}")
+                    # Don't fall back to local storage - fail the upload
+                    return jsonify({'error': f'Failed to upload to storage: {message}'}), 500
+            except Exception as e:
+                print(f"❌ Storage upload error: {e}")
+                return jsonify({'error': f'Storage upload failed: {str(e)}'}), 500
         else:
-            # Upload to cohort folder
-            storage_url, message = db.storage.upload_file(
-                file=file,
-                bucket_name='materials',
-                folder_path=f"cohort_{cohort_id}",
-                custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
-        
-        if not storage_url:
-            return jsonify({'error': f'Failed to upload file: {message}'}), 500
+            print("❌ Storage manager not available")
+            return jsonify({'error': 'Storage service not available'}), 500
         
         # Get file size
         file_size = len(file.read())
@@ -847,6 +1040,59 @@ def create_quiz():
         print(f"Quiz creation result: {quiz_id}, message: {message}")
         
         if quiz_id:
+            print(f"✅ Quiz created successfully: {quiz_id}")
+            print(f"📧 Starting email notification process...")
+            
+            # Check email service configuration
+            if not email_service.smtp_username or not email_service.smtp_password:
+                print("⚠️ Email service not configured - SMTP credentials missing")
+                return jsonify({
+                    'success': True,
+                    'quiz_id': quiz_id,
+                    'message': 'Quiz created successfully (email notifications disabled)'
+                }), 201
+            
+            # Send email notifications
+            try:
+                # Get teacher and cohort details
+                teacher = db.get_teacher_by_id(teacher_id)
+                cohort = db.get_cohort_by_id(data['cohort_id'])
+                
+                if teacher and cohort:
+                    # Send confirmation email to teacher
+                    try:
+                        email_service.send_quiz_notification(
+                            user_email=teacher['email'],
+                            user_name=teacher['name'],
+                            quiz_title=data['title'],
+                            teacher_name=teacher['name'],
+                            cohort_name=cohort['name']
+                        )
+                        print(f"✅ Sent quiz creation confirmation to teacher: {teacher['email']}")
+                    except Exception as teacher_email_error:
+                        print(f"❌ Error sending confirmation to teacher: {teacher_email_error}")
+                    
+                    # Get students in the cohort
+                    students = db.get_cohort_students(data['cohort_id'])
+                    print(f"📧 Sending quiz notifications to {len(students)} students")
+                    
+                    # Send email to each student
+                    for student in students:
+                        try:
+                            email_service.send_quiz_notification(
+                                user_email=student['email'],
+                                user_name=student['name'],
+                                quiz_title=data['title'],
+                                teacher_name=teacher['name'],
+                                cohort_name=cohort['name']
+                            )
+                            print(f"✅ Sent notification to student: {student['email']}")
+                        except Exception as student_email_error:
+                            print(f"❌ Error sending notification to student {student['email']}: {student_email_error}")
+            except Exception as email_error:
+                print(f"Error sending quiz notifications: {email_error}")
+                # Don't fail the quiz creation if email fails
+            
             return jsonify({
                 'success': True,
                 'quiz_id': quiz_id,
@@ -1118,31 +1364,6 @@ def get_cohort_lectures(cohort_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@teacher_bp.route('/lectures/<lecture_id>/polls', methods=['GET'])
-@teacher_required
-def get_lecture_polls(lecture_id):
-    """Get polls for a specific lecture"""
-    try:
-        teacher_id = session.get('user_id')
-        
-        # Verify teacher has access to this lecture
-        lecture = db.get_lecture_by_id(lecture_id)
-        if not lecture:
-            return jsonify({'error': 'Lecture not found'}), 404
-        
-        if lecture['teacher_id'] != teacher_id:
-            return jsonify({'error': 'Access denied to this lecture'}), 403
-        
-        # Get polls for this lecture
-        polls = db.get_lecture_polls(lecture_id)
-        
-        return jsonify({
-            'success': True,
-            'polls': polls
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/lectures/<lecture_id>/polls', methods=['POST'])
 @teacher_required
@@ -1185,31 +1406,6 @@ def create_lecture_poll(lecture_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@teacher_bp.route('/lecture/<lecture_id>/materials', methods=['GET'])
-@teacher_required
-def get_lecture_materials(lecture_id):
-    """Get materials for a specific lecture"""
-    try:
-        teacher_id = session.get('user_id')
-        
-        # Verify teacher has access to this lecture
-        lecture = db.get_lecture_by_id(lecture_id)
-        if not lecture:
-            return jsonify({'error': 'Lecture not found'}), 404
-        
-        if lecture['teacher_id'] != teacher_id:
-            return jsonify({'error': 'Access denied to this lecture'}), 403
-        
-        # Get materials for this lecture
-        materials = db.get_lecture_materials(lecture_id)
-        
-        return jsonify({
-            'success': True,
-            'materials': materials
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/cohorts/<cohort_id>/details', methods=['GET'])
 @teacher_required
@@ -1331,6 +1527,56 @@ def create_poll():
         )
         
         if poll_id:
+            print(f"✅ Poll created successfully: {poll_id}")
+            print(f"📧 Starting email notification process...")
+            
+            # Check email service configuration
+            if not email_service.smtp_username or not email_service.smtp_password:
+                print("⚠️ Email service not configured - SMTP credentials missing")
+                return jsonify({
+                    'success': True,
+                    'poll_id': poll_id,
+                    'message': 'Poll created successfully (email notifications disabled)'
+                }), 201
+            
+            # Send email notifications
+            try:
+                # Get cohort details
+                cohort = db.get_cohort_by_id(data['cohort_id'])
+                
+                if cohort:
+                    # Send confirmation email to teacher
+                    try:
+                        email_service.send_welcome_email(
+                            user_email=teacher['email'],
+                            user_name=teacher['name'],
+                            user_type='teacher',
+                            cohort_name=cohort['name']
+                        )
+                        print(f"✅ Sent poll creation confirmation to teacher: {teacher['email']}")
+                    except Exception as teacher_email_error:
+                        print(f"❌ Error sending confirmation to teacher: {teacher_email_error}")
+                    
+                    # Get students in the cohort
+                    students = db.get_cohort_students(data['cohort_id'])
+                    print(f"📧 Sending poll notifications to {len(students)} students")
+                    
+                    # Send email to each student
+                    for student in students:
+                        try:
+                            email_service.send_welcome_email(
+                                user_email=student['email'],
+                                user_name=student['name'],
+                                user_type='student',
+                                cohort_name=cohort['name']
+                            )
+                            print(f"✅ Sent notification to student: {student['email']}")
+                        except Exception as student_email_error:
+                            print(f"❌ Error sending notification to student {student['email']}: {student_email_error}")
+            except Exception as email_error:
+                print(f"Error sending poll notifications: {email_error}")
+                # Don't fail the poll creation if email fails
+            
             return jsonify({
                 'success': True,
                 'poll_id': poll_id,

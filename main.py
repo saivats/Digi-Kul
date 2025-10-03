@@ -652,6 +652,25 @@ if socketio:
             emit('error', {'message': 'Session not found'})
             return
         
+        print(f"Chat message from {user_name} in session {session_id}: {message}")
+        
+        # Store message in database
+        try:
+            # Get lecture ID from session
+            lecture_id = active_sessions.get(session_id, {}).get('lecture_id')
+            if lecture_id:
+                # Store in discussion_posts table
+                db.create_discussion_post(
+                    institution_id=session.get('institution_id'),
+                    forum_id=lecture_id,
+                    author_id=user_id,
+                    author_type=session.get('user_type', 'student'),
+                    content=message
+                )
+                print(f"Chat message stored in database for lecture {lecture_id}")
+        except Exception as e:
+            print(f"Error storing chat message: {e}")
+        
         # Broadcast message to all participants in the session
         message_data = {
             'user_id': user_id,
@@ -661,6 +680,58 @@ if socketio:
         }
         
         emit('chat_message', message_data, room=session_id, include_self=False)
+        print(f"Chat message broadcasted to session {session_id}")
+    
+    @socketio.on('whiteboard_draw')
+    def handle_whiteboard_draw(data):
+        """Handle whiteboard drawing events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid whiteboard data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast drawing data to all participants
+        drawing_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'drawing_data': data.get('drawing_data'),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('whiteboard_draw', drawing_data, room=session_id, include_self=False)
+        print(f"Whiteboard drawing from {user_name} broadcasted to session {session_id}")
+    
+    @socketio.on('whiteboard_clear')
+    def handle_whiteboard_clear(data):
+        """Handle whiteboard clear events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid whiteboard data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast clear event to all participants
+        clear_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('whiteboard_clear', clear_data, room=session_id, include_self=False)
+        print(f"Whiteboard cleared by {user_name} in session {session_id}")
     
     @socketio.on('session_control')
     def handle_session_control(data):

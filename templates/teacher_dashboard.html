@@ -1466,24 +1466,24 @@
                 
                 return `
                     <div class="message mb-3 ${isTeacher ? 'teacher-message' : 'student-message'}">
-                        <div class="d-flex align-items-start">
+                    <div class="d-flex align-items-start">
                             <div class="avatar me-3">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center ${isTeacher ? 'bg-primary' : 'bg-success'}" style="width: 40px; height: 40px;">
                                     <i class="bi bi-person-fill text-white"></i>
                                 </div>
-                            </div>
-                            <div class="message-content flex-grow-1">
+                        </div>
+                        <div class="message-content flex-grow-1">
                                 <div class="message-header d-flex justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center">
                                         <strong class="message-author text-white me-2">${authorName}</strong>
                                         ${isTeacher ? '<span class="badge bg-primary">Teacher</span>' : '<span class="badge bg-success">Student</span>'}
-                                    </div>
+                            </div>
                                     <small class="text-white-50">${messageTime}</small>
-                                </div>
+                        </div>
                                 <div class="message-text text-white bg-dark bg-opacity-50 p-3 rounded-3">
                                     ${post.content}
-                                </div>
-                            </div>
+                    </div>
+                </div>
                         </div>
                     </div>
                 `;
@@ -1515,30 +1515,30 @@
             sendButton.disabled = true;
             sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
             
-            // Send message to server
+                // Send message to server
             fetch(`/api/teacher/discussions/${discussionId}/posts`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    content: message,
-                    author_type: 'teacher'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: message,
+                        author_type: 'teacher'
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    input.value = '';
-                    // Reload messages to show the new one
-                    loadChatMessages(discussionId);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        // Reload messages to show the new one
+                        loadChatMessages(discussionId);
                     showToast('Message sent successfully!', 'success');
-                } else {
+                    } else {
                     showToast('Failed to send message: ' + (data.error || 'Unknown error'), 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error sending message:', error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending message:', error);
                 showToast('Error sending message. Please try again.', 'error');
             })
             .finally(() => {

@@ -308,6 +308,7 @@ CREATE TABLE IF NOT EXISTS polls (
 -- Poll responses table
 CREATE TABLE IF NOT EXISTS poll_responses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
     poll_id UUID NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     selected_option TEXT NOT NULL,
@@ -323,9 +324,12 @@ CREATE TABLE IF NOT EXISTS poll_responses (
 CREATE TABLE IF NOT EXISTS session_recordings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    cohort_id UUID NOT NULL REFERENCES cohorts(id) ON DELETE CASCADE,
     session_id TEXT NOT NULL,
     lecture_id UUID NOT NULL REFERENCES lectures(id) ON DELETE CASCADE,
     teacher_id UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    title TEXT,
+    description TEXT,
     recording_type TEXT NOT NULL DEFAULT 'full', -- 'full', 'audio_only', 'chat_only'
     started_at TIMESTAMP WITH TIME ZONE NOT NULL,
     stopped_at TIMESTAMP WITH TIME ZONE,
@@ -338,6 +342,7 @@ CREATE TABLE IF NOT EXISTS session_recordings (
     is_public BOOLEAN DEFAULT false,
     download_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_active BOOLEAN DEFAULT true
 );
 
@@ -812,6 +817,62 @@ BEGIN
     
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'session_recordings' 
+        AND column_name = 'cohort_id'
+    ) THEN
+        ALTER TABLE session_recordings ADD COLUMN cohort_id UUID;
+        RAISE NOTICE 'Added cohort_id column to session_recordings table';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'session_recordings' 
+        AND column_name = 'title'
+    ) THEN
+        ALTER TABLE session_recordings ADD COLUMN title TEXT;
+        RAISE NOTICE 'Added title column to session_recordings table';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'session_recordings' 
+        AND column_name = 'description'
+    ) THEN
+        ALTER TABLE session_recordings ADD COLUMN description TEXT;
+        RAISE NOTICE 'Added description column to session_recordings table';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'session_recordings' 
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE session_recordings ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+        RAISE NOTICE 'Added updated_at column to session_recordings table';
+    END IF;
+    
+    -- Add conditional ALTER TABLE statements for poll_responses
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'poll_responses' 
+        AND column_name = 'institution_id'
+    ) THEN
+        ALTER TABLE poll_responses ADD COLUMN institution_id UUID;
+        RAISE NOTICE 'Added institution_id column to poll_responses table';
+    END IF;
+    
+    -- Add foreign key constraint for cohort_id if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_session_recordings_cohort'
+    ) THEN
+        ALTER TABLE session_recordings ADD CONSTRAINT fk_session_recordings_cohort 
+        FOREIGN KEY (cohort_id) REFERENCES cohorts(id) ON DELETE CASCADE;
+        RAISE NOTICE 'Added foreign key constraint for cohort_id in session_recordings table';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'activity_logs' 
         AND column_name = 'institution_id'
     ) THEN
@@ -959,8 +1020,10 @@ CREATE INDEX IF NOT EXISTS idx_poll_responses_student ON poll_responses(student_
 
 -- Recording indexes
 CREATE INDEX IF NOT EXISTS idx_session_recordings_institution ON session_recordings(institution_id);
+CREATE INDEX IF NOT EXISTS idx_session_recordings_cohort ON session_recordings(cohort_id);
 CREATE INDEX IF NOT EXISTS idx_session_recordings_lecture ON session_recordings(lecture_id);
 CREATE INDEX IF NOT EXISTS idx_session_recordings_teacher ON session_recordings(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_session_recordings_active ON session_recordings(is_active);
 CREATE INDEX IF NOT EXISTS idx_recording_chunks_recording ON recording_chunks(recording_id);
 
 -- Activity log indexes
@@ -1040,6 +1103,8 @@ ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE polls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE poll_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discussion_forums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discussion_posts ENABLE ROW LEVEL SECURITY;
 
 -- Super Admin policies
 DROP POLICY IF EXISTS "Super admins can manage all" ON super_admins;
@@ -1317,6 +1382,52 @@ CREATE POLICY "Students can manage their own poll responses" ON poll_responses F
     EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
 );
 
+-- Discussion forum policies
+DROP POLICY IF EXISTS "Users can access forums for their cohorts" ON discussion_forums;
+CREATE POLICY "Users can access forums for their cohorts" ON discussion_forums FOR ALL USING (
+    EXISTS (
+        SELECT 1 FROM institution_admins 
+        WHERE institution_admins.id::text = auth.uid()::text 
+        AND institution_admins.institution_id = discussion_forums.institution_id
+    ) OR
+    EXISTS (
+        SELECT 1 FROM teachers 
+        WHERE teachers.id::text = auth.uid()::text 
+        AND teachers.institution_id = discussion_forums.institution_id
+    ) OR
+    EXISTS (
+        SELECT 1 FROM students 
+        WHERE students.id::text = auth.uid()::text 
+        AND students.institution_id = discussion_forums.institution_id
+    ) OR
+    EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
+);
+
+-- Discussion post policies
+DROP POLICY IF EXISTS "Users can manage posts in their forums" ON discussion_posts;
+CREATE POLICY "Users can manage posts in their forums" ON discussion_posts FOR ALL USING (
+    auth.uid()::text = author_id::text OR
+    EXISTS (
+        SELECT 1 FROM discussion_forums df
+        JOIN institution_admins ia ON ia.institution_id = df.institution_id
+        WHERE df.id = discussion_posts.forum_id
+        AND ia.id::text = auth.uid()::text
+    ) OR
+    EXISTS (
+        SELECT 1 FROM discussion_forums df
+        JOIN teachers t ON t.institution_id = df.institution_id
+        WHERE df.id = discussion_posts.forum_id
+        AND t.id::text = auth.uid()::text
+    ) OR
+    EXISTS (
+        SELECT 1 FROM discussion_forums df
+        JOIN students s ON s.institution_id = df.institution_id
+        WHERE df.id = discussion_posts.forum_id
+        AND s.id::text = auth.uid()::text
+    ) OR
+    EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
+);
+
 -- ========================================
 -- SAMPLE DATA
 -- ========================================
@@ -1463,9 +1574,17 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger to automatically update updated_at
-CREATE TRIGGER update_institutions_updated_at 
-    BEFORE UPDATE ON institutions 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.triggers 
+        WHERE trigger_name = 'update_institutions_updated_at'
+    ) THEN
+        CREATE TRIGGER update_institutions_updated_at 
+            BEFORE UPDATE ON institutions 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Function to log user activity
 CREATE OR REPLACE FUNCTION log_user_activity()
