@@ -8,6 +8,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables before importing config
 from config import Config
+from .storage_supabase import SupabaseStorageManager
 
 class SupabaseDatabaseManager:
     def __init__(self):
@@ -29,6 +30,11 @@ class SupabaseDatabaseManager:
             raise ValueError("Supabase URL and Key must be set in environment variables")
         
         self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
+        
+        # Initialize storage manager
+        self.storage = SupabaseStorageManager(self.supabase_url, self.supabase_key)
+        # Create storage buckets
+        self.storage.create_buckets()
     
     def init_database(self):
         """Initialize database - tables should be created via SQL schema"""
@@ -328,14 +334,34 @@ class SupabaseDatabaseManager:
     
     # Material methods
     def add_material(self, lecture_id: str, title: str, description: str, file_path: str, compressed_path: str, file_size: int, file_type: str) -> Tuple[Optional[str], str]:
-        """Add material to lecture"""
+        """Add material to lecture using Supabase Storage"""
         try:
+            if not self.supabase:
+                return None, "Database connection not available"
+            
             # Get lecture details to find required fields
             lecture_result = self.supabase.table('lectures').select('institution_id, cohort_id, teacher_id').eq('id', lecture_id).execute()
             if not lecture_result.data:
                 return None, "Lecture not found"
             
             lecture = lecture_result.data[0]
+            
+            # If file_path is already a Supabase Storage URL, use it directly
+            # Otherwise, upload to Supabase Storage
+            storage_url = file_path
+            if file_path and not file_path.startswith('http') and os.path.exists(file_path):
+                if self.storage:
+                    storage_url, message = self.storage.upload_file_from_path(
+                        file_path=file_path,
+                        bucket_name='materials',
+                        folder_path=f"lecture_{lecture_id}",
+                        custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}"
+                    )
+                    
+                    if not storage_url:
+                        return None, f"Failed to upload file: {message}"
+                else:
+                    return None, "Storage manager not available"
             
             material_data = {
                 'institution_id': lecture['institution_id'],
@@ -344,11 +370,62 @@ class SupabaseDatabaseManager:
                 'teacher_id': lecture['teacher_id'],
                 'title': title,
                 'description': description,
-                'file_path': file_path,
-                'file_name': file_path.split('/')[-1],  # Extract filename from path
+                'file_path': storage_url,  # Supabase Storage URL
+                'file_name': f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}",
                 'file_type': file_type,
                 'file_size': file_size,
                 'is_public': False,
+                'download_count': 0,
+                'is_active': True,
+                'uploaded_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('materials').insert(material_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Material added successfully"
+            else:
+                return None, "Failed to add material"
+                
+        except Exception as e:
+            return None, str(e)
+    
+    def add_material_to_cohort(self, cohort_id: str, teacher_id: str, title: str, description: str, file_path: str, file_size: int, file_type: str) -> Tuple[Optional[str], str]:
+        """Add material to cohort using Supabase Storage"""
+        try:
+            if not self.supabase or not self.storage:
+                return None, "Database connection not available"
+            
+            # Get cohort details to find required fields
+            cohort_result = self.supabase.table('cohorts').select('institution_id').eq('id', cohort_id).execute()
+            if not cohort_result.data:
+                return None, "Cohort not found"
+            
+            cohort = cohort_result.data[0]
+            
+            # Upload file to Supabase Storage
+            storage_url, message = self.storage.upload_file_from_path(
+                file_path=file_path,
+                bucket_name='materials',
+                folder_path=f"cohort_{cohort_id}",
+                custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}"
+            )
+            
+            if not storage_url:
+                return None, f"Failed to upload file: {message}"
+            
+            material_data = {
+                'institution_id': cohort['institution_id'],
+                'lecture_id': None,  # Not linked to specific lecture
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'title': title,
+                'description': description,
+                'file_path': storage_url,  # Now using Supabase Storage URL
+                'file_name': f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_type}",
+                'file_type': file_type,
+                'file_size': file_size,
+                'is_public': True,  # Available to all students in cohort
                 'download_count': 0,
                 'is_active': True,
                 'uploaded_at': datetime.now().isoformat()
@@ -666,13 +743,46 @@ class SupabaseDatabaseManager:
         except Exception as e:
             return None, str(e)
     
-    def delete_cohort(self, cohort_id: str) -> Tuple[bool, str]:
+    def delete_cohort(self, cohort_id: str) -> bool:
         """Delete a cohort"""
         try:
-            self.supabase.table('cohorts').update({'is_active': False}).eq('id', cohort_id).execute()
-            return True, "Cohort deleted"
+            if not self.supabase:
+                return False
+            
+            # First check if cohort exists
+            cohort = self.supabase.table('cohorts').select('id').eq('id', cohort_id).execute()
+            if not cohort.data:
+                return False  # Cohort doesn't exist
+            
+            # Delete related data first (cascade delete)
+            # Delete teacher assignments
+            self.supabase.table('teacher_cohorts').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete student enrollments
+            self.supabase.table('enrollments').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete lectures
+            self.supabase.table('lectures').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete discussions
+            self.supabase.table('discussions').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete polls
+            self.supabase.table('polls').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete quiz sets
+            self.supabase.table('quiz_sets').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Delete materials
+            self.supabase.table('materials').delete().eq('cohort_id', cohort_id).execute()
+            
+            # Finally delete the cohort
+            result = self.supabase.table('cohorts').delete().eq('id', cohort_id).execute()
+            
+            return bool(result.data)
         except Exception as e:
-            return False, str(e)
+            print(f"Error deleting cohort: {e}")
+            return False
     
     def get_all_cohorts(self) -> List[Dict]:
         """Get all cohorts"""
@@ -809,9 +919,6 @@ class SupabaseDatabaseManager:
         except Exception:
             return []
     
-    def get_lectures_by_cohort(self, cohort_id: str) -> List[Dict]:
-        """Get lectures for a cohort (alias for get_cohort_lectures)"""
-        return self.get_cohort_lectures(cohort_id)
     
     def enroll_student_in_cohort(self, institution_id: str, student_id: str, cohort_id: str, enrolled_by: str = None) -> bool:
         """Enroll a student in a cohort"""
@@ -887,9 +994,13 @@ class SupabaseDatabaseManager:
             if not self.supabase:
                 return False
             
-            result = self.supabase.table('cohort_teachers').update({
-                'is_active': False
-            }).eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+            # First check if the assignment exists
+            existing = self.supabase.table('teacher_cohorts').select('id').eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
+            if not existing.data:
+                return False  # Assignment doesn't exist
+            
+            # Remove the assignment (hard delete)
+            result = self.supabase.table('teacher_cohorts').delete().eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
             
             return bool(result.data)
         except Exception as e:
@@ -949,7 +1060,28 @@ class SupabaseDatabaseManager:
             
             print(f"Getting cohorts for teacher: {teacher_id}")
             
-            # Check if teacher is directly assigned to cohorts
+            # Get cohorts through teacher_cohorts table
+            try:
+                result = self.supabase.table('teacher_cohorts').select(
+                    '*, cohorts!inner(*)'
+                ).eq('teacher_id', teacher_id).execute()
+                
+                print(f"Teacher-cohort assignments query result: {len(result.data) if result.data else 0} records")
+                
+                cohorts = []
+                if result.data:
+                    for assignment in result.data:
+                        cohort_data = assignment.get('cohorts', {})
+                        if cohort_data and cohort_data.get('is_active', True):
+                            cohorts.append(cohort_data)
+                
+                if cohorts:
+                    return cohorts
+                    
+            except Exception as e:
+                print(f"Teacher-cohort assignments query failed: {e}")
+            
+            # Fallback: Check if teacher is directly assigned to cohorts (legacy)
             try:
                 result = self.supabase.table('cohorts').select('*').eq('teacher_id', teacher_id).eq('is_active', True).execute()
                 print(f"Direct assignment query result: {len(result.data) if result.data else 0} records")
@@ -1913,15 +2045,43 @@ class SupabaseDatabaseManager:
                 }
             }
         try:
-            # This is a simplified version - you can expand this
-            # to include more complex analytics based on your needs
+            # Get real-time data from database
+            teachers_result = self.supabase.table('teachers').select('id', count='exact').eq('is_active', True).execute()
+            students_result = self.supabase.table('students').select('id', count='exact').eq('is_active', True).execute()
+            admins_result = self.supabase.table('institution_admins').select('id', count='exact').eq('is_active', True).execute()
+            
+            # Get growth data (last 6 months)
+            current_month = datetime.now().month
+            growth_data = []
+            growth_labels = []
+            
+            for i in range(6):
+                month = current_month - i
+                if month <= 0:
+                    month += 12
+                
+                # Get user registrations for each month
+                month_start = datetime.now().replace(month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+                if month == 12:
+                    month_end = datetime.now().replace(year=datetime.now().year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                else:
+                    month_end = datetime.now().replace(month=month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                
+                # Count new registrations in this month
+                teachers_count = self.supabase.table('teachers').select('id', count='exact').eq('is_active', True).gte('created_at', month_start.isoformat()).lt('created_at', month_end.isoformat()).execute()
+                students_count = self.supabase.table('students').select('id', count='exact').eq('is_active', True).gte('created_at', month_start.isoformat()).lt('created_at', month_end.isoformat()).execute()
+                
+                total_new = (teachers_count.count or 0) + (students_count.count or 0)
+                growth_data.insert(0, total_new)
+                growth_labels.insert(0, month_start.strftime('%b'))
+            
             return {
-                'growth_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                'growth_data': [0, 1, 2, 3, 5, 8],  # Placeholder data
+                'growth_labels': growth_labels,
+                'growth_data': growth_data,
                 'user_counts': {
-                    'teachers': 0,
-                    'students': 0,
-                    'admins': 0
+                    'teachers': teachers_result.count or 0,
+                    'students': students_result.count or 0,
+                    'admins': admins_result.count or 0
                 }
             }
         except Exception as e:
@@ -1972,6 +2132,56 @@ class SupabaseDatabaseManager:
                 'students': 0,
                 'cohorts': 0,
                 'lectures': 0
+            }
+    
+    def get_teacher_stats(self, teacher_id: str) -> Dict[str, Any]:
+        """Get statistics for a specific teacher"""
+        if not self.supabase:
+            return {
+                'cohorts': 0,
+                'lectures': 0,
+                'students': 0,
+                'materials': 0,
+                'quizzes': 0
+            }
+        try:
+            # Get teacher's cohorts
+            cohorts_result = self.supabase.table('teacher_cohorts').select('id', count='exact').eq('teacher_id', teacher_id).execute()
+            
+            # Get teacher's lectures
+            lectures_result = self.supabase.table('lectures').select('id', count='exact').eq('teacher_id', teacher_id).eq('is_active', True).execute()
+            
+            # Get total students in teacher's cohorts
+            teacher_cohorts = self.supabase.table('teacher_cohorts').select('cohort_id').eq('teacher_id', teacher_id).execute()
+            cohort_ids = [tc['cohort_id'] for tc in teacher_cohorts.data] if teacher_cohorts.data else []
+            
+            total_students = 0
+            if cohort_ids:
+                for cohort_id in cohort_ids:
+                    students_result = self.supabase.table('enrollments').select('id', count='exact').eq('cohort_id', cohort_id).eq('is_active', True).execute()
+                    total_students += students_result.count or 0
+            
+            # Get teacher's materials
+            materials_result = self.supabase.table('materials').select('id', count='exact').eq('teacher_id', teacher_id).eq('is_active', True).execute()
+            
+            # Get teacher's quizzes
+            quizzes_result = self.supabase.table('quiz_sets').select('id', count='exact').eq('teacher_id', teacher_id).eq('is_active', True).execute()
+            
+            return {
+                'cohorts': cohorts_result.count or 0,
+                'lectures': lectures_result.count or 0,
+                'students': total_students,
+                'materials': materials_result.count or 0,
+                'quizzes': quizzes_result.count or 0
+            }
+        except Exception as e:
+            print(f"Error getting teacher stats: {e}")
+            return {
+                'cohorts': 0,
+                'lectures': 0,
+                'students': 0,
+                'materials': 0,
+                'quizzes': 0
             }
     
     # Institution Admin Management Methods
@@ -2521,12 +2731,27 @@ class SupabaseDatabaseManager:
             return False
     
     def delete_lecture(self, lecture_id: str) -> bool:
-        """Delete a lecture"""
+        """Delete a lecture and all related data"""
         if not self.supabase:
             return False
         try:
-            result = self.supabase.table('lectures').update({'is_active': False}).eq('id', lecture_id).execute()
-            return bool(result.data)
+            # First, get lecture details to check ownership
+            lecture_result = self.supabase.table('lectures').select('teacher_id, institution_id').eq('id', lecture_id).execute()
+            if not lecture_result.data:
+                return False
+            
+            # Delete related materials first (they will be cascade deleted, but let's be explicit)
+            self.supabase.table('materials').delete().eq('lecture_id', lecture_id).execute()
+            
+            # Delete related polls
+            self.supabase.table('polls').delete().eq('lecture_id', lecture_id).execute()
+            
+            # Delete related session recordings
+            self.supabase.table('session_recordings').delete().eq('lecture_id', lecture_id).execute()
+            
+            # Delete the lecture itself
+            result = self.supabase.table('lectures').delete().eq('id', lecture_id).execute()
+            return True
         except Exception as e:
             print(f"Error deleting lecture: {e}")
             return False
@@ -2640,6 +2865,195 @@ class SupabaseDatabaseManager:
             return bool(result.data)
         except Exception as e:
             print(f"Error deleting teacher: {e}")
+            return False
+    
+    def get_recording_by_id(self, recording_id: str) -> Optional[Dict[str, Any]]:
+        """Get recording by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('session_recordings').select('*').eq('id', recording_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting recording: {e}")
+            return None
+    
+    def get_lecture_recordings(self, lecture_id: str) -> List[Dict[str, Any]]:
+        """Get recordings for a lecture"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('session_recordings').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lecture recordings: {e}")
+            return []
+    
+    def get_lectures_by_cohort(self, cohort_id: str) -> List[Dict[str, Any]]:
+        """Get lectures for a cohort"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('lectures').select('*').eq('cohort_id', cohort_id).eq('is_active', True).order('scheduled_time', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting lectures by cohort: {e}")
+            return []
+    
+    def increment_recording_download_count(self, recording_id: str) -> bool:
+        """Increment download count for a recording"""
+        if not self.supabase:
+            return False
+        try:
+            # Get current count
+            result = self.supabase.table('session_recordings').select('download_count').eq('id', recording_id).execute()
+            if result.data:
+                current_count = result.data[0].get('download_count', 0)
+                # Increment count
+                self.supabase.table('session_recordings').update({'download_count': current_count + 1}).eq('id', recording_id).execute()
+                return True
+            return False
+        except Exception as e:
+            print(f"Error incrementing download count: {e}")
+            return False
+
+    def get_material_by_id(self, material_id: str) -> Optional[Dict[str, Any]]:
+        """Get material by ID"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table('materials').select('*').eq('id', material_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting material: {e}")
+            return None
+
+    def increment_material_download_count(self, material_id: str) -> bool:
+        """Increment download count for a material"""
+        if not self.supabase:
+            return False
+        try:
+            # Get current count
+            result = self.supabase.table('materials').select('download_count').eq('id', material_id).execute()
+            if result.data:
+                current_count = result.data[0].get('download_count', 0)
+                # Increment count
+                self.supabase.table('materials').update({'download_count': current_count + 1}).eq('id', material_id).execute()
+                return True
+            return False
+        except Exception as e:
+            print(f"Error incrementing material download count: {e}")
+            return False
+
+    def get_cohort_recordings(self, cohort_id: str, date_from: str = None, date_to: str = None) -> List[Dict[str, Any]]:
+        """Get recordings for a cohort with optional date filters"""
+        if not self.supabase:
+            return []
+        try:
+            # Build query
+            query = self.supabase.table('session_recordings').select(
+                '*, lectures(title, scheduled_time), cohorts(name)'
+            ).eq('cohort_id', cohort_id).eq('is_active', True)
+            
+            # Add date filters if provided
+            if date_from:
+                query = query.gte('created_at', date_from)
+            if date_to:
+                query = query.lte('created_at', date_to)
+            
+            result = query.order('created_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting cohort recordings: {e}")
+            return []
+
+    def create_session_recording(self, lecture_id: str, cohort_id: str, teacher_id: str, 
+                               title: str, description: str, recording_path: str, 
+                               file_size: int, duration: int = 0) -> Tuple[Optional[str], str]:
+        """Create a session recording entry using Supabase Storage"""
+        if not self.supabase:
+            return None, "Database connection not available"
+        
+        try:
+            # Get teacher's institution_id
+            teacher = self.get_teacher_by_id(teacher_id)
+            if not teacher:
+                return None, "Teacher not found"
+            
+            # If recording_path is already a Supabase Storage URL, use it directly
+            # Otherwise, upload to Supabase Storage
+            storage_url = recording_path
+            if recording_path and not recording_path.startswith('http') and os.path.exists(recording_path):
+                if self.storage:
+                    storage_url, message = self.storage.upload_file_from_path(
+                        file_path=recording_path,
+                        bucket_name='recordings',
+                        folder_path=f"lecture_{lecture_id}",
+                        custom_filename=f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
+                    )
+                    
+                    if not storage_url:
+                        return None, f"Failed to upload recording: {message}"
+                else:
+                    return None, "Storage manager not available"
+            
+            recording_data = {
+                'lecture_id': lecture_id,
+                'cohort_id': cohort_id,
+                'teacher_id': teacher_id,
+                'institution_id': teacher['institution_id'],
+                'title': title,
+                'description': description,
+                'recording_path': storage_url,  # Supabase Storage URL
+                'file_size': file_size,
+                'duration': duration,
+                'download_count': 0,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            result = self.supabase.table('session_recordings').insert(recording_data).execute()
+            
+            if result.data:
+                return result.data[0]['id'], "Recording uploaded successfully"
+            else:
+                return None, "Failed to upload recording"
+                
+        except Exception as e:
+            print(f"Error creating session recording: {e}")
+            return None, str(e)
+
+    def update_session_recording(self, recording_id: str, recording_path: str, 
+                               file_size: int, duration: int) -> bool:
+        """Update a session recording with Supabase Storage URL"""
+        if not self.supabase or not self.storage:
+            return False
+        
+        try:
+            # Upload recording to Supabase Storage if local path provided
+            storage_url = recording_path
+            if recording_path and os.path.exists(recording_path):
+                storage_url, message = self.storage.upload_file_from_path(
+                    file_path=recording_path,
+                    bucket_name='recordings',
+                    folder_path=f"recording_{recording_id}",
+                    custom_filename=f"recording_{recording_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
+                )
+                
+                if not storage_url:
+                    print(f"Failed to upload recording: {message}")
+                    return False
+            
+            result = self.supabase.table('session_recordings').update({
+                'recording_path': storage_url,  # Now using Supabase Storage URL
+                'file_size': file_size,
+                'duration': duration,
+                'updated_at': datetime.now().isoformat()
+            }).eq('id', recording_id).execute()
+            
+            return bool(result.data)
+        except Exception as e:
+            print(f"Error updating session recording: {e}")
             return False
     
     def delete_student(self, student_id: str) -> bool:
@@ -2757,7 +3171,9 @@ class SupabaseDatabaseManager:
         if not self.supabase:
             return []
         try:
-            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).execute()
+            result = self.supabase.table('discussion_posts').select(
+                '*, teachers(name), students(name)'
+            ).eq('forum_id', forum_id).order('created_at', desc=False).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting discussion posts: {e}")
@@ -2829,34 +3245,6 @@ class SupabaseDatabaseManager:
             print(f"Error creating lecture poll: {e}")
             return None
 
-    def assign_teacher_to_cohort(self, teacher_id: str, cohort_id: str) -> bool:
-        """Assign a teacher to a cohort"""
-        if not self.supabase:
-            return False
-        try:
-            # Check if assignment already exists
-            existing = self.supabase.table('cohort_teachers').select('*').eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
-            
-            if existing.data:
-                # Update existing assignment to active
-                result = self.supabase.table('cohort_teachers').update({
-                    'is_active': True,
-                    'assigned_at': datetime.now().isoformat()
-                }).eq('teacher_id', teacher_id).eq('cohort_id', cohort_id).execute()
-                return bool(result.data)
-            else:
-                # Create new assignment
-                assignment_data = {
-                    'teacher_id': teacher_id,
-                    'cohort_id': cohort_id,
-                    'is_active': True,
-                    'assigned_at': datetime.now().isoformat()
-                }
-                result = self.supabase.table('cohort_teachers').insert(assignment_data).execute()
-                return bool(result.data)
-        except Exception as e:
-            print(f"Error assigning teacher to cohort: {e}")
-            return False
 
     def get_all_cohorts(self) -> List[Dict[str, Any]]:
         """Get all active cohorts"""

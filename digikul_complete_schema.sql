@@ -212,7 +212,11 @@ CREATE TABLE IF NOT EXISTS materials (
     is_public BOOLEAN DEFAULT false, -- Available to all students in cohort
     download_count INTEGER DEFAULT 0,
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    -- Ensure either lecture_id or cohort_id is provided
+    CONSTRAINT materials_lecture_or_cohort CHECK (
+        (lecture_id IS NOT NULL) OR (cohort_id IS NOT NULL)
+    )
 );
 
 -- ========================================
@@ -280,6 +284,35 @@ CREATE TABLE IF NOT EXISTS quiz_responses (
     is_correct BOOLEAN,
     points_earned INTEGER DEFAULT 0,
     responded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ========================================
+-- POLLS SYSTEM
+-- ========================================
+
+-- Polls table
+CREATE TABLE IF NOT EXISTS polls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    cohort_id UUID NOT NULL REFERENCES cohorts(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    lecture_id UUID REFERENCES lectures(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    options JSONB NOT NULL, -- Array of poll options
+    is_active BOOLEAN DEFAULT true,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Poll responses table
+CREATE TABLE IF NOT EXISTS poll_responses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    poll_id UUID NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    selected_option TEXT NOT NULL,
+    responded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(poll_id, student_id)
 );
 
 -- ========================================
@@ -915,6 +948,15 @@ CREATE INDEX IF NOT EXISTS idx_quiz_attempts_student ON quiz_attempts(student_id
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz_set ON quiz_attempts(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_responses_attempt ON quiz_responses(attempt_id);
 
+-- Poll indexes
+CREATE INDEX IF NOT EXISTS idx_polls_institution ON polls(institution_id);
+CREATE INDEX IF NOT EXISTS idx_polls_cohort ON polls(cohort_id);
+CREATE INDEX IF NOT EXISTS idx_polls_teacher ON polls(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_polls_lecture ON polls(lecture_id);
+CREATE INDEX IF NOT EXISTS idx_polls_active ON polls(is_active);
+CREATE INDEX IF NOT EXISTS idx_poll_responses_poll ON poll_responses(poll_id);
+CREATE INDEX IF NOT EXISTS idx_poll_responses_student ON poll_responses(student_id);
+
 -- Recording indexes
 CREATE INDEX IF NOT EXISTS idx_session_recordings_institution ON session_recordings(institution_id);
 CREATE INDEX IF NOT EXISTS idx_session_recordings_lecture ON session_recordings(lecture_id);
@@ -996,6 +1038,8 @@ ALTER TABLE session_recordings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recording_chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_responses ENABLE ROW LEVEL SECURITY;
 
 -- Super Admin policies
 DROP POLICY IF EXISTS "Super admins can manage all" ON super_admins;
@@ -1226,13 +1270,61 @@ CREATE POLICY "Students can read recordings for enrolled lectures" ON session_re
     EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
 );
 
+-- Poll policies
+DROP POLICY IF EXISTS "Teachers can manage polls for their cohorts" ON polls;
+CREATE POLICY "Teachers can manage polls for their cohorts" ON polls FOR ALL USING (
+    auth.uid()::text = teacher_id::text OR
+    EXISTS (
+        SELECT 1 FROM institution_admins 
+        WHERE institution_admins.id::text = auth.uid()::text 
+        AND institution_admins.institution_id = polls.institution_id
+    ) OR
+    EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
+);
+
+DROP POLICY IF EXISTS "Students can read polls for enrolled cohorts" ON polls;
+CREATE POLICY "Students can read polls for enrolled cohorts" ON polls FOR SELECT USING (
+    EXISTS (
+        SELECT 1 FROM enrollments 
+        WHERE enrollments.student_id::text = auth.uid()::text 
+        AND enrollments.cohort_id = polls.cohort_id
+        AND enrollments.is_active = true
+    ) OR
+    auth.uid()::text = teacher_id::text OR
+    EXISTS (
+        SELECT 1 FROM institution_admins 
+        WHERE institution_admins.id::text = auth.uid()::text 
+        AND institution_admins.institution_id = polls.institution_id
+    ) OR
+    EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
+);
+
+-- Poll response policies
+DROP POLICY IF EXISTS "Students can manage their own poll responses" ON poll_responses;
+CREATE POLICY "Students can manage their own poll responses" ON poll_responses FOR ALL USING (
+    auth.uid()::text = student_id::text OR
+    EXISTS (
+        SELECT 1 FROM polls p
+        WHERE p.id = poll_responses.poll_id
+        AND p.teacher_id::text = auth.uid()::text
+    ) OR
+    EXISTS (
+        SELECT 1 FROM polls p
+        JOIN institution_admins ia ON ia.institution_id = p.institution_id
+        WHERE p.id = poll_responses.poll_id
+        AND ia.id::text = auth.uid()::text
+    ) OR
+    EXISTS (SELECT 1 FROM super_admins WHERE super_admins.id::text = auth.uid()::text)
+);
+
 -- ========================================
 -- SAMPLE DATA
 -- ========================================
 
 -- Create sample super admin
 INSERT INTO super_admins (name, email, password_hash) VALUES
-('System Administrator', 'admin@digikul.com', crypt('admin123', gen_salt('bf')));
+('System Administrator', 'admin@digikul.com', crypt('admin123', gen_salt('bf')))
+ON CONFLICT (email) DO NOTHING;
 
 -- Create sample institutions
 INSERT INTO institutions (name, domain, subdomain, logo_url, primary_color, secondary_color, description, contact_email, created_by) 
@@ -1247,7 +1339,8 @@ SELECT
     'info@digikul.com',
     sa.id
 FROM super_admins sa 
-WHERE sa.email = 'admin@digikul.com';
+WHERE sa.email = 'admin@digikul.com'
+ON CONFLICT (domain) DO NOTHING;
 
 INSERT INTO institutions (name, domain, subdomain, logo_url, primary_color, secondary_color, description, contact_email, created_by) 
 SELECT 
@@ -1261,7 +1354,8 @@ SELECT
     'contact@techacademy.io',
     sa.id
 FROM super_admins sa 
-WHERE sa.email = 'admin@digikul.com';
+WHERE sa.email = 'admin@digikul.com'
+ON CONFLICT (domain) DO NOTHING;
 
 INSERT INTO institutions (name, domain, subdomain, logo_url, primary_color, secondary_color, description, contact_email, created_by) 
 SELECT 
@@ -1275,7 +1369,8 @@ SELECT
     'support@learnhub.org',
     sa.id
 FROM super_admins sa 
-WHERE sa.email = 'admin@digikul.com';
+WHERE sa.email = 'admin@digikul.com'
+ON CONFLICT (domain) DO NOTHING;
 
 -- Create sample institution admins
 INSERT INTO institution_admins (institution_id, name, email, password_hash, permissions)
@@ -1293,7 +1388,8 @@ SELECT
         "manage_quizzes": true
     }'
 FROM institutions i 
-WHERE i.domain = 'digikul.com';
+WHERE i.domain = 'digikul.com'
+ON CONFLICT (institution_id, email) DO NOTHING;
 
 INSERT INTO institution_admins (institution_id, name, email, password_hash)
 SELECT 
@@ -1302,7 +1398,8 @@ SELECT
     'admin@techacademy.io',
     crypt('tech123', gen_salt('bf'))
 FROM institutions i 
-WHERE i.domain = 'techacademy.io';
+WHERE i.domain = 'techacademy.io'
+ON CONFLICT (institution_id, email) DO NOTHING;
 
 INSERT INTO institution_admins (institution_id, name, email, password_hash)
 SELECT 
@@ -1311,7 +1408,8 @@ SELECT
     'admin@learnhub.org',
     crypt('hub123', gen_salt('bf'))
 FROM institutions i 
-WHERE i.domain = 'learnhub.org';
+WHERE i.domain = 'learnhub.org'
+ON CONFLICT (institution_id, email) DO NOTHING;
 
 -- Create sample cohorts
 INSERT INTO cohorts (institution_id, name, description, subject, enrollment_code, join_code, academic_year, created_by)
@@ -1326,15 +1424,30 @@ SELECT
     ia.id
 FROM institutions i 
 JOIN institution_admins ia ON ia.institution_id = i.id
-WHERE i.domain = 'digikul.com' AND ia.email = 'admin@digikul.com';
+WHERE i.domain = 'digikul.com' AND ia.email = 'admin@digikul.com'
+ON CONFLICT (institution_id, enrollment_code) DO NOTHING;
 
 
 -- Add constraints after sample data is inserted
-ALTER TABLE institutions ADD CONSTRAINT fk_institutions_created_by 
-FOREIGN KEY (created_by) REFERENCES super_admins(id) ON DELETE SET NULL;
-
--- Add unique constraint for subdomain
-ALTER TABLE institutions ADD CONSTRAINT uk_institutions_subdomain UNIQUE (subdomain);
+DO $$ 
+BEGIN
+    -- Add foreign key constraint if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_institutions_created_by'
+    ) THEN
+        ALTER TABLE institutions ADD CONSTRAINT fk_institutions_created_by 
+        FOREIGN KEY (created_by) REFERENCES super_admins(id) ON DELETE SET NULL;
+    END IF;
+    
+    -- Add unique constraint for subdomain if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'uk_institutions_subdomain'
+    ) THEN
+        ALTER TABLE institutions ADD CONSTRAINT uk_institutions_subdomain UNIQUE (subdomain);
+    END IF;
+END $$;
 
 -- ========================================
 -- FUNCTIONS AND TRIGGERS

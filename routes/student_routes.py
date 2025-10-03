@@ -3,9 +3,10 @@ Student Routes
 Handles student-specific functionality including enrollment, materials, quizzes, and profile management.
 """
 
-from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template
+from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
+import os
 from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from middlewares.auth_middleware import AuthMiddleware
 from utils.email_service import EmailService
@@ -209,6 +210,112 @@ def get_materials():
             'success': True,
             'materials': materials
         }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/lecture/<lecture_id>/materials', methods=['GET'])
+@student_required
+def get_lecture_materials(lecture_id):
+    """Get materials for a specific lecture"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Verify student has access to this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture:
+            return jsonify({'error': 'Lecture not found'}), 404
+        
+        # Check if student is enrolled in the cohort
+        student_cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in student_cohorts]
+        
+        if lecture['cohort_id'] not in cohort_ids:
+            return jsonify({'error': 'Access denied to this lecture'}), 403
+        
+        # Get materials for this lecture
+        materials = db.get_lecture_materials(lecture_id)
+        
+        return jsonify({
+            'success': True,
+            'materials': materials
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/recordings', methods=['GET'])
+@student_required
+def get_recordings():
+    """Get recorded lectures for student's cohorts"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Get student's cohorts
+        cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in cohorts]
+        
+        if not cohort_ids:
+            return jsonify({
+                'success': True,
+                'recordings': []
+            }), 200
+        
+        # Get recordings for these cohorts
+        recordings = []
+        for cohort_id in cohort_ids:
+            # Get lectures for this cohort
+            lectures = db.get_lectures_by_cohort(cohort_id)
+            for lecture in lectures:
+                # Get recordings for this lecture
+                lecture_recordings = db.get_lecture_recordings(lecture['id'])
+                recordings.extend(lecture_recordings)
+        
+        return jsonify({
+            'success': True,
+            'recordings': recordings
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/recordings/<recording_id>/download', methods=['GET'])
+@student_required
+def download_recording(recording_id):
+    """Download a recorded lecture"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Get recording details
+        recording = db.get_recording_by_id(recording_id)
+        if not recording:
+            return jsonify({'error': 'Recording not found'}), 404
+        
+        # Check if student has access to this recording
+        lecture = db.get_lecture_by_id(recording['lecture_id'])
+        if not lecture:
+            return jsonify({'error': 'Lecture not found'}), 404
+        
+        # Check if student is enrolled in the cohort
+        student_cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in student_cohorts]
+        
+        if lecture['cohort_id'] not in cohort_ids:
+            return jsonify({'error': 'Access denied to this recording'}), 403
+        
+        # Check if recording file exists
+        if not recording.get('recording_path') or not os.path.exists(recording['recording_path']):
+            return jsonify({'error': 'Recording file not found'}), 404
+        
+        # Increment download count
+        db.increment_recording_download_count(recording_id)
+        
+        # Return file for download
+        return send_file(
+            recording['recording_path'],
+            as_attachment=True,
+            download_name=f"lecture_recording_{recording_id}.mp4"
+        )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -49,7 +49,11 @@ class EmailService:
             bool: True if email was sent successfully, False otherwise
         """
         if not self.smtp_username or not self.smtp_password:
-            self.logger.error("SMTP not configured. Cannot send email.")
+            self.logger.warning(f"SMTP not configured. Would send email to {to_email} with subject: {subject}")
+            # In development, we can log the email content instead of failing
+            if os.environ.get('FLASK_DEBUG', 'False').lower() == 'true':
+                self.logger.info(f"Email content (HTML): {html_content[:200]}...")
+                return True  # Return True in development mode to not break the flow
             return False
         
         try:
