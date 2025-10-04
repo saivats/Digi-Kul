@@ -5,7 +5,7 @@ Handles student-specific functionality including enrollment, materials, quizzes,
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from middlewares.auth_middleware import AuthMiddleware
@@ -315,33 +315,52 @@ def download_recording(recording_id):
         if not recording_path:
             return jsonify({'error': 'Recording file path not found'}), 404
         
-        # Try different possible paths
-        possible_paths = [
-            recording_path,
-            os.path.join('uploads', recording_path),
-            os.path.join('uploads', 'videos', os.path.basename(recording_path)),
-            os.path.join('recordings', 'videos', os.path.basename(recording_path)),
-            os.path.join('uploads', 'recordings', os.path.basename(recording_path))
-        ]
-        
-        found_path = None
-        for path in possible_paths:
-            if os.path.exists(path):
-                found_path = path
-                break
-        
-        if not found_path:
-            return jsonify({'error': f'Recording file not found. Tried paths: {possible_paths}'}), 404
-        
         # Increment download count
         db.increment_recording_download_count(recording_id)
         
-        # Return file for download
-        return send_file(
-            found_path,
-            as_attachment=True,
-            download_name=f"lecture_recording_{recording_id}.mp4"
-        )
+        # Check if it's a Supabase Storage URL
+        if recording_path.startswith('http') and 'supabase.co' in recording_path:
+            # It's already a public URL, redirect to it
+            return redirect(recording_path)
+        elif recording_path.startswith('http'):
+            # It's some other HTTP URL, redirect to it
+            return redirect(recording_path)
+        else:
+            # Try to get a signed URL from Supabase Storage
+            try:
+                from utils.storage_supabase import SupabaseStorageManager
+                storage = SupabaseStorageManager()
+                signed_url = storage.get_signed_url('recordings', recording_path)
+                if signed_url:
+                    return redirect(signed_url)
+            except Exception as e:
+                print(f"Error getting signed URL for recording: {e}")
+            
+            # Fallback to local file handling
+            # Handle local file paths (legacy support)
+            possible_paths = [
+                recording_path,
+                os.path.join('uploads', recording_path),
+                os.path.join('uploads', 'videos', os.path.basename(recording_path)),
+                os.path.join('recordings', 'videos', os.path.basename(recording_path)),
+                os.path.join('uploads', 'recordings', os.path.basename(recording_path))
+            ]
+            
+            found_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    found_path = path
+                    break
+            
+            if not found_path:
+                return jsonify({'error': f'Recording file not found. Tried paths: {possible_paths}'}), 404
+            
+            # Return file for download
+            return send_file(
+                found_path,
+                as_attachment=True,
+                download_name=f"lecture_recording_{recording_id}.mp4"
+            )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -410,6 +429,131 @@ def start_quiz_attempt():
         else:
             return jsonify({'error': 'Failed to start quiz attempt'}), 500
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/discussion/<forum_id>')
+@student_required
+def discussion_forum_page(forum_id):
+    """Discussion forum page"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Verify student has access to this forum
+        forum = db.supabase.table('discussion_forums').select('*').eq('id', forum_id).execute()
+        if not forum.data:
+            return render_template('error.html', 
+                                 error="Discussion forum not found", 
+                                 message="The requested discussion forum could not be found"), 404
+        
+        forum_data = forum.data[0]
+        
+        # Check if student is enrolled in the cohort
+        student_cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in student_cohorts]
+        
+        if forum_data['cohort_id'] not in cohort_ids:
+            return render_template('error.html', 
+                                 error="Access denied", 
+                                 message="You don't have access to this discussion forum"), 403
+        
+        # Use the real-time chatroom template instead
+        return render_template('realtime_chatroom.html', forum_id=forum_id, forum=forum_data)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error="Error loading discussion forum", 
+                             message=str(e)), 500
+
+@student_bp.route('/discussions/<forum_id>/messages', methods=['GET'])
+@student_required
+def get_forum_messages(forum_id):
+    """Get messages for a discussion forum"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Verify student has access to this forum
+        forum = db.supabase.table('discussion_forums').select('*').eq('id', forum_id).execute()
+        if not forum.data:
+            return jsonify({'error': 'Forum not found'}), 404
+        
+        forum_data = forum.data[0]
+        
+        # Check if student is enrolled in the cohort
+        student_cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in student_cohorts]
+        
+        if forum_data['cohort_id'] not in cohort_ids:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Get recent messages (last 50)
+        messages = db.get_forum_messages(forum_id, limit=50)
+        
+        return jsonify({
+            'success': True,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/quiz-attempt/<quiz_set_id>')
+@student_required
+def quiz_attempt_page(quiz_set_id):
+    """Quiz attempt page"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Verify student has access to this quiz
+        quiz_set = db.get_quiz_set_by_id(quiz_set_id)
+        if not quiz_set:
+            return render_template('error.html', 
+                                 error="Quiz not found", 
+                                 message="The requested quiz could not be found"), 404
+        
+        # Check if student is enrolled in the cohort
+        student_cohorts = db.get_student_cohorts(student_id)
+        cohort_ids = [c['id'] for c in student_cohorts]
+        
+        if quiz_set['cohort_id'] not in cohort_ids:
+            return render_template('error.html', 
+                                 error="Access denied", 
+                                 message="You don't have access to this quiz"), 403
+        
+        return render_template('quiz_attempt.html', quiz_set_id=quiz_set_id)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error="Error loading quiz", 
+                             message=str(e)), 500
+
+@student_bp.route('/quiz-attempts/<attempt_id>/questions', methods=['GET'])
+@student_required
+def get_quiz_questions(attempt_id):
+    """Get quiz questions for an attempt"""
+    try:
+        student_id = session.get('user_id')
+        
+        # Verify student has access to this attempt
+        attempt = db.get_quiz_attempt_by_id(attempt_id)
+        if not attempt:
+            return jsonify({'error': 'Quiz attempt not found'}), 404
+        
+        if attempt['student_id'] != student_id:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Get quiz questions
+        questions = db.get_quiz_questions(attempt['quiz_set_id'])
+        quiz_set = db.get_quiz_set_by_id(attempt['quiz_set_id'])
+        
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'title': quiz_set.get('title', 'Quiz'),
+            'description': quiz_set.get('description', ''),
+            'time_limit': quiz_set.get('time_limit')
+        }), 200
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -583,14 +727,14 @@ def get_stats():
             quiz_sets.extend(cohort_quiz_sets)
         
         # Get upcoming lectures (next 7 days)
-        from datetime import datetime, timedelta
-        now = datetime.now()
+        from datetime import datetime, timedelta, timezone, timezone
+        now = datetime.now(timezone.utc)
         week_from_now = now + timedelta(days=7)
         
         upcoming_lectures = [
             lecture for lecture in lectures 
             if lecture.get('scheduled_time') and 
-            now <= datetime.fromisoformat(lecture['scheduled_time'].replace('Z', '+00:00')) <= week_from_now
+            now <= db.parse_datetime(lecture['scheduled_time']) <= week_from_now
         ]
         
         stats = {
@@ -918,15 +1062,19 @@ def join_live_session(lecture_id):
         if lecture['cohort_id'] not in cohort_ids:
             return jsonify({'error': 'Access denied to this lecture'}), 403
         
-        # Check if lecture is currently live
-        from datetime import datetime, timedelta
-        now = datetime.now()
-        lecture_time = datetime.fromisoformat(lecture['scheduled_time'].replace('Z', '+00:00'))
-        duration = lecture.get('duration', 60)
-        end_time = lecture_time + timedelta(minutes=duration)
+        # Check if lecture is within the scheduled time window (allow joining up to 30 minutes before start and 30 minutes after end)
+        lecture_time = db.parse_datetime(lecture['scheduled_time'])
+        lecture_end = lecture_time + timedelta(minutes=lecture['duration'])
+        now = datetime.now(timezone.utc)
         
-        if now < lecture_time or now > end_time:
-            return jsonify({'error': 'Lecture is not currently live'}), 400
+        # Allow joining 30 minutes before start and 30 minutes after end
+        join_start = lecture_time - timedelta(minutes=30)
+        join_end = lecture_end + timedelta(minutes=30)
+        
+        if now < join_start:
+            return jsonify({'error': 'Lecture has not started yet'}), 400
+        if now > join_end:
+            return jsonify({'error': 'Lecture has ended'}), 400
         
         # Return live session page
         return render_template('student_live_session.html', 

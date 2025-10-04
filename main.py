@@ -733,6 +733,132 @@ if socketio:
         emit('whiteboard_clear', clear_data, room=session_id, include_self=False)
         print(f"Whiteboard cleared by {user_name} in session {session_id}")
     
+    # Forum chat events
+    @socketio.on('join_forum')
+    def handle_join_forum(data):
+        """Handle joining a discussion forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        user_type = session.get('user_type', 'student')
+        
+        if not forum_id or not user_id:
+            return
+        
+        # Join the forum room
+        join_room(f"forum_{forum_id}")
+        
+        # Add user to online users for this forum
+        if forum_id not in online_users:
+            online_users[forum_id] = {}
+        
+        online_users[forum_id][user_id] = {
+            'id': user_id,
+            'name': user_name,
+            'type': user_type
+        }
+        
+        # Notify others in the forum
+        emit('user_joined_forum', {
+            'user': {
+                'id': user_id,
+                'name': user_name,
+                'type': user_type
+            }
+        }, room=f"forum_{forum_id}", include_self=False)
+        
+        # Send current online users to the new user
+        emit('forum_users', list(online_users[forum_id].values()), room=f"forum_{forum_id}")
+        print(f"User {user_name} joined forum {forum_id}")
+    
+    @socketio.on('leave_forum')
+    def handle_leave_forum(data):
+        """Handle leaving a discussion forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not forum_id or not user_id:
+            return
+        
+        # Leave the forum room
+        leave_room(f"forum_{forum_id}")
+        
+        # Remove user from online users
+        if forum_id in online_users and user_id in online_users[forum_id]:
+            del online_users[forum_id][user_id]
+            
+            # Notify others in the forum
+            emit('user_left_forum', {
+                'user_id': user_id,
+                'user_name': user_name
+            }, room=f"forum_{forum_id}", include_self=False)
+        
+        print(f"User {user_name} left forum {forum_id}")
+    
+    @socketio.on('forum_message')
+    def handle_forum_message(data):
+        """Handle messages in discussion forum"""
+        forum_id = data.get('forum_id')
+        message = data.get('message')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        user_type = session.get('user_type', 'student')
+        
+        if not forum_id or not message or not user_id:
+            return
+        
+        # Save message to database
+        try:
+            from utils.database_supabase import DatabaseManager
+            db = DatabaseManager()
+            message_data, result = db.create_forum_message(
+                forum_id=forum_id,
+                author_id=user_id,
+                author_type=user_type,
+                content=message
+            )
+            
+            if message_data:
+                # Broadcast message to all users in the forum
+                emit('forum_message', {
+                    'message': message,
+                    'user_id': user_id,
+                    'user_name': user_name,
+                    'user_type': user_type,
+                    'timestamp': message_data.get('created_at', datetime.now().isoformat())
+                }, room=f"forum_{forum_id}")
+                print(f"Forum message from {user_name} broadcasted to forum {forum_id}")
+            else:
+                print(f"Failed to save forum message: {result}")
+                
+        except Exception as e:
+            print(f"Error handling forum message: {e}")
+    
+    @socketio.on('typing')
+    def handle_typing(data):
+        """Handle typing indicator in forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if forum_id and user_id:
+            emit('user_typing', {
+                'user_id': user_id,
+                'user_name': user_name
+            }, room=f"forum_{forum_id}", include_self=False)
+    
+    @socketio.on('stop_typing')
+    def handle_stop_typing(data):
+        """Handle stop typing indicator in forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        
+        if forum_id and user_id:
+            emit('user_stop_typing', {
+                'user_id': user_id
+            }, room=f"forum_{forum_id}", include_self=False)
+    
     @socketio.on('session_control')
     def handle_session_control(data):
         """Handle session control commands (teacher only)"""

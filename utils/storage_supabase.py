@@ -237,3 +237,14 @@ class SupabaseStorageManager:
         except Exception as e:
             print(f"Error getting file info: {e}")
             return None
+    
+    def get_signed_url(self, bucket_name: str, file_path: str, expires_in: int = 3600) -> Optional[str]:
+        """Get a signed URL for private file access"""
+        try:
+            result = self.supabase.storage.from_(bucket_name).create_signed_url(file_path, expires_in)
+            if result and 'signedURL' in result:
+                return result['signedURL']
+            return None
+        except Exception as e:
+            print(f"Error getting signed URL: {e}")
+            return None

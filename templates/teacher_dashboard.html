@@ -1193,11 +1193,11 @@
                             ${discussion.is_pinned ? '<span class="badge bg-warning ms-2">📌 Pinned</span>' : ''}
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-outline-light btn-sm" onclick="toggleDiscussionChat('${discussion.id}')">
-                                <i class="bi bi-chat me-1"></i>Toggle Chat
-                            </button>
                             <button class="btn btn-outline-light btn-sm" onclick="viewDiscussion('${discussion.id}')">
-                                <i class="bi bi-eye"></i>
+                                <i class="bi bi-chat-dots me-1"></i>Open Chat
+                            </button>
+                            <button class="btn btn-outline-light btn-sm" onclick="toggleDiscussionChat('${discussion.id}')">
+                                <i class="bi bi-chat me-1"></i>Quick Chat
                             </button>
                         </div>
                     </div>
@@ -1391,7 +1391,8 @@
         }
 
         function viewDiscussion(discussionId) {
-            showToast('Discussion view feature coming soon!', 'info');
+            // Redirect to the real-time chatroom
+            window.location.href = `/api/teacher/discussion/${discussionId}`;
         }
 
         function toggleDiscussionChat(discussionId) {
@@ -2678,13 +2679,22 @@
             }
         }
 
-        // Join Lecture Function
+        // Start Live Session Function
         async function joinLecture(lectureId) {
             try {
-                window.location.href = `/api/teacher/lectures/${lectureId}/join`;
+                // Check if lecture is within the allowed time window
+                const response = await fetch(`/api/teacher/live-session/${lectureId}`);
+                
+                if (response.ok) {
+                    // Redirect to live session
+                    window.location.href = `/api/teacher/live-session/${lectureId}`;
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Cannot start live session', 'error');
+                }
             } catch (error) {
-                console.error('Error joining lecture:', error);
-                showToast('Error joining lecture', 'error');
+                console.error('Error starting live session:', error);
+                showToast('Error starting live session', 'error');
             }
         }
 
@@ -2821,14 +2831,85 @@
         async function viewPollResults(pollId) {
             try {
                 const response = await fetch(`/api/teacher/polls/${pollId}/results`);
-                const results = await response.json();
+                const data = await response.json();
                 
-                // Show results in a modal or new page
-                showToast('Poll results loaded', 'success');
+                if (data.success) {
+                    // Display results in a modal
+                    showPollResultsModal(data);
+                    showToast('Poll results loaded', 'success');
+                } else {
+                    showToast(data.error || 'Failed to load poll results', 'error');
+                }
             } catch (error) {
                 console.error('Error loading poll results:', error);
                 showToast('Error loading poll results', 'error');
             }
+        }
+
+        function showPollResultsModal(data) {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="modal fade" id="pollResultsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Poll Results: ${data.question}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <h6>Question:</h6>
+                                    <p>${data.question}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <h6>Results:</h6>
+                                    ${data.results.map(result => `
+                                        <div class="mb-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>${result.option}</span>
+                                                <span class="badge bg-primary">${result.votes} votes</span>
+                                            </div>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: ${result.percentage}%" 
+                                                     aria-valuenow="${result.percentage}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                    ${result.percentage}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="text-muted">
+                                    <small>Total votes: ${data.total_votes}</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('pollResultsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('pollResultsModal'));
+            modal.show();
+            
+            // Remove modal when hidden
+            document.getElementById('pollResultsModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
         }
 
         // Quiz Functions
@@ -2837,6 +2918,146 @@
             modalElement.show();
             // Load cohorts for quiz creation
             loadCohortsForQuiz();
+        }
+
+        async function viewQuizResults(quizSetId) {
+            try {
+                const response = await fetch(`/api/teacher/quiz-responses/${quizSetId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showQuizResultsModal(data);
+                    showToast('Quiz results loaded', 'success');
+                } else {
+                    showToast(data.error || 'Failed to load quiz results', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading quiz results:', error);
+                showToast('Error loading quiz results', 'error');
+            }
+        }
+
+        function showQuizResultsModal(data) {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="modal fade" id="quizResultsModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Quiz Results: ${data.quiz_set?.title || 'Quiz'}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Overall Statistics</h6>
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <p><strong>Total Attempts:</strong> ${data.attempts?.length || 0}</p>
+                                                <p><strong>Average Score:</strong> ${data.average_score || 0}%</p>
+                                                <p><strong>Completion Rate:</strong> ${data.completion_rate || 0}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Question Analysis</h6>
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <p><strong>Total Questions:</strong> ${data.questions?.length || 0}</p>
+                                                <p><strong>Average Accuracy:</strong> ${data.average_accuracy || 0}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h6>Student Performance</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Student</th>
+                                                    <th>Score</th>
+                                                    <th>Correct Answers</th>
+                                                    <th>Total Questions</th>
+                                                    <th>Percentage</th>
+                                                    <th>Status</th>
+                                                    <th>Attempted At</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${data.attempts?.map(attempt => `
+                                                    <tr>
+                                                        <td>${attempt.student_name || 'Unknown'}</td>
+                                                        <td>${attempt.score || 0}</td>
+                                                        <td>${attempt.correct_answers || 0}</td>
+                                                        <td>${attempt.total_questions || 0}</td>
+                                                        <td>${attempt.percentage?.toFixed(1) || 0}%</td>
+                                                        <td>
+                                                            <span class="badge ${attempt.completed ? 'bg-success' : 'bg-warning'}">
+                                                                ${attempt.completed ? 'Completed' : 'Incomplete'}
+                                                            </span>
+                                                        </td>
+                                                        <td>${new Date(attempt.started_at).toLocaleString()}</td>
+                                                    </tr>
+                                                `).join('') || '<tr><td colspan="7" class="text-center">No attempts found</td></tr>'}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h6>Question Breakdown</h6>
+                                    <div class="row">
+                                        ${data.questions?.map(question => `
+                                            <div class="col-md-6 mb-3">
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <h6 class="card-title">Question ${question.order_index || ''}</h6>
+                                                        <p class="card-text">${question.question_text}</p>
+                                                        <p><strong>Correct Answer:</strong> ${question.correct_answer}</p>
+                                                        <p><strong>Accuracy:</strong> ${question.accuracy?.toFixed(1) || 0}%</p>
+                                                        <div class="progress" style="height: 20px;">
+                                                            <div class="progress-bar" role="progressbar" 
+                                                                 style="width: ${question.accuracy || 0}%" 
+                                                                 aria-valuenow="${question.accuracy || 0}" 
+                                                                 aria-valuemin="0" 
+                                                                 aria-valuemax="100">
+                                                                ${question.accuracy?.toFixed(1) || 0}%
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('') || '<div class="col-12 text-center">No questions found</div>'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('quizResultsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('quizResultsModal'));
+            modal.show();
+            
+            // Remove modal when hidden
+            document.getElementById('quizResultsModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
         }
 
         async function createQuiz() {
@@ -3076,8 +3297,11 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <small class="text-muted">Cohort: ${quiz.cohort_id}</small>
                                 <div>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResponses('${quiz.id}')">
+                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="viewQuizResponses('${quiz.id}')">
                                         <i class="bi bi-eye me-1"></i>View Responses
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="viewQuizResults('${quiz.id}')">
+                                        <i class="bi bi-bar-chart me-1"></i>Results
                                     </button>
                                 </div>
                             </div>

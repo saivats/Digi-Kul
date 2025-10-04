@@ -211,7 +211,7 @@
         <!-- Dashboard Stats -->
         <div class="row mb-4">
             <div class="col-md-3">
-                <div class="card bg-primary text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -226,7 +226,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-success text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -241,7 +241,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-warning text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -256,7 +256,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-info text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -272,45 +272,80 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card" style="border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                        <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="showEnrollModal()">
+                                    <i class="bi bi-plus-circle me-2"></i>Enroll in Cohort
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="loadLectures()">
+                                    <i class="bi bi-calendar-event me-2"></i>View Lectures
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="loadMaterials()">
+                                    <i class="bi bi-download me-2"></i>Download Materials
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="toggleChatbot()">
+                                    <i class="bi bi-chat-dots me-2"></i>Ask Asha
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content Tabs -->
-        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist" style="border-bottom: 2px solid #e9ecef;">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
+                <button class="nav-link active" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-people me-2"></i>My Cohorts
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
+                <button class="nav-link" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-calendar-event me-2"></i>Lectures
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab">
+                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-file-earmark-text me-2"></i>Materials
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
+                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-question-circle me-2"></i>Quizzes
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="polls-tab" data-bs-toggle="tab" data-bs-target="#polls" type="button" role="tab">
+                <button class="nav-link" id="polls-tab" data-bs-toggle="tab" data-bs-target="#polls" type="button" role="tab" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-bar-chart me-2"></i>Polls
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab">
+                <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-chat-dots me-2"></i>Discussions
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="grades-tab" data-bs-toggle="tab" data-bs-target="#grades" type="button" role="tab">
+                <button class="nav-link" id="grades-tab" data-bs-toggle="tab" data-bs-target="#grades" type="button" role="tab" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-award me-2"></i>Grades
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="recordings-tab" data-bs-toggle="tab" data-bs-target="#recordings" type="button" role="tab">
+                <button class="nav-link" id="recordings-tab" data-bs-toggle="tab" data-bs-target="#recordings" type="button" role="tab" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-play-circle me-2"></i>Recordings
                 </button>
             </li>
@@ -525,6 +560,45 @@
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
 
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="bi bi-${type === 'success' ? 'check-circle-fill text-success' : 
+                                           type === 'error' ? 'exclamation-triangle-fill text-danger' : 
+                                           type === 'warning' ? 'exclamation-triangle-fill text-warning' : 
+                                           'info-circle-fill text-info'} me-2"></i>
+                        <strong class="me-auto">DigiKul</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: 3000
+            });
+            
+            toast.show();
+            
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                this.remove();
+            });
+        }
+    </script>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -676,26 +750,55 @@
                 return;
             }
             
-            container.innerHTML = lectures.map(lecture => `
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title">${lecture.title}</h6>
-                        <p class="card-text text-muted">${lecture.description || 'No description'}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-clock me-1"></i>
-                                ${new Date(lecture.scheduled_time).toLocaleString()}
-                            </small>
-                            <div>
-                                <span class="badge bg-primary me-2">${lecture.duration} min</span>
-                                <button class="btn btn-sm btn-success" onclick="joinLiveSession('${lecture.id}')">
-                                    <i class="bi bi-play-circle me-1"></i>Join Live
-                                </button>
+            const now = new Date();
+            
+            container.innerHTML = lectures.map(lecture => {
+                const lectureTime = new Date(lecture.scheduled_time);
+                const endTime = new Date(lectureTime.getTime() + (lecture.duration * 60000));
+                const isLive = now >= lectureTime && now <= endTime;
+                const isUpcoming = now < lectureTime;
+                const isPast = now > endTime;
+                
+                let statusBadge = '';
+                let actionButton = '';
+                
+                if (isLive) {
+                    statusBadge = '<span class="badge bg-danger me-2">LIVE</span>';
+                    actionButton = `<button class="btn btn-sm btn-success" onclick="joinLiveSession('${lecture.id}')">
+                        <i class="bi bi-play-circle me-1"></i>Join Live
+                    </button>`;
+                } else if (isUpcoming) {
+                    statusBadge = '<span class="badge bg-warning me-2">Upcoming</span>';
+                    actionButton = `<button class="btn btn-sm btn-secondary" disabled>
+                        <i class="bi bi-clock me-1"></i>Not Started
+                    </button>`;
+                } else {
+                    statusBadge = '<span class="badge bg-secondary me-2">Ended</span>';
+                    actionButton = `<button class="btn btn-sm btn-outline-secondary" disabled>
+                        <i class="bi bi-check-circle me-1"></i>Completed
+                    </button>`;
+                }
+                
+                return `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">${lecture.title}</h6>
+                            <p class="card-text text-muted">${lecture.description || 'No description'}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>
+                                    ${lectureTime.toLocaleString()}
+                                </small>
+                                <div>
+                                    <span class="badge bg-primary me-2">${lecture.duration} min</span>
+                                    ${statusBadge}
+                                    ${actionButton}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderMaterials(materials) {
@@ -1002,23 +1105,8 @@
 
         async function startQuiz(quizId) {
             try {
-                const response = await fetch('/api/student/quiz-attempts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ quiz_set_id: quizId })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showToast('Quiz started! Redirecting...', 'success');
-                    // Redirect to quiz page
-                    window.location.href = `/quiz/${data.attempt_id}`;
-                } else {
-                    showToast(data.error, 'error');
-                }
+                // Redirect to quiz attempt page
+                window.location.href = `/api/student/quiz-attempt/${quizId}`;
             } catch (error) {
                 console.error('Quiz start error:', error);
                 showToast('Failed to start quiz', 'error');
@@ -1270,7 +1358,7 @@
 
         function viewDiscussion(forumId) {
             // Navigate to discussion page
-            window.location.href = `/discussion/${forumId}`;
+            window.location.href = `/api/student/discussion/${forumId}`;
         }
 
         async function joinLiveSession(lectureId) {

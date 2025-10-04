@@ -16,6 +16,10 @@
                 Digi Kul - Live Session
             </a>
             <div class="navbar-nav ms-auto">
+                <div id="networkStatus" class="navbar-text me-3">
+                    <i class="bi bi-wifi text-success"></i>
+                    <span class="text-success">Checking...</span>
+                </div>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle me-1"></i>
                     Student
@@ -556,6 +560,11 @@
             console.log('User left:', data);
             removeParticipant(data.user_id);
             updateParticipantsCount();
+        });
+        
+        socket.on('session_participants', (participants) => {
+            console.log('Received session participants:', participants);
+            updateParticipantsList(participants);
         });
         
         socket.on('chat_message', (data) => {
@@ -1111,6 +1120,133 @@
     function showError(message) {
         showAlert(message, 'error');
     }
+    
+    // Enhanced bandwidth monitoring and adaptive quality
+    let bandwidthMonitor = null;
+    let connectionQuality = 'high';
+    
+    function startBandwidthMonitoring() {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+        
+        // Initial network status check
+        updateNetworkStatus();
+        
+        bandwidthMonitor = setInterval(async () => {
+            try {
+                // Test connection speed
+                const startTime = performance.now();
+                const response = await fetch('/api/student/debug/storage', {
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                const endTime = performance.now();
+                
+                const latency = endTime - startTime;
+                const newQuality = determineQuality(latency);
+                
+                // Update network status display
+                updateNetworkStatusDisplay(latency, newQuality);
+                
+                if (newQuality !== connectionQuality) {
+                    connectionQuality = newQuality;
+                    adjustStreamQuality();
+                    console.log(`Connection quality changed to: ${connectionQuality}`);
+                    
+                    // Show notification for quality change
+                    showNetworkNotification(newQuality);
+                }
+            } catch (error) {
+                console.warn('Bandwidth monitoring failed:', error);
+                updateNetworkStatusDisplay(null, 'offline');
+            }
+        }, 5000); // Check every 5 seconds for more responsive monitoring
+    }
+    
+    function updateNetworkStatus() {
+        // Check if online
+        if (!navigator.onLine) {
+            updateNetworkStatusDisplay(null, 'offline');
+            return;
+        }
+        
+        // Check connection type if available
+        if (navigator.connection) {
+            const connection = navigator.connection;
+            const effectiveType = connection.effectiveType;
+            const downlink = connection.downlink;
+            
+            console.log(`Network type: ${effectiveType}, Speed: ${downlink}Mbps`);
+        }
+    }
+    
+    function updateNetworkStatusDisplay(latency, quality) {
+        const statusElement = document.getElementById('networkStatus');
+        if (!statusElement) return;
+        
+        let statusText = '';
+        let statusClass = '';
+        
+        if (quality === 'offline') {
+            statusText = 'Offline';
+            statusClass = 'text-danger';
+        } else if (quality === 'high') {
+            statusText = `Excellent (${latency ? Math.round(latency) + 'ms' : 'Fast'})`;
+            statusClass = 'text-success';
+        } else if (quality === 'medium') {
+            statusText = `Good (${latency ? Math.round(latency) + 'ms' : 'Medium'})`;
+            statusClass = 'text-warning';
+        } else {
+            statusText = `Poor (${latency ? Math.round(latency) + 'ms' : 'Slow'})`;
+            statusClass = 'text-danger';
+        }
+        
+        statusElement.innerHTML = `
+            <i class="bi bi-wifi ${statusClass}"></i>
+            <span class="${statusClass}">${statusText}</span>
+        `;
+    }
+    
+    function showNetworkNotification(quality) {
+        const messages = {
+            'high': 'Network quality improved to excellent',
+            'medium': 'Network quality adjusted to good',
+            'low': 'Network quality reduced to poor - consider checking connection'
+        };
+        
+        showAlert(messages[quality] || 'Network quality changed', quality === 'high' ? 'success' : 'warning');
+    }
+    
+    function determineQuality(latency) {
+        if (latency < 100) return 'high';
+        if (latency < 300) return 'medium';
+        return 'low';
+    }
+    
+    function adjustStreamQuality() {
+        // Adjust video quality based on connection
+        const videoElements = document.querySelectorAll('video');
+        videoElements.forEach(video => {
+            if (connectionQuality === 'low') {
+                video.style.filter = 'blur(1px)';
+            } else {
+                video.style.filter = 'none';
+            }
+        });
+    }
+    
+    // Initialize bandwidth monitoring when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        startBandwidthMonitoring();
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+    });
 </script>
 </body>
 </html>

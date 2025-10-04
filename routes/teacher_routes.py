@@ -5,7 +5,7 @@ Handles teacher-specific functionality including lecture management, materials, 
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from middlewares.auth_middleware import AuthMiddleware
@@ -1593,8 +1593,43 @@ def create_poll():
 def get_poll_results(poll_id):
     """Get poll results"""
     try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this poll
+        poll = db.supabase.table('polls').select('*').eq('id', poll_id).execute()
+        if not poll.data:
+            return jsonify({'error': 'Poll not found'}), 404
+        
+        poll_data = poll.data[0]
+        if poll_data.get('teacher_id') != teacher_id:
+            return jsonify({'error': 'Access denied'}), 403
+        
         results = db.get_poll_results(poll_id)
-        return jsonify(results)
+        
+        if not results:
+            return jsonify({'error': 'No results found'}), 404
+        
+        # Format results for the frontend
+        formatted_results = []
+        total_votes = results.get('total_responses', 0)
+        option_counts = results.get('option_counts', {})
+        options = poll_data.get('options', [])
+        
+        for option in options:
+            votes = option_counts.get(option, 0)
+            percentage = (votes / total_votes * 100) if total_votes > 0 else 0
+            formatted_results.append({
+                'option': option,
+                'votes': votes,
+                'percentage': round(percentage, 1)
+            })
+        
+        return jsonify({
+            'success': True,
+            'question': poll_data.get('question'),
+            'results': formatted_results,
+            'total_votes': total_votes
+        }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1615,12 +1650,54 @@ def get_quiz_responses(quiz_set_id):
         if quiz_set.get('teacher_id') != teacher_id:
             return jsonify({'error': 'Access denied'}), 403
         
-        responses = db.get_quiz_responses_by_quiz_set(quiz_set_id)
+        # Get quiz set details
+        quiz_set = db.get_quiz_set_by_id(quiz_set_id)
+        if not quiz_set:
+            return jsonify({'error': 'Quiz not found'}), 404
+        
+        # Get quiz questions
+        questions = db.get_quiz_questions_by_set(quiz_set_id)
+        
+        # Get quiz attempts
         attempts = db.get_quiz_attempts_by_quiz_set(quiz_set_id)
         
+        # Get quiz responses
+        responses = db.get_quiz_responses_by_quiz_set(quiz_set_id)
+        
+        # Calculate statistics
+        total_attempts = len(attempts)
+        completed_attempts = len([a for a in attempts if a.get('completed', False)])
+        average_score = sum([a.get('score', 0) for a in attempts]) / total_attempts if total_attempts > 0 else 0
+        completion_rate = (completed_attempts / total_attempts * 100) if total_attempts > 0 else 0
+        
+        # Calculate question accuracy
+        question_stats = []
+        for question in questions:
+            question_responses = [r for r in responses if r.get('question_id') == question['id']]
+            correct_responses = len([r for r in question_responses if r.get('is_correct', False)])
+            total_responses = len(question_responses)
+            accuracy = (correct_responses / total_responses * 100) if total_responses > 0 else 0
+            
+            question_stats.append({
+                'question_id': question['id'],
+                'question_text': question['question_text'],
+                'correct_answer': question['correct_answer'],
+                'accuracy': accuracy,
+                'total_responses': total_responses,
+                'correct_responses': correct_responses
+            })
+        
         return jsonify({
+            'success': True,
+            'quiz_set': quiz_set,
+            'questions': question_stats,
+            'attempts': attempts,
             'responses': responses,
-            'attempts': attempts
+            'total_attempts': total_attempts,
+            'completed_attempts': completed_attempts,
+            'average_score': round(average_score, 1),
+            'completion_rate': round(completion_rate, 1),
+            'average_accuracy': round(sum([q['accuracy'] for q in question_stats]) / len(question_stats), 1) if question_stats else 0
         })
         
     except Exception as e:
@@ -1673,6 +1750,112 @@ def get_discussion_posts(forum_id):
             'success': True,
             'posts': posts
         }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@teacher_bp.route('/discussion/<forum_id>')
+@teacher_required
+def discussion_forum_page(forum_id):
+    """Discussion forum page for teachers"""
+    try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this forum
+        forum = db.supabase.table('discussion_forums').select('*').eq('id', forum_id).execute()
+        if not forum.data:
+            return render_template('error.html', 
+                                 error="Discussion forum not found", 
+                                 message="The requested discussion forum could not be found"), 404
+        
+        forum_data = forum.data[0]
+        
+        # Check if teacher has access to this cohort
+        teacher_cohorts = db.get_teacher_cohorts(teacher_id)
+        cohort_ids = [c['id'] for c in teacher_cohorts]
+        
+        if forum_data['cohort_id'] not in cohort_ids:
+            return render_template('error.html', 
+                                 error="Access denied", 
+                                 message="You don't have access to this discussion forum"), 403
+        
+        # Use the real-time chatroom template
+        return render_template('realtime_chatroom.html', forum_id=forum_id, forum=forum_data)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error="Error loading discussion forum", 
+                             message=str(e)), 500
+
+@teacher_bp.route('/discussions/<forum_id>/messages', methods=['GET'])
+@teacher_required
+def get_forum_messages(forum_id):
+    """Get messages for a discussion forum"""
+    try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this forum
+        forum = db.supabase.table('discussion_forums').select('*').eq('id', forum_id).execute()
+        if not forum.data:
+            return jsonify({'error': 'Forum not found'}), 404
+        
+        forum_data = forum.data[0]
+        
+        # Check if teacher has access to this cohort
+        teacher_cohorts = db.get_teacher_cohorts(teacher_id)
+        cohort_ids = [c['id'] for c in teacher_cohorts]
+        
+        if forum_data['cohort_id'] not in cohort_ids:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Get recent messages (last 50)
+        messages = db.get_forum_messages(forum_id, limit=50)
+        
+        return jsonify({
+            'success': True,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@teacher_bp.route('/live-session/<lecture_id>', methods=['GET'])
+@teacher_required
+def start_live_session(lecture_id):
+    """Start a live session for a lecture"""
+    try:
+        teacher_id = session.get('user_id')
+        
+        # Verify teacher has access to this lecture
+        lecture = db.get_lecture_by_id(lecture_id)
+        if not lecture:
+            return jsonify({'error': 'Lecture not found'}), 404
+        
+        # Check if teacher owns this lecture
+        if lecture['teacher_id'] != teacher_id:
+            return jsonify({'error': 'Access denied to this lecture'}), 403
+        
+        # Check if lecture is within the scheduled time window
+        lecture_time = db.parse_datetime(lecture['scheduled_time'])
+        lecture_end = lecture_time + timedelta(minutes=lecture['duration'])
+        now = datetime.now(timezone.utc)
+        
+        # Allow starting 30 minutes before start and 30 minutes after end
+        session_start = lecture_time - timedelta(minutes=30)
+        session_end = lecture_end + timedelta(minutes=30)
+        
+        if now < session_start:
+            return jsonify({'error': 'Lecture has not started yet'}), 400
+        if now > session_end:
+            return jsonify({'error': 'Lecture has ended'}), 400
+        
+        # Update lecture status to live
+        db.update_lecture_status(lecture_id, 'live')
+        
+        # Return live session page
+        return render_template('teacher_live_session.html', 
+                             lecture_id=lecture_id,
+                             session_id=f"session_{lecture_id}")
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

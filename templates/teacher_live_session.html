@@ -226,6 +226,36 @@
         font-weight: bold;
     }
     
+    .participant-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        min-height: 60px;
+    }
+    
+    .participant-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .participant-name {
+        font-weight: bold;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .participant-type {
+        font-size: 12px;
+        color: #666;
+        text-transform: capitalize;
+    }
+    
     .create-poll-form {
         background: #f8f9fa;
         border: 1px solid #dee2e6;
@@ -277,6 +307,17 @@
         padding: 10px 20px;
         border-radius: 25px;
         z-index: 1000;
+    }
+    
+    .network-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        padding: 5px 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        min-width: 120px;
     }
     
     .control-btn {
@@ -427,7 +468,8 @@
         <!-- Participants Panel -->
         <div id="participants-panel" class="tab-panel">
             <div class="polls-container" id="participants-container">
-                <div id="participants-list">
+                <h4>Session Participants</h4>
+                <div id="participants-list" style="max-height: 300px; overflow-y: auto;">
                     <!-- Participants will be added here -->
                 </div>
             </div>
@@ -438,6 +480,10 @@
 <!-- Session Controls -->
 <div class="session-controls">
     <div id="participants-count">👥 0 participants</div>
+    <div id="networkStatus" class="network-status">
+        <i class="bi bi-wifi text-success"></i>
+        <span class="text-success">Checking...</span>
+    </div>
     <button class="control-btn" id="mic-btn" title="Microphone">🎤</button>
     <button class="control-btn" id="cam-btn" title="Camera">📹</button>
     <button class="control-btn" id="screen-btn" title="Share Screen">🖥️</button>
@@ -578,6 +624,13 @@
             removeParticipant(data.user_id);
             document.getElementById('participants-count').textContent = `👥 ${data.participants_count} participants`;
             addChatMessage('system', `${data.user_name} left the session`);
+        });
+        
+        socket.on('session_participants', (participants) => {
+            console.log('Received session participants:', participants);
+            updateParticipantsList(participants);
+            // Also update the participants count
+            document.getElementById('participants-count').textContent = `👥 ${participants.length} participants`;
         });
         
         socket.on('webrtc_offer', async (data) => {
@@ -1026,7 +1079,7 @@
                     }
                     
                     // Update all peer connections with camera track
-                    const videoTrack = cameraStream.getVideoTracks()[0];
+                    const videoTrack = newStream.getVideoTracks()[0];
                     peerConnections.forEach((peerConnection, userId) => {
                         const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
                         if (sender && videoTrack) {
@@ -1695,15 +1748,18 @@
         whiteboardCtx.stroke();
     }
     
-    // Bandwidth monitoring and adaptive quality
+    // Enhanced bandwidth monitoring and adaptive quality
     function startBandwidthMonitoring() {
         if (bandwidthMonitor) {
             clearInterval(bandwidthMonitor);
         }
         
+        // Initial network status check
+        updateNetworkStatus();
+        
         bandwidthMonitor = setInterval(async () => {
             try {
-                // Test connection speed
+                // Test connection speed with multiple methods
                 const startTime = performance.now();
                 const response = await fetch('/api/teacher/debug/storage', {
                     method: 'HEAD',
@@ -1714,15 +1770,76 @@
                 const latency = endTime - startTime;
                 const newQuality = determineQuality(latency);
                 
+                // Update network status display
+                updateNetworkStatusDisplay(latency, newQuality);
+                
                 if (newQuality !== connectionQuality) {
                     connectionQuality = newQuality;
                     adjustStreamQuality();
                     console.log(`Connection quality changed to: ${connectionQuality}`);
+                    
+                    // Show notification for quality change
+                    showNetworkNotification(newQuality);
                 }
             } catch (error) {
                 console.warn('Bandwidth monitoring failed:', error);
+                updateNetworkStatusDisplay(null, 'offline');
             }
-        }, 10000); // Check every 10 seconds
+        }, 5000); // Check every 5 seconds for more responsive monitoring
+    }
+    
+    function updateNetworkStatus() {
+        // Check if online
+        if (!navigator.onLine) {
+            updateNetworkStatusDisplay(null, 'offline');
+            return;
+        }
+        
+        // Check connection type if available
+        if (navigator.connection) {
+            const connection = navigator.connection;
+            const effectiveType = connection.effectiveType;
+            const downlink = connection.downlink;
+            
+            console.log(`Network type: ${effectiveType}, Speed: ${downlink}Mbps`);
+        }
+    }
+    
+    function updateNetworkStatusDisplay(latency, quality) {
+        const statusElement = document.getElementById('networkStatus');
+        if (!statusElement) return;
+        
+        let statusText = '';
+        let statusClass = '';
+        
+        if (quality === 'offline') {
+            statusText = 'Offline';
+            statusClass = 'text-danger';
+        } else if (quality === 'high') {
+            statusText = `Excellent (${latency ? Math.round(latency) + 'ms' : 'Fast'})`;
+            statusClass = 'text-success';
+        } else if (quality === 'medium') {
+            statusText = `Good (${latency ? Math.round(latency) + 'ms' : 'Medium'})`;
+            statusClass = 'text-warning';
+        } else {
+            statusText = `Poor (${latency ? Math.round(latency) + 'ms' : 'Slow'})`;
+            statusClass = 'text-danger';
+        }
+        
+        statusElement.innerHTML = `
+            <i class="bi bi-wifi ${statusClass}"></i>
+            <span class="${statusClass}">${statusText}</span>
+        `;
+    }
+    
+    function showNetworkNotification(quality) {
+        const messages = {
+            'high': 'Network quality improved to excellent',
+            'medium': 'Network quality adjusted to good',
+            'low': 'Network quality reduced to poor - consider checking connection'
+        };
+        
+        showToast(messages[quality] || 'Network quality changed', quality === 'high' ? 'success' : 'warning');
     }
     
     function determineQuality(latency) {

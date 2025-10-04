@@ -2,7 +2,7 @@
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple, List, Dict, Any
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -11,6 +11,40 @@ from config import Config
 from .storage_supabase import SupabaseStorageManager
 
 class SupabaseDatabaseManager:
+    @staticmethod
+    def get_current_timestamp():
+        """Get current UTC timestamp in ISO format"""
+        return datetime.now(timezone.utc).isoformat()
+    
+    @staticmethod
+    def parse_datetime(dt_string):
+        """Parse datetime string to timezone-aware datetime"""
+        if isinstance(dt_string, str):
+            # Handle different datetime formats
+            if dt_string.endswith('Z'):
+                dt_string = dt_string.replace('Z', '+00:00')
+            elif '+' not in dt_string and '-' not in dt_string[-6:]:
+                # Assume UTC if no timezone info
+                dt_string += '+00:00'
+            return datetime.fromisoformat(dt_string)
+        return dt_string
+    
+    @staticmethod
+    def is_lecture_ongoing(lecture):
+        """Check if a lecture is currently ongoing"""
+        if not lecture or not lecture.get('scheduled_time'):
+            return False
+        
+        try:
+            now = datetime.now(timezone.utc)
+            lecture_time = SupabaseDatabaseManager.parse_datetime(lecture['scheduled_time'])
+            duration = lecture.get('duration', 60)
+            end_time = lecture_time + timedelta(minutes=duration)
+            
+            return lecture_time <= now <= end_time
+        except Exception:
+            return False
+    
     def __init__(self):
         self.supabase_url = Config.SUPABASE_URL
         self.supabase_key = Config.SUPABASE_KEY
@@ -511,12 +545,19 @@ class SupabaseDatabaseManager:
                         # It's already a public URL
                         return file_path, "Download URL ready"
                     else:
-                        # Try to get signed URL
-                        signed_url = self.storage.get_signed_url('materials', file_path)
+                        # Try to get signed URL for the file path
+                        # Remove leading slash if present
+                        clean_path = file_path.lstrip('/')
+                        signed_url = self.storage.get_signed_url('materials', clean_path)
                         if signed_url:
                             return signed_url, "Download URL ready"
                         else:
-                            return file_path, "Using direct file path"
+                            # Try with the original path
+                            signed_url = self.storage.get_signed_url('materials', file_path)
+                            if signed_url:
+                                return signed_url, "Download URL ready"
+                            else:
+                                return file_path, "Using direct file path"
                 except Exception as e:
                     print(f"Error getting signed URL: {e}")
                     return file_path, "Using direct file path"
@@ -2760,7 +2801,7 @@ class SupabaseDatabaseManager:
         if not self.supabase:
             return []
         try:
-            result = self.supabase.table('quizzes').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
+            result = self.supabase.table('quiz_questions').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting quiz questions: {e}")
@@ -3544,6 +3585,17 @@ class SupabaseDatabaseManager:
         except Exception as e:
             print(f"Error getting quiz attempts: {e}")
             return []
+    
+    def get_quiz_questions_by_set(self, quiz_set_id: str) -> List[Dict[str, Any]]:
+        """Get all questions for a quiz set"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table('quiz_questions').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting quiz questions: {e}")
+            return []
 
     def create_poll(self, institution_id: str, cohort_id: str, teacher_id: str, question: str, options: List[str], lecture_id: str = None, expires_at: str = None) -> Tuple[Optional[str], str]:
         """Create a new poll"""
@@ -3875,6 +3927,62 @@ class SupabaseDatabaseManager:
         except Exception as e:
             print(f"Error getting cohort grade statistics: {e}")
             return {}
+    
+    def get_forum_messages(self, forum_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get messages for a discussion forum"""
+        try:
+            if not self.supabase:
+                return []
+            
+            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).limit(limit).execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting forum messages: {e}")
+            return []
+    
+    def create_forum_message(self, forum_id: str, author_id: str, author_type: str, content: str) -> Tuple[Optional[Dict[str, Any]], str]:
+        """Create a new message in a discussion forum"""
+        try:
+            if not self.supabase:
+                return None, "Database not available"
+            
+            message_data = {
+                'forum_id': forum_id,
+                'author_id': author_id,
+                'author_type': author_type,
+                'content': content,
+                'created_at': self.get_current_timestamp()
+            }
+            
+            result = self.supabase.table('discussion_posts').insert(message_data).execute()
+            
+            if result.data:
+                return result.data[0], "Message created successfully"
+            else:
+                return None, "Failed to create message"
+                
+        except Exception as e:
+            return None, f"Error creating message: {str(e)}"
+    
+    def update_lecture_status(self, lecture_id: str, status: str) -> Tuple[bool, str]:
+        """Update lecture status"""
+        try:
+            if not self.supabase:
+                return False, "Database not available"
+            
+            result = self.supabase.table('lectures').update({
+                'status': status,
+                'updated_at': self.get_current_timestamp()
+            }).eq('id', lecture_id).execute()
+            
+            if result.data:
+                return True, "Lecture status updated successfully"
+            else:
+                return False, "Failed to update lecture status"
+                
+        except Exception as e:
+            return False, f"Error updating lecture status: {str(e)}"
 
 
 # Create a global instance for compatibility
