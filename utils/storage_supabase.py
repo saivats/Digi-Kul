@@ -22,7 +22,7 @@ class SupabaseStorageManager:
     def create_buckets(self) -> bool:
         """Create storage buckets if they don't exist"""
         try:
-            for bucket_name in self.buckets.values():
+            for bucket_name in self.buckets.values(): 
                 try:
                     # Check if bucket exists
                     self.supabase.storage.get_bucket(bucket_name)
@@ -221,10 +221,27 @@ class SupabaseStorageManager:
             return ""
     
     def list_files(self, bucket_name: str, folder_path: str = "") -> list:
-        """List files in a bucket folder"""
+        """List files in a bucket folder. Returns a list of dicts with 'name' containing the filename relative to folder."""
         try:
             result = self.supabase.storage.from_(bucket_name).list(folder_path)
-            return result if result else []
+            print(f"Storage list raw result: {result}")
+            if not result:
+                return []
+            # Ensure we return a list of dicts with at least a name field
+            normalized = []
+            for item in result:
+                if isinstance(item, dict):
+                    if 'name' not in item:
+                        # Try to find a name field with a different case
+                        for k in item:
+                            if k.lower() == 'name':
+                                item['name'] = item[k]
+                                break
+                    normalized.append(item)
+                else:
+                    normalized.append({'name': str(item)})
+            print(f"Normalized file list: {normalized}")
+            return normalized
         except Exception as e:
             print(f"Error listing files: {e}")
             return []
@@ -241,9 +258,16 @@ class SupabaseStorageManager:
     def get_signed_url(self, bucket_name: str, file_path: str, expires_in: int = 3600) -> Optional[str]:
         """Get a signed URL for private file access"""
         try:
+            print(f"Attempting to get signed URL for bucket: {bucket_name}, path: {file_path}")
             result = self.supabase.storage.from_(bucket_name).create_signed_url(file_path, expires_in)
-            if result and 'signedURL' in result:
-                return result['signedURL']
+            print(f"Signed URL result: {result}")
+            if result:
+                # Supabase client may return different key names depending on version
+                for key in ('signedURL', 'signedUrl', 'url', 'signedurl'):
+                    if key in result and result[key]:
+                        print(f"Successfully got signed URL: {result[key]}")
+                        return result[key]
+            print("No signed URL in result")
             return None
         except Exception as e:
             print(f"Error getting signed URL: {e}")

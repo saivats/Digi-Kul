@@ -95,6 +95,55 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@student_bp.route('/debug/storage/recordings/<lecture_id>', methods=['GET'])
+@student_required
+def debug_list_recordings_student(lecture_id):
+    """List files under recordings/lecture_<lecture_id> in Supabase Storage (student view)"""
+    try:
+        storage = getattr(db, 'storage', None)
+        if not storage:
+            from config import Config
+            from utils.storage_supabase import SupabaseStorageManager
+            storage = SupabaseStorageManager(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+
+        folder = f"lecture_{lecture_id}"
+        print(f"Listing files in bucket 'recordings' folder '{folder}'")
+        files = storage.list_files('recordings', folder)
+        return jsonify({'success': True, 'folder': folder, 'files': files}), 200
+    except Exception as e:
+        print(f"Error listing recordings: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@student_bp.route('/debug/storage/recordings/<lecture_id>/info', methods=['GET'])
+@student_required
+def debug_recording_info_student(lecture_id):
+    """Get info for files under recordings/lecture_<lecture_id> (returns info for each file) - student view"""
+    try:
+        storage = getattr(db, 'storage', None)
+        if not storage:
+            from config import Config
+            from utils.storage_supabase import SupabaseStorageManager
+            storage = SupabaseStorageManager(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+
+        folder = f"lecture_{lecture_id}"
+        files = storage.list_files('recordings', folder)
+        info_list = []
+        for f in files or []:
+            path = f.get('name') if isinstance(f, dict) and 'name' in f else f
+            try:
+                info = storage.get_file_info('recordings', f"{folder}/{path}")
+            except Exception as e:
+                info = {'error': str(e)}
+            info_list.append({'path': path, 'info': info})
+
+        return jsonify({'success': True, 'info': info_list}), 200
+    except Exception as e:
+        print(f"Error getting recording info: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @student_bp.route('/dashboard')
 @student_required
 def dashboard():
@@ -286,6 +335,40 @@ def get_recordings():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@student_bp.route('/recordings/<recording_id>/debug', methods=['GET'])
+@student_required
+def debug_recording(recording_id):
+    """Debug recording data"""
+    try:
+        recording = db.get_recording_by_id(recording_id)
+        if not recording:
+            return jsonify({'error': 'Recording not found'}), 404
+        # Also include lecture info and student's enrolled cohorts for debugging
+        lecture = None
+        try:
+            lecture = db.get_lecture_by_id(recording.get('lecture_id'))
+        except Exception:
+            lecture = None
+
+        student_id = session.get('user_id')
+        student_cohorts = []
+        try:
+            student_cohorts = db.get_student_cohorts(student_id)
+        except Exception:
+            student_cohorts = []
+
+        return jsonify({
+            'recording_id': recording_id,
+            'recording_data': recording,
+            'recording_path': recording.get('recording_path'),
+            'lecture_id': recording.get('lecture_id'),
+            'lecture': lecture,
+            'student_cohorts': student_cohorts
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @student_bp.route('/recordings/<recording_id>/download', methods=['GET'])
 @student_required
 def download_recording(recording_id):
@@ -308,7 +391,9 @@ def download_recording(recording_id):
         cohort_ids = [c['id'] for c in student_cohorts]
         
         if lecture['cohort_id'] not in cohort_ids:
-            return jsonify({'error': 'Access denied to this recording'}), 403
+            # Log useful debug info for quick triage
+            print(f"Access denied: student_id={student_id}, lecture_cohort={lecture.get('cohort_id')}, student_cohort_ids={cohort_ids}")
+            return jsonify({'error': 'Access denied to this recording', 'lecture_cohort': lecture.get('cohort_id'), 'student_cohorts': cohort_ids}), 403
         
         # Handle recording file path
         recording_path = recording.get('recording_path')
@@ -318,26 +403,119 @@ def download_recording(recording_id):
         # Increment download count
         db.increment_recording_download_count(recording_id)
         
-        # Check if it's a Supabase Storage URL
-        if recording_path.startswith('http') and 'supabase.co' in recording_path:
-            # It's already a public URL, redirect to it
-            return redirect(recording_path)
-        elif recording_path.startswith('http'):
-            # It's some other HTTP URL, redirect to it
-            return redirect(recording_path)
-        else:
-            # Try to get a signed URL from Supabase Storage
+        # Handle recording file path
+        print(f"Recording path from database: {recording_path}")
+        
+        if recording_path.startswith('http'):
+            # It's already a full URL (public or private). Prefer generating a signed URL
+            # using Supabase storage (in case the bucket is private) before redirecting.
             try:
+                from config import Config
                 from utils.storage_supabase import SupabaseStorageManager
-                storage = SupabaseStorageManager()
-                signed_url = storage.get_signed_url('recordings', recording_path)
+
+                storage = getattr(db, 'storage', None)
+                if not storage:
+                    storage = SupabaseStorageManager(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+
+                marker = '/storage/v1/object/public/'
+                if marker in recording_path:
+                    suffix = recording_path.split(marker, 1)[1]
+                    parts = suffix.split('/', 1)
+                    bucket = parts[0] if parts else 'recordings'
+                    object_path = parts[1] if len(parts) > 1 else ''
+
+                    if object_path:
+                        print(f"Attempting to get signed URL for bucket='{bucket}', path='{object_path}'")
+                        signed_url = storage.get_signed_url(bucket, object_path)
+                        if signed_url:
+                            print(f"Successfully got signed URL: {signed_url}")
+                            return redirect(signed_url)
+                        else:
+                            print(f"Signed URL not available for {object_path}, falling back to public URL")
+                        # Try listing the folder to find an object that matches the base name
+                        try:
+                            folder = object_path.split('/', 1)[0] if '/' in object_path else object_path
+                            base_name = os.path.basename(object_path)
+                            print(f"Listing files in bucket '{bucket}' folder '{folder}' to find candidate for base '{base_name}'")
+                            files = storage.list_files(bucket, folder)
+                            print(f"Found {len(files) if files else 0} files in folder: {files}")
+                            for f in files or []:
+                                # Get name relative to folder
+                                candidate = f.get('name', '')
+                                if not candidate:
+                                    continue
+                                print(f"Checking candidate in folder '{folder}': {candidate}")
+                                # Compare the base name since list returns relative paths
+                                candidate_base = os.path.basename(candidate)
+                                if candidate_base == base_name or candidate_base.startswith(base_name):
+                                    # Reconstruct full path relative to bucket
+                                    candidate_path = f"{folder}/{candidate}"
+                                    print(f"Found matching file, trying signed URL for: {candidate_path}")
+                                    signed_url = storage.get_signed_url(bucket, candidate_path)
+                                    if signed_url:
+                                        print(f"Successfully got signed URL for match: {signed_url}")
+                                        db.increment_recording_download_count(recording_id)
+                                        return redirect(signed_url)
+                                    # Reconstruct full path relative to bucket
+                                    candidate_path = f"{folder}/{candidate}"
+                                    print(f"Found matching file, trying signed URL for: {candidate_path}")
+                                    signed_url = storage.get_signed_url(bucket, candidate_path)
+                                    if signed_url:
+                                        print(f"Successfully got signed URL for match: {signed_url}")
+                                        db.increment_recording_download_count(recording_id)
+                                        return redirect(signed_url)
+                                if candidate == base_name or candidate.startswith(base_name):
+                                    candidate_path = f"{folder}/{candidate}"
+                                    print(f"Found candidate object: {candidate_path}, attempting signed URL")
+                                    candidate_signed = storage.get_signed_url(bucket, candidate_path)
+                                    if candidate_signed:
+                                        print(f"Successfully got signed URL for candidate: {candidate_signed}")
+                                        return redirect(candidate_signed)
+                        except Exception as e:
+                            print(f"Error while listing bucket '{bucket}' folder '{folder}': {e}")
+
+                # Not a Supabase storage URL or signed URL unavailable — redirect to the stored URL
+                print(f"Recording is already a URL, redirecting to: {recording_path}")
+                return redirect(recording_path)
+            except Exception as e:
+                print(f"Error trying to generate signed URL from public URL: {e}")
+                return redirect(recording_path)
+
+        else:
+            # Try to get a signed URL from Supabase Storage for local/object paths
+            try:
+                storage = getattr(db, 'storage', None)
+                if not storage:
+                    from config import Config
+                    from utils.storage_supabase import SupabaseStorageManager
+                    storage = SupabaseStorageManager(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+
+                relative_path = recording_path
+                if not recording_path.startswith('lecture_'):
+                    lecture_id = recording.get('lecture_id', '')
+                    if lecture_id:
+                        relative_path = f"lecture_{lecture_id}/{recording_path}"
+
+                print(f"Attempting to get signed URL for path: {relative_path}")
+                signed_url = storage.get_signed_url('recordings', relative_path)
+                if not signed_url:
+                    for ext in ('.webm', '.mp4', '.mkv'):
+                        try_path = f"{relative_path}{ext}"
+                        print(f"Trying path with extension: {try_path}")
+                        signed_url = storage.get_signed_url('recordings', try_path)
+                        if signed_url:
+                            relative_path = try_path
+                            break
+
                 if signed_url:
+                    print(f"Successfully got signed URL: {signed_url}")
                     return redirect(signed_url)
+                else:
+                    print(f"Failed to get signed URL for path: {relative_path}")
             except Exception as e:
                 print(f"Error getting signed URL for recording: {e}")
-            
-            # Fallback to local file handling
-            # Handle local file paths (legacy support)
+
+            # Fallback to local file handling (legacy support)
             possible_paths = [
                 recording_path,
                 os.path.join('uploads', recording_path),
@@ -359,7 +537,7 @@ def download_recording(recording_id):
             return send_file(
                 found_path,
                 as_attachment=True,
-                download_name=f"lecture_recording_{recording_id}.mp4"
+                download_name=f"lecture_recording_{recording_id}.webm"
             )
         
     except Exception as e:
@@ -458,7 +636,10 @@ def discussion_forum_page(forum_id):
                                  message="You don't have access to this discussion forum"), 403
         
         # Use the real-time chatroom template instead
-        return render_template('realtime_chatroom.html', forum_id=forum_id, forum=forum_data)
+        return render_template('realtime_chatroom.html', 
+                             forum_id=forum_id, 
+                             forum=forum_data,
+                             session=session)
         
     except Exception as e:
         return render_template('error.html', 
@@ -1062,19 +1243,9 @@ def join_live_session(lecture_id):
         if lecture['cohort_id'] not in cohort_ids:
             return jsonify({'error': 'Access denied to this lecture'}), 403
         
-        # Check if lecture is within the scheduled time window (allow joining up to 30 minutes before start and 30 minutes after end)
-        lecture_time = db.parse_datetime(lecture['scheduled_time'])
-        lecture_end = lecture_time + timedelta(minutes=lecture['duration'])
-        now = datetime.now(timezone.utc)
-        
-        # Allow joining 30 minutes before start and 30 minutes after end
-        join_start = lecture_time - timedelta(minutes=30)
-        join_end = lecture_end + timedelta(minutes=30)
-        
-        if now < join_start:
-            return jsonify({'error': 'Lecture has not started yet'}), 400
-        if now > join_end:
-            return jsonify({'error': 'Lecture has ended'}), 400
+        # Allow students to join if the lecture is live, regardless of scheduled time
+        if lecture.get('status') != 'live':
+            return jsonify({'error': 'Lecture is not currently live'}), 400
         
         # Return live session page
         return render_template('student_live_session.html', 

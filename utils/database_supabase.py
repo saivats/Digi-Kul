@@ -540,24 +540,37 @@ class SupabaseDatabaseManager:
             # If it's a local file, try to get a signed URL from storage
             if self.storage:
                 try:
-                    # Extract bucket and file path from storage URL
+                    # If path already looks like a public Supabase URL, return it
                     if 'supabase.co/storage/v1/object/public/' in file_path:
-                        # It's already a public URL
                         return file_path, "Download URL ready"
-                    else:
-                        # Try to get signed URL for the file path
-                        # Remove leading slash if present
-                        clean_path = file_path.lstrip('/')
-                        signed_url = self.storage.get_signed_url('materials', clean_path)
-                        if signed_url:
-                            return signed_url, "Download URL ready"
-                        else:
-                            # Try with the original path
-                            signed_url = self.storage.get_signed_url('materials', file_path)
+
+                    # Try different path variations for Supabase Storage
+                    path_variations = [
+                        file_path,  # Original path
+                        file_path.lstrip('/'),  # Remove leading slash
+                        os.path.basename(file_path),  # Just filename
+                        file_path.replace('/materials/', ''),  # Remove materials folder
+                        file_path.replace('materials/', ''),  # Remove materials folder without slash
+                        file_path.replace('/cohort_', 'cohort_'),  # Handle cohort paths
+                        file_path.replace('/lecture_', 'lecture_'),  # Handle lecture paths
+                    ]
+
+                    for path_var in path_variations:
+                        if not path_var:
+                            continue
+                        try:
+                            signed_url = self.storage.get_signed_url('materials', path_var)
                             if signed_url:
+                                print(f"Successfully got signed URL for path: {path_var}")
                                 return signed_url, "Download URL ready"
-                            else:
-                                return file_path, "Using direct file path"
+                        except Exception as e:
+                            print(f"Failed to get signed URL for path '{path_var}': {e}")
+                            # try next variation
+                            continue
+
+                    print(f"Failed to get signed URL for any path variation: {path_variations}")
+                    # fallback to returning the original file path
+                    return file_path, "Using direct file path"
                 except Exception as e:
                     print(f"Error getting signed URL: {e}")
                     return file_path, "Using direct file path"
@@ -2801,7 +2814,7 @@ class SupabaseDatabaseManager:
         if not self.supabase:
             return []
         try:
-            result = self.supabase.table('quiz_questions').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
+            result = self.supabase.table('quizzes').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting quiz questions: {e}")
@@ -3124,6 +3137,73 @@ class SupabaseDatabaseManager:
         except Exception as e:
             print(f"Error incrementing download count: {e}")
             return False
+    
+    def get_recording_download_url(self, recording_id: str) -> Tuple[Optional[str], str]:
+        """Get download URL for a recording"""
+        try:
+            if not self.supabase:
+                return None, "Database not available"
+            
+            # Get recording details
+            result = self.supabase.table('session_recordings').select('recording_path, lecture_id').eq('id', recording_id).execute()
+            if not result.data:
+                return None, "Recording not found"
+            
+            recording = result.data[0]
+            recording_path = recording.get('recording_path')
+            lecture_id = recording.get('lecture_id')
+            
+            if not recording_path:
+                return None, "Recording file path not found"
+            
+            # If it's already a Supabase Storage URL, return it directly
+            if recording_path.startswith('http'):
+                return recording_path, "Download URL ready"
+            
+            # If it's a local file, try to get a signed URL from storage
+            if self.storage:
+                try:
+                    # Extract bucket and file path from storage URL
+                    if 'supabase.co/storage/v1/object/public/' in recording_path:
+                        # It's already a public URL
+                        return recording_path, "Download URL ready"
+                    else:
+                        # Try different path variations for Supabase Storage
+                        path_variations = [
+                            recording_path,  # Original path
+                            recording_path.lstrip('/'),  # Remove leading slash
+                            os.path.basename(recording_path),  # Just filename
+                        ]
+                        
+                        # If we have lecture_id, try to construct the full path
+                        if lecture_id:
+                            path_variations.extend([
+                                f"lecture_{lecture_id}/{recording_path}",
+                                f"lecture_{lecture_id}/{os.path.basename(recording_path)}",
+                                f"lecture_{lecture_id}/{recording_path.lstrip('/')}"
+                            ])
+                        
+                        for path_var in path_variations:
+                            if path_var:  # Skip empty paths
+                                try:
+                                    signed_url = self.storage.get_signed_url('recordings', path_var)
+                                    if signed_url:
+                                        print(f"Successfully got signed URL for recording path: {path_var}")
+                                        return signed_url, "Download URL ready"
+                                except Exception as e:
+                                    print(f"Failed to get signed URL for path '{path_var}': {e}")
+                                    continue
+                        
+                        print(f"Failed to get signed URL for any path variation: {path_variations}")
+                        return recording_path, "Using direct file path"
+                except Exception as e:
+                    print(f"Error getting signed URL: {e}")
+                    return recording_path, "Using direct file path"
+            
+            return recording_path, "Using direct file path"
+            
+        except Exception as e:
+            return None, f"Error getting download URL: {str(e)}"
 
     def get_material_by_id(self, material_id: str) -> Optional[Dict[str, Any]]:
         """Get material by ID"""
@@ -3591,7 +3671,7 @@ class SupabaseDatabaseManager:
         if not self.supabase:
             return []
         try:
-            result = self.supabase.table('quiz_questions').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
+            result = self.supabase.table('quizzes').select('*').eq('quiz_set_id', quiz_set_id).order('order_index').execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting quiz questions: {e}")

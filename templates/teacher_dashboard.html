@@ -2836,7 +2836,7 @@
                 if (data.success) {
                     // Display results in a modal
                     showPollResultsModal(data);
-                    showToast('Poll results loaded', 'success');
+                showToast('Poll results loaded', 'success');
                 } else {
                     showToast(data.error || 'Failed to load poll results', 'error');
                 }
@@ -2847,7 +2847,7 @@
         }
 
         function showPollResultsModal(data) {
-            // Create modal HTML
+            // Create modal HTML with proper styling
             const modalHtml = `
                 <div class="modal fade" id="pollResultsModal" tabindex="-1">
                     <div class="modal-dialog modal-lg">
@@ -2858,15 +2858,15 @@
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <h6>Question:</h6>
-                                    <p>${data.question}</p>
+                                    <h6 class="text-dark">Question:</h6>
+                                    <p class="text-dark">${data.question}</p>
                                 </div>
                                 <div class="mb-3">
-                                    <h6>Results:</h6>
+                                    <h6 class="text-dark">Results:</h6>
                                     ${data.results.map(result => `
                                         <div class="mb-2">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <span>${result.option}</span>
+                                                <span class="text-dark">${result.option}</span>
                                                 <span class="badge bg-primary">${result.votes} votes</span>
                                             </div>
                                             <div class="progress" style="height: 20px;">
