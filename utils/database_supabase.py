@@ -10,6 +10,20 @@ load_dotenv()  # Load environment variables before importing config
 from config import Config
 from .storage_supabase import SupabaseStorageManager
 
+# Singleton instance
+_instance: Optional[Client] = None
+
+def get_supabase_client() -> Client:
+    """Get a singleton instance of the Supabase client"""
+    global _instance
+    if _instance is None:
+        url = Config.SUPABASE_URL
+        key = Config.SUPABASE_KEY
+        if not url or not key:
+            raise ValueError("Supabase URL and Key must be set in environment variables")
+        _instance = create_client(url, key)
+    return _instance
+
 class SupabaseDatabaseManager:
     @staticmethod
     def get_current_timestamp():
@@ -48,7 +62,8 @@ class SupabaseDatabaseManager:
     def __init__(self):
         self.supabase_url = Config.SUPABASE_URL
         self.supabase_key = Config.SUPABASE_KEY
-        
+        self._supabase = None
+
         # Check if we're in development mode with placeholder values
         if (self.supabase_url == 'https://placeholder.supabase.co' or 
             self.supabase_key == 'placeholder-key' or
@@ -82,6 +97,84 @@ class SupabaseDatabaseManager:
         """Initialize database - tables should be created via SQL schema"""
         # This method is kept for compatibility but tables are created via SQL
         pass
+
+    # Chat methods
+    def save_chat_message(self, institution_id: str, forum_id: str, user_id: str,
+                        user_name: str, user_type: str, message: str,
+                        attachment: Optional[Dict] = None) -> Optional[Dict]:
+        """Save a chat message to the database"""
+        try:
+            message_data = {
+                'institution_id': institution_id,
+                'forum_id': forum_id,
+                'user_id': user_id,
+                'user_name': user_name,
+                'user_type': user_type,
+                'message': message,
+                'attachment': attachment,
+                'created_at': self.get_current_timestamp()
+            }
+            
+            result = self.supabase.table('chat_messages').insert(message_data).execute()
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error saving chat message: {str(e)}")
+            return None
+    
+    def get_forum_messages(self, forum_id: str, limit: int = 100,
+                          before_timestamp: Optional[str] = None) -> List[Dict]:
+        """Get messages for a forum with optional pagination"""
+        try:
+            query = self.supabase.table('chat_messages')\
+                .select('*')\
+                .eq('forum_id', forum_id)\
+                .order('created_at', desc=True)
+
+            if before_timestamp:
+                query = query.lt('created_at', before_timestamp)
+
+            query = query.limit(limit)
+            result = query.execute()
+            
+            # Return messages in chronological order
+            messages = result.data
+            return list(reversed(messages)) if messages else []
+            
+        except Exception as e:
+            print(f"Error fetching forum messages: {str(e)}")
+            return []
+    
+    def delete_chat_message(self, message_id: str, user_id: str) -> bool:
+        """Delete a chat message (only by the message author)"""
+        try:
+            result = self.supabase.table('chat_messages')\
+                .delete()\
+                .eq('id', message_id)\
+                .eq('user_id', user_id)\
+                .execute()
+            
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error deleting chat message: {str(e)}")
+            return False
+
+    def update_chat_message(self, message_id: str, user_id: str,
+                          new_message: str) -> Optional[Dict]:
+        """Update a chat message (only by the message author)"""
+        try:
+            result = self.supabase.table('chat_messages')\
+                .update({'message': new_message, 'updated_at': self.get_current_timestamp()})\
+                .eq('id', message_id)\
+                .eq('user_id', user_id)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error updating chat message: {str(e)}")
+            return None
     
     # Teacher methods
     def create_teacher(self, name: str, email: str, institution: str, subject: str, password_hash: str) -> Tuple[Optional[str], str]:
@@ -4013,9 +4106,42 @@ class SupabaseDatabaseManager:
         try:
             if not self.supabase:
                 return []
-            
-            result = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).limit(limit).execute()
-            return result.data if result.data else []
+            messages = []
+
+            # Get new-style chat_messages
+            try:
+                chat_res = self.supabase.table('chat_messages').select('*').eq('forum_id', forum_id).order('created_at', desc=False).limit(limit).execute()
+                if chat_res and chat_res.data:
+                    for r in chat_res.data:
+                        messages.append({
+                            'forum_id': r.get('forum_id'),
+                            'message': r.get('message'),
+                            'user_id': r.get('user_id'),
+                            'user_name': r.get('user_name') or r.get('user_id'),
+                            'user_type': r.get('user_type') or 'student',
+                            'timestamp': r.get('created_at')
+                        })
+            except Exception:
+                pass
+
+            # Also include legacy discussion_posts
+            try:
+                disc_res = self.supabase.table('discussion_posts').select('*').eq('forum_id', forum_id).order('created_at', desc=False).limit(limit).execute()
+                if disc_res and disc_res.data:
+                    for d in disc_res.data:
+                        messages.append({
+                            'forum_id': forum_id,
+                            'message': d.get('content') or d.get('message'),
+                            'user_id': d.get('author_id') or d.get('user_id'),
+                            'user_name': d.get('author_name') or d.get('user_name') or d.get('author_id'),
+                            'user_type': d.get('author_type') or d.get('user_type') or 'student',
+                            'timestamp': d.get('created_at')
+                        })
+            except Exception:
+                pass
+
+            # Return combined list, trimmed to limit
+            return messages[:limit]
             
         except Exception as e:
             print(f"Error getting forum messages: {e}")

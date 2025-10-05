@@ -2002,9 +2002,11 @@ def get_forum_messages(forum_id):
         if forum_data['cohort_id'] not in cohort_ids:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Get recent messages (last 50)
-        messages = db.get_forum_messages(forum_id, limit=50)
-        
+        # Get recent messages (last 50) via ChatService to merge legacy and new messages
+        from services.chat_service import ChatService
+        chat_service = ChatService()
+        messages = chat_service.get_forum_messages(forum_id, limit=50)
+
         return jsonify({
             'success': True,
             'messages': messages

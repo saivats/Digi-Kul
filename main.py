@@ -49,6 +49,7 @@ from routes.institution_routes import institution_bp
 from routes.institution_admin_routes import institution_admin_bp
 from routes.teacher_routes import teacher_bp
 from routes.student_routes import student_bp
+from routes.chat_routes import chat_bp
 from routes.admin_routes import admin_bp
 
 # Initialize the database
@@ -149,6 +150,7 @@ app.register_blueprint(institution_admin_bp, url_prefix='/institution-admin')
 app.register_blueprint(teacher_bp, url_prefix='/api/teacher')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(chat_bp, url_prefix='/api')
 
 # ==================== MAIN APPLICATION ROUTES ====================
 
@@ -752,6 +754,23 @@ if socketio:
         if forum_id not in online_users:
             online_users[forum_id] = {}
         
+        # If session did not have a name, try to resolve it from DB
+        if not user_name or user_name in ['Unknown', '']:
+            try:
+                if user_type == 'teacher':
+                    teacher = db.get_teacher_by_id(user_id)
+                    if teacher and teacher.get('name'):
+                        user_name = teacher.get('name')
+                else:
+                    student = db.get_student_by_id(user_id)
+                    if student and student.get('name'):
+                        user_name = student.get('name')
+                # persist back to session for future events
+                session['user_name'] = user_name
+            except Exception:
+                # leave user_name as-is if lookup fails
+                pass
+
         online_users[forum_id][user_id] = {
             'id': user_id,
             'name': user_name,
@@ -801,65 +820,49 @@ if socketio:
         """Handle messages in discussion forum"""
         forum_id = data.get('forum_id')
         message = data.get('message')
+        attachment = data.get('attachment')
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Unknown')
         user_type = session.get('user_type', 'student')
-        
-        if not forum_id or not message or not user_id:
+
+        if not forum_id or (not message and not attachment) or not user_id:
             return
-        
-        # Save message to database
+
         try:
-            from utils.database_supabase import DatabaseManager
-            db = DatabaseManager()
-            message_data, result = db.create_forum_message(
+            # Use ChatService to save messages
+            from services.chat_service import ChatService
+            chat_service = ChatService()
+
+            # If attachment is present, ensure it has url and name
+            saved_attachment = None
+            if attachment and isinstance(attachment, dict) and attachment.get('url'):
+                saved_attachment = attachment
+
+            saved = chat_service.save_message(
+                institution_id=session.get('institution_id') or None,
                 forum_id=forum_id,
-                author_id=user_id,
-                author_type=user_type,
-                content=message
+                user_id=user_id,
+                user_name=user_name,
+                user_type=user_type,
+                message=message or '',
+                attachment=saved_attachment
             )
-            
-            if message_data:
-                # Broadcast message to all users in the forum
-                emit('forum_message', {
-                    'message': message,
-                    'user_id': user_id,
-                    'user_name': user_name,
-                    'user_type': user_type,
-                    'timestamp': message_data.get('created_at', datetime.now().isoformat())
-                }, room=f"forum_{forum_id}")
-                print(f"Forum message from {user_name} broadcasted to forum {forum_id}")
-            else:
-                print(f"Failed to save forum message: {result}")
-                
+
+            timestamp = saved.get('created_at') if saved else datetime.now().isoformat()
+
+            # Broadcast message to all users in the forum
+            emit('forum_message', {
+                'message': message,
+                'user_id': user_id,
+                'user_name': user_name,
+                'user_type': user_type,
+                'attachment': saved_attachment,
+                'timestamp': timestamp
+            }, room=f"forum_{forum_id}")
+            print(f"Forum message from {user_name} broadcasted to forum {forum_id}")
+
         except Exception as e:
             print(f"Error handling forum message: {e}")
-    
-    @socketio.on('typing')
-    def handle_typing(data):
-        """Handle typing indicator in forum"""
-        forum_id = data.get('forum_id')
-        user_id = session.get('user_id')
-        user_name = session.get('user_name', 'Unknown')
-        
-        if forum_id and user_id:
-            emit('user_typing', {
-                'user_id': user_id,
-                'user_name': user_name
-            }, room=f"forum_{forum_id}", include_self=False)
-    
-    @socketio.on('stop_typing')
-    def handle_stop_typing(data):
-        """Handle stop typing indicator in forum"""
-        forum_id = data.get('forum_id')
-        user_id = session.get('user_id')
-        
-        if forum_id and user_id:
-            emit('user_stop_typing', {
-                'user_id': user_id
-            }, room=f"forum_{forum_id}", include_self=False)
-    
-    @socketio.on('session_control')
     def handle_session_control(data):
         """Handle session control commands (teacher only)"""
         session_id = data.get('session_id')

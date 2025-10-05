@@ -6,6 +6,7 @@ import uuid
 from typing import Optional, Tuple, Dict, Any
 from datetime import datetime
 from supabase import create_client, Client
+from config import Config
 from werkzeug.utils import secure_filename
 
 class SupabaseStorageManager:
@@ -16,7 +17,8 @@ class SupabaseStorageManager:
             'materials': 'materials',
             'recordings': 'recordings',
             'documents': 'documents',
-            'images': 'images'
+            'images': 'images',
+            'chat-attachments': 'chat-attachments'
         }
     
     def create_buckets(self) -> bool:
@@ -176,6 +178,33 @@ class SupabaseStorageManager:
                 
         except Exception as e:
             return None, str(e)
+
+    def upload_bytes(self, bucket_name: str, full_path: str, file_bytes: bytes, content_type: Optional[str] = None) -> Tuple[Optional[str], str]:
+        """Upload raw bytes to storage and return public URL/string"""
+        try:
+            if not file_bytes:
+                return None, "No data provided"
+
+            options = {}
+            if content_type:
+                options = {"content-type": content_type}
+
+            print(f"[storage_supabase] uploading to bucket={bucket_name}, path={full_path}, bytes={len(file_bytes)}")
+            result = self.supabase.storage.from_(bucket_name).upload(
+                full_path,
+                file_bytes,
+                file_options=options if options else None
+            )
+            print(f"[storage_supabase] raw upload result: {result}")
+
+            if result:
+                public_url = self.supabase.storage.from_(bucket_name).get_public_url(full_path)
+                print(f"[storage_supabase] public_url: {public_url}")
+                return public_url, "File uploaded successfully"
+            print("[storage_supabase] upload returned falsy result")
+            return None, "Failed to upload bytes"
+        except Exception as e:
+            return None, str(e)
     
     def _get_content_type(self, file_path: str) -> str:
         """Get content type based on file extension"""
@@ -272,3 +301,18 @@ class SupabaseStorageManager:
         except Exception as e:
             print(f"Error getting signed URL: {e}")
             return None
+
+
+# Module-level singleton for storage manager
+_storage_instance: Optional[SupabaseStorageManager] = None
+
+def get_storage_client() -> SupabaseStorageManager:
+    """Return a singleton SupabaseStorageManager configured from Config."""
+    global _storage_instance
+    if _storage_instance is None:
+        url = getattr(Config, 'SUPABASE_URL', None)
+        key = getattr(Config, 'SUPABASE_KEY', None)
+        if not url or not key:
+            raise ValueError('Supabase URL and Key must be set in environment variables')
+        _storage_instance = SupabaseStorageManager(url, key)
+    return _storage_instance
