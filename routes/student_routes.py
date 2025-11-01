@@ -1055,9 +1055,9 @@ def vote_poll(poll_id):
         
         # Submit poll response
         response_id, message = db.submit_poll_response(
-            poll_id=poll_id,
             student_id=student_id,
-            selected_option=selected_option
+            poll_id=poll_id,
+            response=selected_option
         )
         
         if response_id:
@@ -1245,9 +1245,8 @@ def join_live_session(lecture_id):
         if lecture['cohort_id'] not in cohort_ids:
             return jsonify({'error': 'Access denied to this lecture'}), 403
         
-        # Allow students to join if the lecture is live, regardless of scheduled time
-        if lecture.get('status') != 'live':
-            return jsonify({'error': 'Lecture is not currently live'}), 400
+        # Allow students to join real-time - no status check needed
+        # Teacher controls the session and students can join anytime
         
         # Return live session page
         return render_template('student_live_session.html', 

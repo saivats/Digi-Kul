@@ -851,8 +851,8 @@ class SupabaseDatabaseManager:
             response_data = {
                 'student_id': student_id,
                 'poll_id': poll_id,
-                'response': response,
-                'submitted_at': datetime.now().isoformat()
+                'selected_option': response,
+                'responded_at': datetime.now().isoformat()
             }
             
             # Use upsert to handle duplicate responses
@@ -880,12 +880,12 @@ class SupabaseDatabaseManager:
             poll = poll_result.data[0]
             
             # Get responses
-            responses_result = self.supabase.table('poll_responses').select('response').eq('poll_id', poll_id).execute()
+            responses_result = self.supabase.table('poll_responses').select('selected_option').eq('poll_id', poll_id).execute()
             
             # Count votes
             vote_counts = {}
             for response in responses_result.data:
-                resp = response['response']
+                resp = response['selected_option']
                 vote_counts[resp] = vote_counts.get(resp, 0) + 1
             
             # Calculate percentages

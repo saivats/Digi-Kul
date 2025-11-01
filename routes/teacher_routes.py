@@ -1800,26 +1800,12 @@ def get_poll_results(poll_id):
         if not results:
             return jsonify({'error': 'No results found'}), 404
         
-        # Format results for the frontend
-        formatted_results = []
-        total_votes = results.get('total_responses', 0)
-        option_counts = results.get('option_counts', {})
-        options = poll_data.get('options', [])
-        
-        for option in options:
-            votes = option_counts.get(option, 0)
-            percentage = (votes / total_votes * 100) if total_votes > 0 else 0
-            formatted_results.append({
-                'option': option,
-                'votes': votes,
-                'percentage': round(percentage, 1)
-            })
-        
+        # Return results in the format expected by the frontend
         return jsonify({
             'success': True,
-            'question': poll_data.get('question'),
-            'results': formatted_results,
-            'total_votes': total_votes
+            'question': results.get('question'),
+            'results': results.get('results', []),
+            'total_votes': results.get('total_votes', 0)
         }), 200
         
     except Exception as e:
@@ -2042,10 +2028,20 @@ def start_live_session(lecture_id):
         # Update lecture status to live
         db.update_lecture_status(lecture_id, 'live')
         
+        # Add session to active_sessions for Socket.IO
+        from main import active_sessions, session_participants
+        session_id = f"session_{lecture_id}"
+        active_sessions[session_id] = {
+            'lecture_id': lecture_id,
+            'teacher_id': teacher_id,
+            'started_at': datetime.now().isoformat()
+        }
+        session_participants[session_id] = []
+        
         # Return live session page
         return render_template('teacher_live_session.html', 
                              lecture_id=lecture_id,
-                             session_id=f"session_{lecture_id}")
+                             session_id=session_id)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

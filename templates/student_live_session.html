@@ -56,12 +56,31 @@
         overflow-y: auto;
     }
     
+    /* Zoom-style layout when screen sharing is active */
+    .video-grid.screen-sharing {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper.screenshare {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        height: 70vh;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper:not(.screenshare) {
+        grid-column: auto;
+        grid-row: 2;
+        height: 100px;
+    }
+    
     .video-wrapper {
         position: relative;
         background: #333;
         border-radius: 8px;
         overflow: hidden;
         min-height: 200px;
+        transition: all 0.3s ease;
     }
     
     .video-wrapper.teacher {
@@ -72,10 +91,18 @@
         border: 2px solid #6c757d;
     }
     
+    .video-wrapper.screenshare {
+        border: 4px solid #ffc107;
+    }
+    
     .video-wrapper video {
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+    
+    .screenshare video {
+        object-fit: contain;
     }
     
     .video-label {
@@ -690,12 +717,26 @@
         
         socket.on('screen_share_started', (data) => {
             console.log('Screen sharing started by:', data.user_name);
-            showAlert('Screen sharing started', 'info');
+            // Add screenshare class to video grid
+            const videoGrid = document.getElementById('videoGrid');
+            videoGrid.classList.add('screen-sharing');
+            // Find the teacher's video wrapper and mark it as screenshare
+            const teacherVideos = document.querySelectorAll('.video-wrapper.teacher');
+            teacherVideos.forEach(wrapper => {
+                wrapper.classList.add('screenshare');
+            });
         });
         
         socket.on('screen_share_stopped', (data) => {
             console.log('Screen sharing stopped by:', data.user_name);
-            showAlert('Screen sharing stopped', 'info');
+            // Remove screenshare class from video grid
+            const videoGrid = document.getElementById('videoGrid');
+            videoGrid.classList.remove('screen-sharing');
+            // Remove screenshare marking from video wrappers
+            const teacherVideos = document.querySelectorAll('.video-wrapper.teacher');
+            teacherVideos.forEach(wrapper => {
+                wrapper.classList.remove('screenshare');
+            });
         });
     }
     
@@ -719,11 +760,12 @@
     
     async function getUserMedia() {
         try {
+            // Start with conservative settings for better bandwidth optimization
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 640, max: 1280 },
-                    height: { ideal: 480, max: 720 },
-                    frameRate: { ideal: 15, max: 30 }
+                    width: { ideal: 480, max: 640 },
+                    height: { ideal: 360, max: 480 },
+                    frameRate: { ideal: 15, max: 20 }
                 },
                 audio: {
                     echoCancellation: true,
@@ -1031,6 +1073,22 @@
         document.getElementById('participants-count').textContent = `👥 ${count} participants`;
     }
     
+    function updateParticipantsList(participants) {
+        const participantsList = document.getElementById('participants-list');
+        if (!participantsList) {
+            console.error('Participants list element not found');
+            return;
+        }
+        
+        // Clear existing participants
+        participantsList.innerHTML = '';
+        
+        // Add all participants
+        participants.forEach(participant => {
+            addParticipant(participant);
+        });
+    }
+    
     function addChatMessage(userName, message, timestamp, isOwn = false) {
         const chatMessages = document.getElementById('chat-messages');
         
@@ -1293,8 +1351,7 @@
                     adjustStreamQuality();
                     console.log(`Connection quality changed to: ${connectionQuality}`);
                     
-                    // Show notification for quality change
-                    showNetworkNotification(newQuality);
+                    // Just update the indicator, no notifications
                 }
             } catch (error) {
                 console.warn('Bandwidth monitoring failed:', error);
@@ -1331,13 +1388,13 @@
             statusText = 'Offline';
             statusClass = 'text-danger';
         } else if (quality === 'high') {
-            statusText = `Excellent (${latency ? Math.round(latency) + 'ms' : 'Fast'})`;
+            statusText = 'Excellent';
             statusClass = 'text-success';
         } else if (quality === 'medium') {
-            statusText = `Good (${latency ? Math.round(latency) + 'ms' : 'Medium'})`;
+            statusText = 'Good';
             statusClass = 'text-warning';
         } else {
-            statusText = `Poor (${latency ? Math.round(latency) + 'ms' : 'Slow'})`;
+            statusText = 'Poor';
             statusClass = 'text-danger';
         }
         
@@ -1348,13 +1405,8 @@
     }
     
     function showNetworkNotification(quality) {
-        const messages = {
-            'high': 'Network quality improved to excellent',
-            'medium': 'Network quality adjusted to good',
-            'low': 'Network quality reduced to poor - consider checking connection'
-        };
-        
-        showAlert(messages[quality] || 'Network quality changed', quality === 'high' ? 'success' : 'warning');
+        // Network quality is now shown in the status indicator only, no popups
+        // Quality indicators are in the navbar
     }
     
     function determineQuality(latency) {

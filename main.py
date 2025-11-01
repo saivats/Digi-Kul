@@ -612,15 +612,22 @@ if socketio:
         participant = {
             'user_id': user_id,
             'user_type': user_type,
+            'user_name': session.get('user_name', 'Unknown'),
             'name': session.get('user_name', 'Unknown'),
             'joined_at': datetime.now().isoformat()
         }
         
-        if participant not in session_participants[session_id]:
-            session_participants[session_id].append(participant)
+        # Check if participant already exists and remove if so
+        session_participants[session_id] = [
+            p for p in session_participants[session_id] if p['user_id'] != user_id
+        ]
+        session_participants[session_id].append(participant)
         
         # Notify others in the session
-        emit('user_joined', participant, room=session_id, include_self=False)
+        emit('user_joined', {
+            **participant,
+            'participants_count': len(session_participants[session_id])
+        }, room=session_id, include_self=False)
         
         # Send current participants to the new user
         emit('session_participants', session_participants[session_id])
@@ -630,6 +637,7 @@ if socketio:
         """Handle leaving a live session"""
         session_id = data.get('session_id')
         user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
         
         if session_id and user_id:
             leave_room(session_id)
@@ -642,7 +650,11 @@ if socketio:
                 ]
             
             # Notify others in the session
-            emit('user_left', {'user_id': user_id}, room=session_id, include_self=False)
+            emit('user_left', {
+                'user_id': user_id,
+                'user_name': user_name,
+                'participants_count': len(session_participants.get(session_id, []))
+            }, room=session_id, include_self=False)
     
     @socketio.on('session_message')
     def handle_session_message(data):
@@ -766,6 +778,56 @@ if socketio:
         
         emit('whiteboard_clear', clear_data, room=session_id, include_self=False)
         print(f"Whiteboard cleared by {user_name} in session {session_id}")
+    
+    @socketio.on('screen_share_started')
+    def handle_screen_share_started(data):
+        """Handle screen sharing started events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid screen share data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast screen share event to all participants
+        share_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('screen_share_started', share_data, room=session_id, include_self=False)
+        print(f"Screen share started by {user_name} in session {session_id}")
+    
+    @socketio.on('screen_share_stopped')
+    def handle_screen_share_stopped(data):
+        """Handle screen sharing stopped events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid screen share data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast screen share stopped event to all participants
+        share_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('screen_share_stopped', share_data, room=session_id, include_self=False)
+        print(f"Screen share stopped by {user_name} in session {session_id}")
     
     # Forum chat events
     @socketio.on('join_forum')
@@ -976,6 +1038,41 @@ def health_check():
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/session_health/<session_id>', methods=['GET'])
+def session_health_check(session_id):
+    """Session health check endpoint"""
+    try:
+        if session_id not in active_sessions:
+            return jsonify({
+                'success': False,
+                'status': 'not_found',
+                'message': 'Session not found'
+            }), 404
+        
+        session_info = active_sessions[session_id]
+        participants = session_participants.get(session_id, [])
+        
+        return jsonify({
+            'success': True,
+            'status': 'active',
+            'session_id': session_id,
+            'lecture_id': session_info.get('lecture_id'),
+            'started_at': session_info.get('started_at'),
+            'participants_count': len(participants),
+            'participants': participants,
+            'recording_status': session_info.get('recording_status'),
+            'quality_reports': session_info.get('quality_reports', []),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'status': 'error',
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500

@@ -56,12 +56,31 @@
         overflow-y: auto;
     }
     
+    /* Zoom-style layout when screen sharing is active */
+    .video-grid.screen-sharing {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper.screenshare {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        height: 70vh;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper:not(.screenshare) {
+        grid-column: auto;
+        grid-row: 2;
+        height: 100px;
+    }
+    
     .video-wrapper {
         position: relative;
         background: #333;
         border-radius: 8px;
         overflow: hidden;
         min-height: 200px;
+        transition: all 0.3s ease;
     }
     
     .video-wrapper.teacher {
@@ -72,10 +91,18 @@
         border: 2px solid #6c757d;
     }
     
+    .video-wrapper.screenshare {
+        border: 4px solid #ffc107;
+    }
+    
     .video-wrapper video {
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+    
+    .screenshare video {
+        object-fit: contain;
     }
     
     .video-label {
@@ -776,9 +803,18 @@
     
     async function getUserMedia() {
         try {
+            // Start with conservative settings for better bandwidth optimization
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
+                video: {
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 15, max: 30 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
             });
             
             // Create local video element
@@ -1112,6 +1148,14 @@
                 document.getElementById('screen-btn').classList.add('active');
                 document.getElementById('screen-btn').innerHTML = '<i class="bi bi-stop-circle"></i>';
                 
+                // Add screenshare class to video grid and mark screen share video
+                const videoGrid = document.getElementById('video-grid');
+                videoGrid.classList.add('screen-sharing');
+                const localVideoWrapper = document.getElementById(`wrapper-${currentUser.id}`);
+                if (localVideoWrapper) {
+                    localVideoWrapper.classList.add('screenshare');
+                }
+                
                 // Handle screen share end
                 videoTrack.onended = () => {
                     console.log('Screen share ended by user');
@@ -1188,6 +1232,14 @@
                     isScreenSharing = false;
                     document.getElementById('screen-btn').classList.remove('active');
                     document.getElementById('screen-btn').innerHTML = '<i class="bi bi-display"></i>';
+                    
+                    // Remove screenshare class from video grid
+                    const videoGrid = document.getElementById('video-grid');
+                    videoGrid.classList.remove('screen-sharing');
+                    const localVideoWrapper = document.getElementById(`wrapper-${currentUser.id}`);
+                    if (localVideoWrapper) {
+                        localVideoWrapper.classList.remove('screenshare');
+                    }
                     
                     console.log('Screen sharing stopped, camera restored successfully');
                     
@@ -1916,8 +1968,7 @@
                     adjustStreamQuality();
                     console.log(`Connection quality changed to: ${connectionQuality}`);
                     
-                    // Show notification for quality change
-                    showNetworkNotification(newQuality);
+                    // Just update the indicator, no notifications
                 }
             } catch (error) {
                 console.warn('Bandwidth monitoring failed:', error);
@@ -2038,13 +2089,13 @@
             statusText = 'Offline';
             statusClass = 'text-danger';
         } else if (quality === 'high') {
-            statusText = `Excellent (${latency ? Math.round(latency) + 'ms' : 'Fast'})`;
+            statusText = 'Excellent';
             statusClass = 'text-success';
         } else if (quality === 'medium') {
-            statusText = `Good (${latency ? Math.round(latency) + 'ms' : 'Medium'})`;
+            statusText = 'Good';
             statusClass = 'text-warning';
         } else {
-            statusText = `Poor (${latency ? Math.round(latency) + 'ms' : 'Slow'})`;
+            statusText = 'Poor';
             statusClass = 'text-danger';
         }
         
@@ -2055,13 +2106,8 @@
     }
     
     function showNetworkNotification(quality) {
-        const messages = {
-            'high': 'Network quality improved to excellent',
-            'medium': 'Network quality adjusted to good',
-            'low': 'Network quality reduced to poor - consider checking connection'
-        };
-        
-        showToast(messages[quality] || 'Network quality changed', quality === 'high' ? 'success' : 'warning');
+        // Network quality is now shown in the status indicator only, no popups
+        // Quality indicators are in the top bar and control bar
     }
     
     function determineQuality(latency) {
@@ -2105,26 +2151,26 @@
         switch (quality) {
             case 'high':
                 return {
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 },
-                    frameRate: { ideal: 30, max: 60 }
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 24, max: 30 }
                 };
             case 'medium':
                 return {
-                    width: { ideal: 640, max: 1280 },
-                    height: { ideal: 480, max: 720 },
-                    frameRate: { ideal: 15, max: 30 }
+                    width: { ideal: 480, max: 640 },
+                    height: { ideal: 360, max: 480 },
+                    frameRate: { ideal: 15, max: 20 }
                 };
             case 'low':
                 return {
-                    width: { ideal: 320, max: 640 },
-                    height: { ideal: 240, max: 480 },
+                    width: { ideal: 320, max: 480 },
+                    height: { ideal: 240, max: 360 },
                     frameRate: { ideal: 10, max: 15 }
                 };
             default:
                 return {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
+                    width: { ideal: 480 },
+                    height: { ideal: 360 },
                     frameRate: { ideal: 15 }
                 };
         }
@@ -2132,10 +2178,10 @@
     
     function getMaxBitrate(quality) {
         switch (quality) {
-            case 'high': return 2000000; // 2 Mbps
-            case 'medium': return 1000000; // 1 Mbps
-            case 'low': return 500000; // 500 Kbps
-            default: return 1000000;
+            case 'high': return 1500000; // 1.5 Mbps (reduced from 2)
+            case 'medium': return 750000; // 750 Kbps (reduced from 1 Mbps)
+            case 'low': return 300000; // 300 Kbps (reduced from 500)
+            default: return 750000;
         }
     }
     
@@ -2143,7 +2189,7 @@
         switch (quality) {
             case 'high': return 1;
             case 'medium': return 1.5;
-            case 'low': return 2;
+            case 'low': return 2.5; // More aggressive scaling for low quality
             default: return 1.5;
         }
     }
