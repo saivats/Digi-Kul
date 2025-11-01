@@ -6,6 +6,7 @@
     <title>Live Session • Digi Kul</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -17,8 +18,8 @@
             </a>
             <div class="navbar-nav ms-auto">
                 <div id="networkStatus" class="navbar-text me-3">
-                    <i class="bi bi-wifi text-success"></i>
-                    <span class="text-success">Checking...</span>
+                    <i class="bi bi-wifi text-light"></i>
+                    <span class="text-light">Checking...</span>
                 </div>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle me-1"></i>
@@ -493,6 +494,7 @@
     let brushSize = 3;
     let lastX = 0;
     let lastY = 0;
+    let drawHistory = [];
     
     // WebRTC configuration
     const rtcConfig = {
@@ -521,8 +523,13 @@
                 name: userName
             };
             
-            // Connect to socket
-            socket = io();
+            // Connect to socket with automatic reconnection
+            socket = io({
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000
+            });
             
             // Setup socket event listeners
             setupSocketListeners();
@@ -536,7 +543,31 @@
             
             console.log('Current Lecture ID:', currentLectureId);
             
-            // Initialize whiteboard
+            // Join the session room when socket connects
+            socket.on('connect', function() {
+                console.log('Socket connected, joining session:', sessionId);
+                socket.emit('join_session', {
+                    session_id: sessionId,
+                    role: 'student'
+                });
+                
+                // Update UI to show connected status
+                updateNetworkStatus('Good');
+            });
+            
+            // Handle session status
+            socket.on('session_status', function(data) {
+                if (data.status === 'active') {
+                    console.log('Session is active');
+                } else if (data.status === 'completed') {
+                    showError('This session has ended. Please return to your dashboard.');
+                    setTimeout(() => {
+                        window.location.href = '/api/student/dashboard';
+                    }, 3000);
+                }
+            });
+            
+            // Initialize collaborative whiteboard
             initializeWhiteboard();
             
         } catch (error) {
@@ -545,7 +576,76 @@
         }
     }
     
+    // Update network status in the UI
+    function updateNetworkStatus(status) {
+        const networkElement = document.getElementById('networkStatus');
+        if (!networkElement) return;
+        
+        let icon, text, colorClass;
+        
+        switch(status) {
+            case 'Good':
+                icon = 'bi-wifi';
+                text = 'Good Connection';
+                colorClass = 'text-success';
+                break;
+            case 'Fair':
+                icon = 'bi-wifi-1';
+                text = 'Fair Connection';
+                colorClass = 'text-warning';
+                break;
+            case 'Poor':
+                icon = 'bi-wifi-2';
+                text = 'Poor Connection';
+                colorClass = 'text-danger';
+                break;
+            case 'Offline':
+                icon = 'bi-wifi-off';
+                text = 'Disconnected';
+                colorClass = 'text-danger';
+                break;
+            default:
+                icon = 'bi-wifi';
+                text = 'Checking...';
+                colorClass = 'text-secondary';
+        }
+        
+        networkElement.innerHTML = `
+            <i class="bi ${icon} ${colorClass}"></i>
+            <span class="${colorClass}">${text}</span>
+        `;
+    }
+    
     function setupSocketListeners() {
+        // Connection events
+        socket.on('connect', function() {
+            console.log('Socket connected, joining session:', sessionId);
+            updateNetworkStatus('Good');
+            socket.emit('join_session', {
+                session_id: sessionId,
+                role: 'student',
+                user_id: currentUser.id,
+                user_name: currentUser.name
+            });
+            
+            // Add self to participants list immediately for better UX
+            addParticipant({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                role: 'student'
+            });
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Socket disconnected');
+            updateNetworkStatus('Offline');
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.error('Connection error:', error);
+            updateNetworkStatus('Poor');
+        });
+        
         socket.on('session_info', (data) => {
             updateParticipantsList(data.participants);
         });
@@ -980,11 +1080,50 @@
     }
     
     // Whiteboard Functions
+    function attachCanvasResizeHandler(canvas, callback) {
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.max(300, Math.floor(rect.width));
+                canvas.height = Math.max(200, Math.floor(rect.height));
+                if (callback) callback();
+            }, 200);
+        });
+    }
+    
     function initializeWhiteboard() {
         whiteboardCanvas = document.getElementById('whiteboard-canvas');
-        whiteboardCtx = whiteboardCanvas.getContext('2d');
-        
-        setupWhiteboardEventListeners();
+        if (whiteboardCanvas) {
+            whiteboardCtx = whiteboardCanvas.getContext('2d');
+            // Initialize canvas size
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            whiteboardCanvas.width = Math.max(300, Math.floor(rect.width));
+            whiteboardCanvas.height = Math.max(200, Math.floor(rect.height));
+            attachCanvasResizeHandler(whiteboardCanvas, function() {
+                if (whiteboardCtx) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    try { window.replayStrokeHistory(sessionId || 'default_canvas', whiteboardCtx, whiteboardCanvas); } catch(e){}
+                }
+            });
+            setupWhiteboardEventListeners();
+            
+            // Enable receiving updates from teacher
+            if (socket) {
+                socket.on('whiteboard_update', function(data) {
+                    if (data.user_id !== currentUser.id) {
+                        drawRemoteWhiteboard(data.drawing_data);
+                    }
+                });
+                
+                // Request current whiteboard state when joining
+                socket.emit('request_whiteboard_state', {
+                    session_id: sessionId,
+                    user_id: currentUser.id
+                });
+            }
+        }
     }
     
     function setupWhiteboardEventListeners() {

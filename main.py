@@ -349,13 +349,45 @@ def download_material(material_id):
         elif user_type not in ['admin', 'super_admin', 'institution_admin']:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Get file path
-        file_path = material.get('file_path')
-        if not file_path or not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
-        
-        # Send file
-        return send_file(file_path, as_attachment=True, download_name=material['file_name'])
+        # Resolve download URL (handles Supabase signed URLs and local paths)
+        download_url, message = db.get_material_download_url(material_id)
+        if not download_url:
+            return jsonify({'error': f'Failed to get download URL: {message}'}), 404
+
+        # Increment download count
+        db.increment_material_download_count(material_id)
+
+        # If it's a Supabase Storage URL, redirect to it
+        if download_url.startswith('http'):
+            return redirect(download_url)
+        else:
+            # Fallback for local files with robust path resolution
+            file_path = download_url
+            if not file_path.startswith('/'):
+                file_path = os.path.join('uploads', file_path)
+
+            possible_paths = [
+                file_path,
+                os.path.join('uploads', 'materials', os.path.basename(file_path)),
+                os.path.join('uploads', 'documents', os.path.basename(file_path)),
+                os.path.join('materials', os.path.basename(file_path)),
+                os.path.join('documents', os.path.basename(file_path))
+            ]
+
+            found_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    found_path = path
+                    break
+
+            if not found_path:
+                return jsonify({'error': f'File not found. Tried paths: {possible_paths}'}), 404
+
+            return send_file(
+                found_path,
+                as_attachment=True,
+                download_name=material.get('file_name', 'material')
+            )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

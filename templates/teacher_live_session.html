@@ -6,6 +6,7 @@
     <title>Live Session • Digi Kul</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -16,6 +17,10 @@
                 Digi Kul - Live Session
             </a>
             <div class="navbar-nav ms-auto">
+                <div id="networkStatus" class="navbar-text me-3">
+                    <i class="bi bi-wifi text-light"></i>
+                    <span class="text-light">Checking...</span>
+                </div>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle me-1"></i>
                     Teacher
@@ -472,6 +477,14 @@
                 <div id="participants-list" style="max-height: 300px; overflow-y: auto;">
                     <!-- Participants will be added here -->
                 </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                    <h5>Session Health</h5>
+                    <div id="session-health" style="font-size:13px;">
+                        <div id="health-participants">Participants: --</div>
+                        <div id="health-recording">Recording: --</div>
+                        <div id="health-reports" style="margin-top:8px; max-height:120px; overflow:auto;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -556,21 +569,31 @@
                 name: userName
             };
             
-            // Connect to socket
-            socket = io();
+            // Initialize socket directly
+            socket = io({
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
+            });
             
-            // Setup socket event listeners
+            // Setup socket listeners
             setupSocketListeners();
             
             // Get user media (video and audio for teachers)
             await getUserMedia();
             
-            // Join session
-            socket.emit('join_session', {
-                session_id: sessionId,
-                user_id: userId,
-                user_type: userType,
-                user_name: userName
+            // Join the session room
+            socket.on('connect', function() {
+                console.log('Socket connected, joining session:', sessionId);
+                socket.emit('join_session', {
+                    session_id: sessionId,
+                    role: 'teacher'
+                });
+                
+                // Update UI to show connected status
+                updateNetworkStatus('Good');
             });
             
             // Get lecture ID from server template variable
@@ -591,6 +614,8 @@
             
             // Start bandwidth monitoring
             startBandwidthMonitoring();
+            // Start periodic quality reporting and health polling
+            try { startQualityReporting(); } catch(e){ console.warn('startQualityReporting failed', e); }
             
         } catch (error) {
             console.error('Failed to initialize session:', error);
@@ -598,7 +623,78 @@
         }
     }
     
+    // Update network status in the UI
+    function updateNetworkStatus(status) {
+        const networkElement = document.getElementById('networkStatus');
+        if (!networkElement) return;
+        
+        let icon, text, colorClass;
+        
+        switch(status) {
+            case 'Good':
+                icon = 'bi-wifi';
+                text = 'Good Connection';
+                colorClass = 'text-success';
+                break;
+            case 'Fair':
+                icon = 'bi-wifi-1';
+                text = 'Fair Connection';
+                colorClass = 'text-warning';
+                break;
+            case 'Poor':
+                icon = 'bi-wifi-2';
+                text = 'Poor Connection';
+                colorClass = 'text-danger';
+                break;
+            case 'Offline':
+                icon = 'bi-wifi-off';
+                text = 'Disconnected';
+                colorClass = 'text-danger';
+                break;
+            default:
+                icon = 'bi-wifi';
+                text = 'Checking...';
+                colorClass = 'text-secondary';
+        }
+        
+        networkElement.innerHTML = `
+            <i class="bi ${icon} ${colorClass}"></i>
+            <span class="${colorClass}">${text}</span>
+        `;
+    }
+    
     function setupSocketListeners() {
+        // Connection events
+        socket.on('connect', function() {
+            console.log('Socket connected, joining session:', sessionId);
+            updateNetworkStatus('Good');
+            
+            // Join the session as teacher
+            socket.emit('join_session', {
+                session_id: sessionId,
+                role: 'teacher',
+                user_id: currentUser.id,
+                user_name: currentUser.name
+            });
+            
+            // Add self to participants list immediately for better UX
+            addParticipant({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                role: 'teacher'
+            });
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Socket disconnected');
+            updateNetworkStatus('Offline');
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.error('Connection error:', error);
+            updateNetworkStatus('Poor');
+        });
+        
         socket.on('session_info', (data) => {
             updateParticipantsList(data.participants);
             // Initiate WebRTC connections with all participants
@@ -1411,10 +1507,14 @@
         
         let optionsHTML = '';
         poll.options.forEach((option, index) => {
+            // Only mark as selected if this is the exact option the user voted for
             const isSelected = hasVoted && userVote === option;
             optionsHTML += `
                 <div class="poll-option ${isSelected ? 'selected' : ''}" 
                      onclick="voteOnPoll('${poll.id}', '${option}')">
+                    <input type="radio" name="poll-${poll.id}" value="${option}" ${isSelected ? 'checked' : ''} 
+                           onclick="event.stopPropagation();" 
+                           onchange="voteOnPoll('${poll.id}', '${option}')">
                     <span class="poll-option-text">${option}</span>
                 </div>
             `;
@@ -1621,11 +1721,46 @@
     }
     
     // Whiteboard Functions
+    function attachCanvasResizeHandler(canvas, callback) {
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.max(300, Math.floor(rect.width));
+                canvas.height = Math.max(200, Math.floor(rect.height));
+                if (callback) callback();
+            }, 200);
+        });
+    }
+    
     function initializeWhiteboard() {
         whiteboardCanvas = document.getElementById('whiteboard-canvas');
         if (whiteboardCanvas) {
             whiteboardCtx = whiteboardCanvas.getContext('2d');
+            // Initialize canvas size
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            whiteboardCanvas.width = Math.max(300, Math.floor(rect.width));
+            whiteboardCanvas.height = Math.max(200, Math.floor(rect.height));
+            attachCanvasResizeHandler(whiteboardCanvas, function() {
+                if (whiteboardCtx) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    try { window.replayStrokeHistory(sessionId || 'default_canvas', whiteboardCtx, whiteboardCanvas); } catch(e){}
+                }
+            });
             setupWhiteboardEventListeners();
+            // Load persisted strokes (if any) and replay
+            try {
+                const canvasId = sessionId || 'default_canvas';
+                window.strokeHistory = window.strokeHistory || {};
+                const persisted = window.strokeHistory[canvasId] || (window.loadStrokeHistoryFromStorage ? loadStrokeHistoryFromStorage(canvasId) : []);
+                if (persisted && persisted.length) {
+                    window.strokeHistory[canvasId] = persisted;
+                    try { window.replayStrokeHistory(canvasId, whiteboardCtx, whiteboardCanvas); } catch(e){}
+                }
+            } catch(e) {
+                console.warn('Failed to load persisted whiteboard', e);
+            }
             console.log('Whiteboard initialized');
         }
     }
@@ -1633,10 +1768,10 @@
     function setupWhiteboardEventListeners() {
         if (!whiteboardCanvas) return;
         
-        whiteboardCanvas.addEventListener('mousedown', startDrawing);
-        whiteboardCanvas.addEventListener('mousemove', draw);
-        whiteboardCanvas.addEventListener('mouseup', stopDrawing);
-        whiteboardCanvas.addEventListener('mouseout', stopDrawing);
+    whiteboardCanvas.addEventListener('mousedown', startDrawing);
+    whiteboardCanvas.addEventListener('mousemove', draw);
+    whiteboardCanvas.addEventListener('mouseup', stopDrawing);
+    whiteboardCanvas.addEventListener('mouseout', stopDrawing);
         
         // Touch events for mobile
         whiteboardCanvas.addEventListener('touchstart', handleTouch);
@@ -1677,20 +1812,23 @@
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.stroke();
         
-        // Broadcast drawing data to other participants
+        // Broadcast drawing data using normalized coords + throttle + ACK
         if (socket) {
-            socket.emit('whiteboard_draw', {
-                session_id: sessionId,
-                drawing_data: {
-                    fromX: lastX,
-                    fromY: lastY,
-                    toX: currentX,
-                    toY: currentY,
-                    color: currentTool === 'eraser' ? '#ffffff' : currentColor,
-                    lineWidth: currentTool === 'eraser' ? brushSize * 3 : brushSize,
-                    tool: currentTool
-                }
-            });
+            const from = normalizePoint(lastX, lastY, whiteboardCanvas);
+            const to = normalizePoint(currentX, currentY, whiteboardCanvas);
+            const drawingPayload = {
+                from: from,
+                to: to,
+                color: currentTool === 'eraser' ? '#ffffff' : currentColor,
+                lineWidth: currentTool === 'eraser' ? brushSize * 3 : brushSize,
+                tool: currentTool
+            };
+            if (!window.__wbThrottledEmit) {
+                window.__wbThrottledEmit = throttle(function(payload) {
+                    emitWhiteboardDraw(sessionId, payload);
+                }, 25);
+            }
+            window.__wbThrottledEmit(drawingPayload);
         }
         
         lastX = currentX;
@@ -1726,9 +1864,7 @@
             
             // Broadcast clear event to other participants
             if (socket) {
-                socket.emit('whiteboard_clear', {
-                    session_id: sessionId
-                });
+                emitWhiteboardClear(sessionId);
             }
             
             showAlert('Whiteboard cleared', 'success');
@@ -1737,12 +1873,14 @@
     
     function drawRemoteWhiteboard(drawingData) {
         if (!whiteboardCtx) return;
-        
+        const from = denormalizePoint(drawingData.from.x, drawingData.from.y, whiteboardCanvas);
+        const to = denormalizePoint(drawingData.to.x, drawingData.to.y, whiteboardCanvas);
+
         whiteboardCtx.beginPath();
-        whiteboardCtx.moveTo(drawingData.fromX, drawingData.fromY);
-        whiteboardCtx.lineTo(drawingData.toX, drawingData.toY);
-        whiteboardCtx.strokeStyle = drawingData.color;
-        whiteboardCtx.lineWidth = drawingData.lineWidth;
+        whiteboardCtx.moveTo(from.x, from.y);
+        whiteboardCtx.lineTo(to.x, to.y);
+        whiteboardCtx.strokeStyle = drawingData.color || '#000';
+        whiteboardCtx.lineWidth = drawingData.lineWidth || 2;
         whiteboardCtx.lineCap = 'round';
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.stroke();
@@ -1786,6 +1924,90 @@
                 updateNetworkStatusDisplay(null, 'offline');
             }
         }, 5000); // Check every 5 seconds for more responsive monitoring
+    }
+
+    // Periodic quality reporting to the server and polling of session health
+    let __qualityReportInterval = null;
+    let __healthPollInterval = null;
+
+    function startQualityReporting() {
+        // send a lightweight quality report every 20s
+        if (__qualityReportInterval) clearInterval(__qualityReportInterval);
+        sendQualityReport();
+        __qualityReportInterval = setInterval(sendQualityReport, 20000);
+
+        // poll session health every 10s to update teacher UI
+        if (__healthPollInterval) clearInterval(__healthPollInterval);
+        pollSessionHealth();
+        __healthPollInterval = setInterval(pollSessionHealth, 10000);
+    }
+
+    function stopQualityReporting() {
+        if (__qualityReportInterval) clearInterval(__qualityReportInterval);
+        if (__healthPollInterval) clearInterval(__healthPollInterval);
+    }
+
+    async function sendQualityReport() {
+        try {
+            if (!socket || !sessionId) return;
+
+            // Compose a basic report using available metrics
+            const report = {
+                connectionQuality: connectionQuality || 'unknown',
+                latencySample: performance.now(),
+                participants: (document.getElementById('participants-list') || {children:[]}).children.length,
+                timestamp: new Date().toISOString()
+            };
+
+            // If we have access to peerConnections, include a rough count
+            try {
+                report.peer_count = peerConnections ? peerConnections.size : 0;
+            } catch (e) { report.peer_count = 0; }
+
+            // Use socket.emit to send the quality_report (server returns an ACK)
+            if (window.sendWithAck) {
+                sendWithAck('quality_report', { session_id: sessionId, report: report }, function(err, ack){
+                    if (err) console.warn('quality_report not acked', err);
+                }, 1, 1000);
+            } else if (socket && socket.emit) {
+                socket.emit('quality_report', { session_id: sessionId, report: report });
+            }
+        } catch (e) {
+            console.warn('sendQualityReport failed', e);
+        }
+    }
+
+    async function pollSessionHealth() {
+        try {
+            const res = await fetch(`/api/session_health/${sessionId}`);
+            if (!res.ok) return;
+            const j = await res.json();
+            if (!j.success) return;
+
+            // Update participants and recording status
+            const parts = j.participants || [];
+            document.getElementById('health-participants').textContent = `Participants: ${parts.length}`;
+            document.getElementById('participants-count').textContent = `👥 ${parts.length} participants`;
+
+            const rec = j.recording_status;
+            const recTxt = rec ? (rec.status || (rec.recording_stats && rec.recording_stats.duration ? 'recording' : 'idle')) : 'none';
+            document.getElementById('health-recording').textContent = `Recording: ${recTxt}`;
+
+            // Render recent quality reports
+            const reports = j.quality_reports || [];
+            const container = document.getElementById('health-reports');
+            container.innerHTML = '';
+            reports.slice(-10).reverse().forEach(r => {
+                const d = document.createElement('div');
+                d.style.fontSize = '12px';
+                d.style.marginBottom = '6px';
+                d.textContent = `${r.timestamp} • user:${r.user_id} • q:${r.report.connectionQuality || 'n/a'} peer:${r.report.peer_count || 0}`;
+                container.appendChild(d);
+            });
+
+        } catch (e) {
+            console.warn('pollSessionHealth failed', e);
+        }
     }
     
     function updateNetworkStatus() {

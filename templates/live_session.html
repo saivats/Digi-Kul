@@ -694,8 +694,8 @@
                     name: userName
                 };
                 
-                // Connect to socket
-                socket = io();
+                // Initialize socket connection (shared initialization in static/js/app.js)
+                initializeSocket();
                 
                 // Setup socket event listeners
                 setupSocketListeners();

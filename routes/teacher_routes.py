@@ -1852,8 +1852,13 @@ def get_quiz_responses(quiz_set_id):
         # Get quiz attempts
         attempts = db.get_quiz_attempts_by_quiz_set(quiz_set_id)
         
-        # Get quiz responses
-        responses = db.get_quiz_responses_by_quiz_set(quiz_set_id)
+        # Get quiz responses - using direct Supabase query since the function might be missing
+        try:
+            responses_result = db.supabase.table('quiz_responses').select('*').eq('quiz_set_id', quiz_set_id).execute()
+            responses = responses_result.data
+        except Exception as e:
+            print(f"Error fetching quiz responses: {str(e)}")
+            responses = []
         
         # Calculate statistics
         total_attempts = len(attempts)

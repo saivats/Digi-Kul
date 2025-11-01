@@ -1140,16 +1140,20 @@
         function updateStatsDisplay(analytics) {
             // Update the stats cards with real-time data
             if (analytics.total_lectures !== undefined) {
-                document.getElementById('myLectures').textContent = analytics.total_lectures;
+                const lecturesElement = document.getElementById('myLectures');
+                if (lecturesElement) lecturesElement.textContent = analytics.total_lectures;
             }
             if (analytics.total_cohorts !== undefined) {
-                document.getElementById('myCohorts').textContent = analytics.total_cohorts;
+                const cohortsElement = document.getElementById('myCohorts');
+                if (cohortsElement) cohortsElement.textContent = analytics.total_cohorts;
             }
             if (analytics.total_materials !== undefined) {
-                document.getElementById('myMaterials').textContent = analytics.total_materials;
+                const materialsElement = document.getElementById('myMaterials');
+                if (materialsElement) materialsElement.textContent = analytics.total_materials;
             }
             if (analytics.total_students !== undefined) {
-                document.getElementById('myStudents').textContent = analytics.total_students;
+                const studentsElement = document.getElementById('myStudents');
+                if (studentsElement) studentsElement.textContent = analytics.total_students;
             }
             
             // Add a small indicator that stats are live
