@@ -618,7 +618,12 @@
                 return;
             }
             
-            // Initialize socket directly
+            // IMPORTANT: Get user media FIRST, then connect socket
+            // This ensures localStream exists when peer connections are created
+            await getUserMedia();
+            console.log('[TEACHER_INIT] getUserMedia complete, localStream ready');
+            
+            // Now initialize socket after media is ready
             socket = io({
                 reconnection: true,
                 reconnectionAttempts: 10,
@@ -629,9 +634,6 @@
             
             // Setup socket listeners (includes connect handler with join_session)
             setupSocketListeners();
-            
-            // Get user media (video and audio for teachers)
-            await getUserMedia();
             
             // Load polls and materials if we have a valid lecture ID
             if (currentLectureId && currentLectureId !== 'None' && currentLectureId !== '' && currentLectureId !== 'undefined') {
@@ -856,6 +858,16 @@
         video.muted = isLocal;
         video.playsInline = true;
         
+        // Explicitly play the video and handle errors
+        video.onloadedmetadata = () => {
+            console.log(`[TEACHER] Video metadata loaded for ${userId}, attempting play`);
+            video.play().then(() => {
+                console.log(`[TEACHER] Video playing for ${userId}`);
+            }).catch(err => {
+                console.error(`[TEACHER] Error playing video for ${userId}:`, err);
+            });
+        };
+        
         const label = document.createElement('div');
         label.className = 'video-label';
         label.textContent = isLocal ? 'You' : `User ${userId.split('_')[1]}`;
@@ -885,22 +897,28 @@
     
     async function handleWebRTCOffer(data) {
         try {
-            console.log('Handling WebRTC offer from:', data.from_user_id);
+            console.log('[TEACHER] Handling WebRTC offer from:', data.from_user_id);
+            console.log('[TEACHER] Offer SDP:', data.offer);
             const peerConnection = new RTCPeerConnection(rtcConfig);
             peerConnections.set(data.from_user_id, peerConnection);
             
             // Add local stream
             if (localStream) {
+                console.log('[TEACHER] Adding tracks to peer connection for:', data.from_user_id);
+                console.log('[TEACHER] Local stream tracks:', localStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
                 localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
+                    const sender = peerConnection.addTrack(track, localStream);
+                    console.log('[TEACHER] Added track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
                 });
-                console.log('Added local stream to peer connection');
+            } else {
+                console.error('[TEACHER] No localStream when handling offer from:', data.from_user_id);
             }
             
             // Handle remote stream
             peerConnection.ontrack = (event) => {
-                console.log('Received remote stream from:', data.from_user_id);
+                console.log('[TEACHER] Received track from:', data.from_user_id, 'kind:', event.track.kind);
                 const remoteStream = event.streams[0];
+                console.log('[TEACHER] Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
                 remoteStreams.set(data.from_user_id, remoteStream);
                 createVideoElement(data.from_user_id, remoteStream);
             };
@@ -908,12 +926,15 @@
             // Handle ICE candidates
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log('[TEACHER] ICE candidate for:', data.from_user_id, event.candidate);
                     socket.emit('ice_candidate', {
                         session_id: sessionId,
                         target_user_id: data.from_user_id,
                         candidate: event.candidate,
                         from_user_id: currentUser.id
                     });
+                } else {
+                    console.log('[TEACHER] ICE gathering complete for:', data.from_user_id);
                 }
             };
             
@@ -966,17 +987,30 @@
         const peerConnection = new RTCPeerConnection(rtcConfig);
         peerConnections.set(targetUserId, peerConnection);
         
+        // Monitor connection state
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`[TEACHER] Connection state with ${targetUserId}:`, peerConnection.connectionState);
+        };
+        
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`[TEACHER] ICE connection state with ${targetUserId}:`, peerConnection.iceConnectionState);
+        };
+        
         // Add local stream
         if (localStream) {
             localStream.getTracks().forEach(track => {
                 peerConnection.addTrack(track, localStream);
+                console.log(`[TEACHER] Added ${track.kind} track to connection with ${targetUserId}`);
             });
+        } else {
+            console.warn('[TEACHER] No local stream available when creating peer connection!');
         }
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-            console.log('Received remote stream from:', targetUserId);
+            console.log('[TEACHER] Received track from:', targetUserId, 'kind:', event.track.kind);
             const remoteStream = event.streams[0];
+            console.log('[TEACHER] Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
             remoteStreams.set(targetUserId, remoteStream);
             createVideoElement(targetUserId, remoteStream);
         };
@@ -984,12 +1018,15 @@
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
+                console.log('[TEACHER] Sending ICE candidate to:', targetUserId, event.candidate);
                 socket.emit('ice_candidate', {
                     session_id: sessionId,
                     target_user_id: targetUserId,
                     candidate: event.candidate,
                     from_user_id: currentUser.id
                 });
+            } else {
+                console.log('[TEACHER] ICE gathering complete for:', targetUserId);
             }
         };
         
@@ -998,12 +1035,15 @@
     
     async function initiateCall(targetUserId) {
         try {
-            console.log('Initiating call with:', targetUserId);
+            console.log('[TEACHER] Initiating call with:', targetUserId);
             const peerConnection = await createPeerConnection(targetUserId);
+            console.log('[TEACHER] Peer connection created');
             
             // Create offer
             const offer = await peerConnection.createOffer();
+            console.log('[TEACHER] Created offer:', offer);
             await peerConnection.setLocalDescription(offer);
+            console.log('[TEACHER] Set local description (offer)');
             
             // Send offer
             socket.emit('webrtc_offer', {
@@ -1013,9 +1053,9 @@
                 from_user_id: currentUser.id
             });
             
-            console.log('Sent WebRTC offer to:', targetUserId);
+            console.log('[TEACHER] Sent WebRTC offer to:', targetUserId);
         } catch (error) {
-            console.error('Failed to initiate call:', error);
+            console.error('[TEACHER] Failed to initiate call:', error);
         }
     }
     
@@ -1869,8 +1909,8 @@
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.stroke();
         
-        // Broadcast drawing data using normalized coords + throttle + ACK
-        if (socket) {
+        // Broadcast drawing data using normalized coords + throttle
+        if (socket && sessionId) {
             const from = normalizePoint(lastX, lastY, whiteboardCanvas);
             const to = normalizePoint(currentX, currentY, whiteboardCanvas);
             const drawingPayload = {
@@ -1882,7 +1922,11 @@
             };
             if (!window.__wbThrottledEmit) {
                 window.__wbThrottledEmit = throttle(function(payload) {
-                    emitWhiteboardDraw(sessionId, payload);
+                    socket.emit('whiteboard_draw', {
+                        session_id: sessionId,
+                        drawing_data: payload,
+                        user_id: currentUser.id
+                    });
                 }, 25);
             }
             window.__wbThrottledEmit(drawingPayload);
@@ -1921,11 +1965,40 @@
             
             // Broadcast clear event to other participants
             if (socket) {
-                emitWhiteboardClear(sessionId);
+                socket.emit('whiteboard_clear', {
+                    session_id: sessionId,
+                    user_id: currentUser.id
+                });
             }
             
             showAlert('Whiteboard cleared', 'success');
         }
+    }
+    
+    // Whiteboard helper functions
+    function normalizePoint(x, y, canvas) {
+        return {
+            x: x / canvas.width,
+            y: y / canvas.height
+        };
+    }
+    
+    function denormalizePoint(normX, normY, canvas) {
+        return {
+            x: normX * canvas.width,
+            y: normY * canvas.height
+        };
+    }
+    
+    function throttle(func, delay) {
+        let lastCall = 0;
+        return function(...args) {
+            const now = Date.now();
+            if (now - lastCall >= delay) {
+                lastCall = now;
+                return func(...args);
+            }
+        };
     }
     
     function drawRemoteWhiteboard(drawingData) {

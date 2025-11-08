@@ -121,6 +121,8 @@ else:
 active_sessions = {}
 session_participants = {}
 online_users = {}
+# Map user_id to socket_id for direct WebRTC signaling
+user_socket_mapping = {}
 
 def cleanup_session(session_id):
     """Clean up session data when session ends"""
@@ -606,11 +608,23 @@ if socketio:
         print(f'Client connected: {request.sid}')
         # Initialize per-socket heartbeat metadata
         session['last_heartbeat'] = datetime.now().isoformat()
+        
+        # Track user_id to socket_id mapping for direct WebRTC signaling
+        user_id = session.get('user_id')
+        if user_id:
+            user_socket_mapping[user_id] = request.sid
+            print(f'[SOCKET_MAP] User {user_id} mapped to socket {request.sid}')
     
     @socketio.on('disconnect')
     def handle_disconnect():
         """Handle client disconnection"""
         print(f'Client disconnected: {request.sid}')
+        
+        # Clean up socket mapping
+        user_id = session.get('user_id')
+        if user_id and user_id in user_socket_mapping:
+            del user_socket_mapping[user_id]
+            print(f"[SOCKET_MAPPING] Removed mapping for user {user_id} on disconnect")
 
     @socketio.on('heartbeat')
     def handle_heartbeat(data):
@@ -678,6 +692,10 @@ if socketio:
         print(f"[JOIN_SESSION] User {user_id} joining session room: {session_id}")
         # Join the session room
         join_room(session_id)
+        
+        # Track user_id to socket_id mapping for direct WebRTC signaling
+        user_socket_mapping[user_id] = request.sid
+        print(f"[SOCKET_MAPPING] User {user_id} mapped to socket {request.sid}")
         
         # Add to session participants
         if session_id not in session_participants:
@@ -748,6 +766,11 @@ if socketio:
         
         if session_id and user_id:
             leave_room(session_id)
+            
+            # Remove from socket mapping
+            if user_id in user_socket_mapping:
+                del user_socket_mapping[user_id]
+                print(f"[SOCKET_MAPPING] Removed mapping for user {user_id}")
             
             # Remove from session participants
             if session_id in session_participants:
@@ -968,10 +991,16 @@ if socketio:
         }
         
         if target_user_id:
-            # Direct offer to specific user
+            # Direct offer to specific user using socket mapping
             relay_data['target_user_id'] = target_user_id
-            emit('webrtc_offer', relay_data, room=session_id, include_self=False)
-            print(f"[WEBRTC_OFFER] Relayed to target user {target_user_id} in session {session_id}")
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('webrtc_offer', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent offer directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('webrtc_offer', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
         else:
             # Broadcast to all participants in the session
             emit('webrtc_offer', relay_data, room=session_id, include_self=False)
@@ -1008,14 +1037,22 @@ if socketio:
         }
         
         if target_user_id:
+            # Direct answer to specific user using socket mapping
             relay_data['target_user_id'] = target_user_id
-            emit('webrtc_answer', relay_data, room=session_id, include_self=False)
-            print(f"[WEBRTC_ANSWER] Relayed to target user {target_user_id} in session {session_id}")
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('webrtc_answer', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent answer directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('webrtc_answer', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
         else:
             emit('webrtc_answer', relay_data, room=session_id, include_self=False)
             print(f"[WEBRTC_ANSWER] Broadcasted to session {session_id}")
     
-    @socketio.on('webrtc_ice_candidate')
+    @socketio.on('ice_candidate')
+    @socketio.on('webrtc_ice_candidate')  # Support both for backwards compatibility
     def handle_webrtc_ice_candidate(data):
         """Relay ICE candidate from one peer to another"""
         session_id = data.get('session_id')
@@ -1046,9 +1083,16 @@ if socketio:
         }
         
         if target_user_id:
+            # Direct ICE candidate to specific user using socket mapping
             relay_data['target_user_id'] = target_user_id
-            emit('ice_candidate', relay_data, room=session_id, include_self=False)
-            print(f"[WEBRTC_ICE] Relayed to target user {target_user_id} in session {session_id}")
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('ice_candidate', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent ICE candidate directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('ice_candidate', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
         else:
             emit('ice_candidate', relay_data, room=session_id, include_self=False)
             print(f"[WEBRTC_ICE] Broadcasted to session {session_id}")
@@ -1180,7 +1224,7 @@ if socketio:
             print(f"Forum message from {user_name} broadcasted to forum {forum_id}")
 
         except Exception as e:
-            print(f"Error handling forum message: {e}")
+            print(f"Error handling forum message: {e}") 
     def handle_session_control(data):
         """Handle session control commands (teacher only)"""
         session_id = data.get('session_id')
