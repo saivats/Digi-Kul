@@ -558,29 +558,32 @@
                 reconnectionDelayMax: 5000
             });
             
-            // Setup socket event listeners
+            // Get session info first (needed before socket connection)
+            sessionId = '{{ session_id }}';
+            currentLectureId = '{{ lecture_id }}';
+            
+            console.log('[STUDENT_INIT] Current Lecture ID:', currentLectureId);
+            console.log('[STUDENT_INIT] Session ID:', sessionId);
+            console.log('[STUDENT_INIT] Expected format: session_<lecture_id>');
+            
+            // Validate session_id format
+            if (!sessionId || sessionId === '' || sessionId === 'None') {
+                console.error('[STUDENT_INIT] ERROR: session_id not provided by server!');
+                showError('Session initialization failed. Please try again.');
+                return;
+            }
+            
+            if (!sessionId.startsWith('session_')) {
+                console.error('[STUDENT_INIT] ERROR: Invalid session_id format:', sessionId);
+                showError('Invalid session format. Please refresh and try again.');
+                return;
+            }
+            
+            // Setup socket event listeners (includes connect handler with join_session)
             setupSocketListeners();
             
             // Get user media (video and audio for students)
             await getUserMedia();
-            
-            // Get session info
-            sessionId = '{{ session_id }}';
-            currentLectureId = '{{ lecture_id }}';
-            
-            console.log('Current Lecture ID:', currentLectureId);
-            
-            // Join the session room when socket connects
-            socket.on('connect', function() {
-                console.log('Socket connected, joining session:', sessionId);
-                socket.emit('join_session', {
-                    session_id: sessionId,
-                    role: 'student'
-                });
-                
-                // Update UI to show connected status
-                updateNetworkStatus('Good');
-            });
             
             // Handle session status
             socket.on('session_status', function(data) {
@@ -777,13 +780,8 @@
             // Add local video
             addLocalVideo();
             
-            // Join session
-            socket.emit('join_session', {
-                session_id: sessionId,
-                user_id: currentUser.id,
-                user_name: currentUser.name,
-                user_type: currentUser.type
-            });
+            // Note: join_session is emitted in socket.on('connect') handler, not here
+            // to avoid duplicate join events
             
         } catch (error) {
             console.error('Failed to get user media:', error);

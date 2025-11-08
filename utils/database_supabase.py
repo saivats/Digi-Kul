@@ -3709,7 +3709,7 @@ class SupabaseDatabaseManager:
         if not self.supabase:
             return []
         try:
-            result = self.supabase.table('materials').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('created_at', desc=True).execute()
+            result = self.supabase.table('materials').select('*').eq('lecture_id', lecture_id).eq('is_active', True).order('uploaded_at', desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting lecture materials: {e}")
@@ -4177,9 +4177,9 @@ class SupabaseDatabaseManager:
             if not self.supabase:
                 return False, "Database not available"
             
+            # Note: lectures table doesn't have updated_at column, only update status
             result = self.supabase.table('lectures').update({
-                'status': status,
-                'updated_at': self.get_current_timestamp()
+                'status': status
             }).eq('id', lecture_id).execute()
             
             if result.data:

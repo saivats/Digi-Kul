@@ -11,6 +11,11 @@ from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 from middlewares.auth_middleware import AuthMiddleware
 from utils.email_service import EmailService
 
+# Import shared session storage from main (will be set when main.py imports this module)
+active_sessions = None
+session_participants = None
+socketio = None
+
 # Initialize blueprint
 teacher_bp = Blueprint('teacher', __name__)
 
@@ -25,6 +30,14 @@ def set_auth_middleware(middleware):
     """Set the auth middleware reference from main.py"""
     global auth_middleware
     auth_middleware = middleware
+
+def set_session_globals(sessions_dict, participants_dict, socketio_instance):
+    """Set the shared session storage references from main.py"""
+    global active_sessions, session_participants, socketio
+    active_sessions = sessions_dict
+    session_participants = participants_dict
+    socketio = socketio_instance
+    print(f"[TEACHER_ROUTES] Session globals set: active_sessions={id(active_sessions)}, participants={id(session_participants)}")
 
 def teacher_required(f):
     """Decorator to require teacher role - gets middleware at runtime"""
@@ -1407,24 +1420,11 @@ def create_discussion():
 @teacher_bp.route('/lectures/<lecture_id>/join', methods=['GET'])
 @teacher_required
 def join_lecture(lecture_id):
-    """Join a live lecture session"""
-    try:
-        teacher_id = session.get('user_id')
+    """DEPRECATED: Redirect to proper live session route that initializes active_sessions"""
+    print(f"[DEPRECATED] /lectures/{lecture_id}/join called - redirecting to /live-session/{lecture_id}")
+    # Redirect to the correct route that initializes the session
+    return redirect(url_for('teacher.start_live_session', lecture_id=lecture_id))
         
-        # Get lecture details
-        lecture = db.get_lecture_by_id(lecture_id)
-        if not lecture:
-            return jsonify({'error': 'Lecture not found'}), 404
-        
-        # Verify teacher has access to this lecture
-        if lecture['teacher_id'] != teacher_id:
-            return jsonify({'error': 'Access denied to this lecture'}), 403
-        
-        # Render the live session template
-        return render_template('teacher_live_session.html', lecture_id=lecture_id)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @teacher_bp.route('/lectures/<lecture_id>/start-recording', methods=['POST'])
 @teacher_required
@@ -2006,16 +2006,21 @@ def get_forum_messages(forum_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+print("[ROUTE_REGISTRATION] Registering /live-session/<lecture_id> route")
+
 @teacher_bp.route('/live-session/<lecture_id>', methods=['GET'])
 @teacher_required
 def start_live_session(lecture_id):
     """Start a live session for a lecture"""
+    print(f"[START_LIVE_SESSION] ROUTE HANDLER CALLED for lecture {lecture_id}")
     try:
         teacher_id = session.get('user_id')
+        print(f"[START_LIVE_SESSION] Teacher {teacher_id} starting session for lecture {lecture_id}")
         
         # Verify teacher has access to this lecture
         lecture = db.get_lecture_by_id(lecture_id)
         if not lecture:
+            print(f"[START_LIVE_SESSION] ERROR: Lecture {lecture_id} not found")
             return jsonify({'error': 'Lecture not found'}), 404
         
         # Check if teacher owns this lecture
@@ -2025,18 +2030,52 @@ def start_live_session(lecture_id):
         # Allow teachers to start lectures anytime
         # No time restrictions for lecture start
         
-        # Update lecture status to live
-        db.update_lecture_status(lecture_id, 'live')
-        
-        # Add session to active_sessions for Socket.IO
-        from main import active_sessions, session_participants
+        # Update lecture status to live (non-fatal if it fails)
+        try:
+            success, message = db.update_lecture_status(lecture_id, 'live')
+            if not success:
+                print(f"[START_LIVE_SESSION] Warning: Could not update lecture status: {message}")
+        except Exception as e:
+            print(f"[START_LIVE_SESSION] Warning: Error updating lecture status: {e}")
+
+        # Add session to active_sessions for Socket.IO (using global references set by main.py)
         session_id = f"session_{lecture_id}"
+        print(f"[START_LIVE_SESSION] Creating session: {session_id}")
+        print(f"[START_LIVE_SESSION] active_sessions object ID: {id(active_sessions)}")
+        
+        if active_sessions is None or session_participants is None:
+            print("[START_LIVE_SESSION] ERROR: Session globals not initialized!")
+            return jsonify({'error': 'Server initialization error'}), 500
+            
         active_sessions[session_id] = {
             'lecture_id': lecture_id,
             'teacher_id': teacher_id,
             'started_at': datetime.now().isoformat()
         }
         session_participants[session_id] = []
+        print(f"[START_LIVE_SESSION] Active sessions after creation: {list(active_sessions.keys())}")
+
+        # Broadcast a real-time notification that a live session has started
+        try:
+            teacher = db.get_teacher_by_id(teacher_id)
+            payload = {
+                'event': 'live_session_started',
+                'lecture_id': lecture_id,
+                'session_id': session_id,
+                'teacher_id': teacher_id,
+                'teacher_name': (teacher.get('name') if teacher else None) or session.get('user_name', 'Teacher'),
+                'lecture_title': lecture.get('title') if isinstance(lecture, dict) else None,
+                'cohort_id': lecture.get('cohort_id') if isinstance(lecture, dict) else None,
+                'scheduled_time': lecture.get('scheduled_time') if isinstance(lecture, dict) else None,
+                'started_at': active_sessions[session_id]['started_at']
+            }
+            # Send to all connected clients; clients will filter/render as needed
+            if socketio:
+                # Use room='/' to broadcast to all connected clients (alternative to broadcast=True)
+                socketio.emit('live_session_started', payload, namespace='/')
+        except Exception as e:
+            # Non-fatal: log and continue rendering page
+            print(f"[START_LIVE_SESSION] Error emitting live_session_started: {e}")
         
         # Return live session page
         return render_template('teacher_live_session.html', 

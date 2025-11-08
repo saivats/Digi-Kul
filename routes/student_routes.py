@@ -1245,15 +1245,27 @@ def join_live_session(lecture_id):
         if lecture['cohort_id'] not in cohort_ids:
             return jsonify({'error': 'Access denied to this lecture'}), 403
         
-        # Allow students to join real-time - no status check needed
-        # Teacher controls the session and students can join anytime
+        # IMPORTANT: Check if teacher has started the session
+        from main import active_sessions
+        session_id = f"session_{lecture_id}"
+        
+        if session_id not in active_sessions:
+            print(f"[STUDENT_JOIN] Session {session_id} not active. Student {student_id} cannot join yet.")
+            # Return error page with message
+            return render_template('error.html', 
+                                 error='Session Not Started',
+                                 message='The teacher has not started this lecture yet. Please wait for the teacher to begin the session.',
+                                 back_url=url_for('student.dashboard'))
+        
+        print(f"[STUDENT_JOIN] Student {student_id} joining active session {session_id}")
         
         # Return live session page
         return render_template('student_live_session.html', 
                              lecture_id=lecture_id,
-                             session_id=f"session_{lecture_id}")
+                             session_id=session_id)
         
     except Exception as e:
+        print(f"[STUDENT_JOIN] Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @student_bp.route('/notifications', methods=['GET'])

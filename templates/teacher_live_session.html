@@ -17,9 +17,9 @@
                 Digi Kul - Live Session
             </a>
             <div class="navbar-nav ms-auto">
-                <div id="networkStatus" class="navbar-text me-3">
-                    <i class="bi bi-wifi text-light"></i>
-                    <span class="text-light">Checking...</span>
+                <div id="networkStatus" class="navbar-text me-3" style="display:flex;align-items:center;gap:6px;">
+                    <span id="networkQualityBadge" class="badge bg-secondary" style="min-width:60px;">Init</span>
+                    <i class="bi bi-wifi text-light" id="networkQualityIcon"></i>
                 </div>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle me-1"></i>
@@ -509,6 +509,8 @@
                     <div id="session-health" style="font-size:13px;">
                         <div id="health-participants">Participants: --</div>
                         <div id="health-recording">Recording: --</div>
+                        <div id="health-uptime">Uptime: --</div>
+                        <div id="health-rtt">Avg RTT: --</div>
                         <div id="health-reports" style="margin-top:8px; max-height:120px; overflow:auto;"></div>
                     </div>
                 </div>
@@ -575,9 +577,8 @@
     
     // Initialize when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        // Get session ID from URL
-        const pathParts = window.location.pathname.split('/');
-        sessionId = pathParts[pathParts.length - 1];
+        // Session ID and lecture ID will be set from Flask template variables in initializeSession()
+        // Do NOT extract from URL as that gives incorrect format
         
         initializeSession();
         setupEventListeners();
@@ -596,6 +597,27 @@
                 name: userName
             };
             
+            // Get lecture ID and session ID first (needed before socket connection)
+            currentLectureId = '{{ lecture_id }}';
+            sessionId = '{{ session_id }}';
+            
+            console.log('[TEACHER_INIT] Current Lecture ID:', currentLectureId);
+            console.log('[TEACHER_INIT] Session ID:', sessionId);
+            console.log('[TEACHER_INIT] Expected format: session_<lecture_id>');
+            
+            // Validate session_id format
+            if (!sessionId || sessionId === '' || sessionId === 'None') {
+                console.error('[TEACHER_INIT] ERROR: session_id not provided by server!');
+                showError('Session initialization failed. Please try again.');
+                return;
+            }
+            
+            if (!sessionId.startsWith('session_')) {
+                console.error('[TEACHER_INIT] ERROR: Invalid session_id format:', sessionId);
+                showError('Invalid session format. Please refresh and try again.');
+                return;
+            }
+            
             // Initialize socket directly
             socket = io({
                 reconnection: true,
@@ -605,28 +627,11 @@
                 timeout: 20000
             });
             
-            // Setup socket listeners
+            // Setup socket listeners (includes connect handler with join_session)
             setupSocketListeners();
             
             // Get user media (video and audio for teachers)
             await getUserMedia();
-            
-            // Join the session room
-            socket.on('connect', function() {
-                console.log('Socket connected, joining session:', sessionId);
-                socket.emit('join_session', {
-                    session_id: sessionId,
-                    role: 'teacher'
-                });
-                
-                // Update UI to show connected status
-                updateNetworkStatus('Good');
-            });
-            
-            // Get lecture ID from server template variable
-            currentLectureId = '{{ lecture_id }}';
-            
-            console.log('Current Lecture ID:', currentLectureId);
             
             // Load polls and materials if we have a valid lecture ID
             if (currentLectureId && currentLectureId !== 'None' && currentLectureId !== '' && currentLectureId !== 'undefined') {
@@ -2044,6 +2049,23 @@
             const recTxt = rec ? (rec.status || (rec.recording_stats && rec.recording_stats.duration ? 'recording' : 'idle')) : 'none';
             document.getElementById('health-recording').textContent = `Recording: ${recTxt}`;
 
+            // Uptime & RTT metrics
+            if (j.uptime_seconds != null) {
+                const uptimeEl = document.getElementById('health-uptime');
+                if (uptimeEl) {
+                    const hours = Math.floor(j.uptime_seconds / 3600);
+                    const minutes = Math.floor((j.uptime_seconds % 3600) / 60);
+                    const seconds = j.uptime_seconds % 60;
+                    uptimeEl.textContent = `Uptime: ${hours}h ${minutes}m ${seconds}s`;
+                }
+            }
+            if (j.avg_rtt_ms != null) {
+                const rttEl = document.getElementById('health-rtt');
+                if (rttEl) {
+                    rttEl.textContent = `Avg RTT: ${j.avg_rtt_ms} ms`;
+                }
+            }
+
             // Render recent quality reports
             const reports = j.quality_reports || [];
             const container = document.getElementById('health-reports');
@@ -2079,30 +2101,23 @@
     }
     
     function updateNetworkStatusDisplay(latency, quality) {
-        const statusElement = document.getElementById('networkStatus');
-        if (!statusElement) return;
-        
-        let statusText = '';
-        let statusClass = '';
-        
-        if (quality === 'offline') {
-            statusText = 'Offline';
-            statusClass = 'text-danger';
-        } else if (quality === 'high') {
-            statusText = 'Excellent';
-            statusClass = 'text-success';
-        } else if (quality === 'medium') {
-            statusText = 'Good';
-            statusClass = 'text-warning';
-        } else {
-            statusText = 'Poor';
-            statusClass = 'text-danger';
+        const badge = document.getElementById('networkQualityBadge');
+        const icon = document.getElementById('networkQualityIcon');
+        if (!badge || !icon) return;
+        let text, badgeClass, iconClass;
+        switch(quality){
+            case 'offline': text='Offline'; badgeClass='bg-danger'; iconClass='bi-wifi-off'; break;
+            case 'high': text='Excellent'; badgeClass='bg-success'; iconClass='bi-wifi'; break;
+            case 'medium': text='Good'; badgeClass='bg-warning'; iconClass='bi-wifi-2'; break;
+            case 'low': text='Poor'; badgeClass='bg-danger'; iconClass='bi-wifi-1'; break;
+            default: text='Checking'; badgeClass='bg-secondary'; iconClass='bi-wifi';
         }
-        
-        statusElement.innerHTML = `
-            <i class="bi bi-wifi ${statusClass}"></i>
-            <span class="${statusClass}">${statusText}</span>
-        `;
+        badge.textContent = text;
+        badge.className = `badge ${badgeClass}`;
+        icon.className = `bi ${iconClass} text-light`;
+        if (latency != null) {
+            badge.title = `Latency: ${Math.round(latency)}ms`;
+        }
     }
     
     function showNetworkNotification(quality) {
