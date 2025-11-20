@@ -281,24 +281,16 @@ class LectureService:
             Tuple of (material_id, message)
         """
         try:
-            material_data = {
-                'lecture_id': lecture_id,
-                'title': title,
-                'description': description,
-                'file_path': file_path,
-                'compressed_path': compressed_path,
-                'file_size': file_size,
-                'file_type': file_type,
-                'uploaded_at': datetime.now().isoformat()
-            }
-            
-            result = self.db.supabase.table('materials').insert(material_data).execute()
-            
-            if result.data:
-                return result.data[0]['id'], "Material added successfully"
-            else:
-                return None, "Failed to add material"
-                
+            # Use the database manager's add_material method which handles all required fields
+            return self.db.add_material(
+                lecture_id=lecture_id,
+                title=title,
+                description=description,
+                file_path=file_path,
+                compressed_path=compressed_path,
+                file_size=file_size,
+                file_type=file_type
+            )
         except Exception as e:
             return None, str(e)
     

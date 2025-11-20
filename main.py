@@ -49,6 +49,7 @@ from routes.institution_routes import institution_bp
 from routes.institution_admin_routes import institution_admin_bp
 from routes.teacher_routes import teacher_bp
 from routes.student_routes import student_bp
+from routes.chat_routes import chat_bp
 from routes.admin_routes import admin_bp
 
 # Initialize the database
@@ -120,6 +121,8 @@ else:
 active_sessions = {}
 session_participants = {}
 online_users = {}
+# Map user_id to socket_id for direct WebRTC signaling
+user_socket_mapping = {}
 
 def cleanup_session(session_id):
     """Clean up session data when session ends"""
@@ -149,6 +152,12 @@ app.register_blueprint(institution_admin_bp, url_prefix='/institution-admin')
 app.register_blueprint(teacher_bp, url_prefix='/api/teacher')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(chat_bp, url_prefix='/api')
+
+# Set session globals in teacher_routes so they reference the same objects
+from routes.teacher_routes import set_session_globals
+set_session_globals(active_sessions, session_participants, socketio)
+print(f"[MAIN] Set session globals: active_sessions={id(active_sessions)}, participants={id(session_participants)}")
 
 # ==================== MAIN APPLICATION ROUTES ====================
 
@@ -347,13 +356,63 @@ def download_material(material_id):
         elif user_type not in ['admin', 'super_admin', 'institution_admin']:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Get file path
-        file_path = material.get('file_path')
-        if not file_path or not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
-        
-        # Send file
-        return send_file(file_path, as_attachment=True, download_name=material['file_name'])
+        # Resolve download URL (handles Supabase signed URLs and local paths)
+        download_url, message = db.get_material_download_url(material_id)
+        if not download_url:
+            return jsonify({'error': f'Failed to get download URL: {message}'}), 404
+
+        # Increment download count
+        db.increment_material_download_count(material_id)
+
+        # If it's a Supabase Storage URL, redirect to it
+        if download_url.startswith('http'):
+            return redirect(download_url)
+        else:
+            # Fallback for local files with robust path resolution
+            raw_path = download_url
+            base_dir = app.config.get('UPLOAD_FOLDER', 'uploads')
+            filename = os.path.basename(raw_path.rstrip('/\\'))
+
+            # Map likely subfolders by type
+            file_type = (material.get('file_type') or '').lower()
+            type_folder = None
+            if file_type in ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt']:
+                type_folder = 'documents'
+            elif file_type in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                type_folder = 'images'
+            elif file_type in ['mp3', 'wav', 'm4a', 'aac']:
+                type_folder = 'audio'
+
+            candidates = []
+            # Absolute as-is
+            if os.path.isabs(raw_path):
+                candidates.append(raw_path)
+            # Relative variants
+            candidates.extend([
+                os.path.join(base_dir, raw_path),
+                os.path.join(base_dir, filename),
+                os.path.join(base_dir, 'materials', filename),
+                os.path.join(base_dir, 'documents', filename),
+                os.path.join(base_dir, 'images', filename),
+                os.path.join(base_dir, 'audio', filename),
+                os.path.join('materials', filename),
+                os.path.join('documents', filename),
+                os.path.join('images', filename),
+                os.path.join('audio', filename)
+            ])
+            if type_folder:
+                candidates.insert(0, os.path.join(base_dir, type_folder, filename))
+
+            found_path = next((p for p in candidates if p and os.path.exists(p)), None)
+
+            if not found_path:
+                return jsonify({'error': 'File not found', 'tried': candidates}), 404
+
+            return send_file(
+                os.path.abspath(found_path),
+                as_attachment=True,
+                download_name=material.get('file_name', filename or 'material')
+            )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -547,11 +606,64 @@ if socketio:
     def handle_connect():
         """Handle client connection"""
         print(f'Client connected: {request.sid}')
+        # Initialize per-socket heartbeat metadata
+        session['last_heartbeat'] = datetime.now().isoformat()
+        
+        # Track user_id to socket_id mapping for direct WebRTC signaling
+        user_id = session.get('user_id')
+        if user_id:
+            user_socket_mapping[user_id] = request.sid
+            print(f'[SOCKET_MAP] User {user_id} mapped to socket {request.sid}')
     
     @socketio.on('disconnect')
     def handle_disconnect():
         """Handle client disconnection"""
         print(f'Client disconnected: {request.sid}')
+        
+        # Clean up socket mapping
+        user_id = session.get('user_id')
+        if user_id and user_id in user_socket_mapping:
+            del user_socket_mapping[user_id]
+            print(f"[SOCKET_MAPPING] Removed mapping for user {user_id} on disconnect")
+
+    @socketio.on('heartbeat')
+    def handle_heartbeat(data):
+        """Client heartbeat to measure RTT and keep session active.
+        Expects: { session_id, sent_at }
+        Returns ACK: { status, server_time, rtt_ms }
+        """
+        try:
+            sent_at = data.get('sent_at')
+            session_id = data.get('session_id')
+            # Basic validation
+            if not session_id:
+                return {'status': 'error', 'message': 'session_id required'}
+            # Track last heartbeat for uptime metrics
+            session['last_heartbeat'] = datetime.now().isoformat()
+            # Compute RTT if client provided sent_at
+            rtt_ms = None
+            if sent_at:
+                try:
+                    client_time = datetime.fromisoformat(sent_at)
+                    rtt_ms = int((datetime.now() - client_time).total_seconds() * 1000)
+                except Exception:
+                    rtt_ms = None
+            # Optionally accumulate RTT samples in active_sessions for health analytics
+            if session_id in active_sessions:
+                metrics = active_sessions[session_id].setdefault('metrics', {})
+                rtts = metrics.setdefault('rtt_samples', [])
+                if rtt_ms is not None:
+                    rtts.append(rtt_ms)
+                    if len(rtts) > 50:  # cap list size
+                        metrics['rtt_samples'] = rtts[-50:]
+                metrics['last_heartbeat'] = session['last_heartbeat']
+            return {
+                'status': 'ok',
+                'server_time': datetime.now().isoformat(),
+                'rtt_ms': rtt_ms
+            }
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}
     
     @socketio.on('join_session')
     def handle_join_session(data):
@@ -560,45 +672,105 @@ if socketio:
         user_id = session.get('user_id')
         user_type = session.get('user_type')
         
+        print(f"[JOIN_SESSION] Received request: session_id={session_id}, user_id={user_id}, user_type={user_type}")
+        print(f"[JOIN_SESSION] active_sessions object ID: {id(active_sessions)}")
+        print(f"[JOIN_SESSION] Active sessions: {list(active_sessions.keys())}")
+        
         if not session_id or not user_id:
-            emit('error', {'message': 'Invalid session or user'})
-            return
+            error_msg = f"Invalid session or user: session_id={session_id}, user_id={user_id}"
+            print(f"[JOIN_SESSION] ERROR: {error_msg}")
+            # Also return ACK-style error for callers expecting a callback
+            emit('error', {'message': error_msg})
+            return {'status': 'error', 'message': error_msg}
         
         if session_id not in active_sessions:
-            emit('error', {'message': 'Session not found'})
-            return
+            error_msg = f"Session not found: {session_id}. Active: {list(active_sessions.keys())}"
+            print(f"[JOIN_SESSION] ERROR: {error_msg}")
+            emit('error', {'message': 'Session not found', 'session_id': session_id, 'active_sessions': list(active_sessions.keys())})
+            return {'status': 'error', 'message': 'Session not found', 'session_id': session_id}
         
+        print(f"[JOIN_SESSION] User {user_id} joining session room: {session_id}")
         # Join the session room
         join_room(session_id)
+        
+        # Track user_id to socket_id mapping for direct WebRTC signaling
+        user_socket_mapping[user_id] = request.sid
+        print(f"[SOCKET_MAPPING] User {user_id} mapped to socket {request.sid}")
         
         # Add to session participants
         if session_id not in session_participants:
             session_participants[session_id] = []
         
+        # Resolve user_name if missing/placeholder
+        resolved_name = session.get('user_name')
+        if not resolved_name or resolved_name in ['Unknown', '', None]:
+            try:
+                if user_type == 'teacher':
+                    teacher = db.get_teacher_by_id(user_id)
+                    if teacher and teacher.get('name'):
+                        resolved_name = teacher.get('name')
+                elif user_type == 'student':
+                    student = db.get_student_by_id(user_id)
+                    if student and student.get('name'):
+                        resolved_name = student.get('name')
+                elif user_type == 'institution_admin':
+                    admin = db.get_institution_admin_by_id(user_id)
+                    if admin and admin.get('name'):
+                        resolved_name = admin.get('name')
+                # Persist back
+                if resolved_name:
+                    session['user_name'] = resolved_name
+            except Exception as _e:
+                # Keep placeholder if lookup fails
+                resolved_name = resolved_name or 'User'
+
         participant = {
             'user_id': user_id,
             'user_type': user_type,
-            'name': session.get('user_name', 'Unknown'),
+            'user_name': resolved_name or 'User',
+            'name': resolved_name or 'User',
             'joined_at': datetime.now().isoformat()
         }
         
-        if participant not in session_participants[session_id]:
-            session_participants[session_id].append(participant)
+        # Check if participant already exists and remove if so
+        session_participants[session_id] = [
+            p for p in session_participants[session_id] if p['user_id'] != user_id
+        ]
+        session_participants[session_id].append(participant)
         
         # Notify others in the session
-        emit('user_joined', participant, room=session_id, include_self=False)
+        emit('user_joined', {
+            **participant,
+            'participants_count': len(session_participants[session_id])
+        }, room=session_id, include_self=False)
         
         # Send current participants to the new user
         emit('session_participants', session_participants[session_id])
+
+        print(f"[JOIN_SESSION] SUCCESS: User {resolved_name or user_id} joined session {session_id}. Total participants: {len(session_participants[session_id])}")
+
+        # Return ACK payload for reliable clients using callbacks
+        return {
+            'status': 'ok',
+            'session_id': session_id,
+            'participants': session_participants[session_id],
+            'participant_count': len(session_participants[session_id])
+        }
 
     @socketio.on('leave_session')
     def handle_leave_session(data):
         """Handle leaving a live session"""
         session_id = data.get('session_id')
         user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
         
         if session_id and user_id:
             leave_room(session_id)
+            
+            # Remove from socket mapping
+            if user_id in user_socket_mapping:
+                del user_socket_mapping[user_id]
+                print(f"[SOCKET_MAPPING] Removed mapping for user {user_id}")
             
             # Remove from session participants
             if session_id in session_participants:
@@ -608,7 +780,11 @@ if socketio:
                 ]
             
             # Notify others in the session
-            emit('user_left', {'user_id': user_id}, room=session_id, include_self=False)
+            emit('user_left', {
+                'user_id': user_id,
+                'user_name': user_name,
+                'participants_count': len(session_participants.get(session_id, []))
+            }, room=session_id, include_self=False)
     
     @socketio.on('session_message')
     def handle_session_message(data):
@@ -652,6 +828,25 @@ if socketio:
             emit('error', {'message': 'Session not found'})
             return
         
+        print(f"Chat message from {user_name} in session {session_id}: {message}")
+        
+        # Store message in database
+        try:
+            # Get lecture ID from session
+            lecture_id = active_sessions.get(session_id, {}).get('lecture_id')
+            if lecture_id:
+                # Store in discussion_posts table
+                db.create_discussion_post(
+                    institution_id=session.get('institution_id'),
+                    forum_id=lecture_id,
+                    author_id=user_id,
+                    author_type=session.get('user_type', 'student'),
+                    content=message
+                )
+                print(f"Chat message stored in database for lecture {lecture_id}")
+        except Exception as e:
+            print(f"Error storing chat message: {e}")
+        
         # Broadcast message to all participants in the session
         message_data = {
             'user_id': user_id,
@@ -661,8 +856,375 @@ if socketio:
         }
         
         emit('chat_message', message_data, room=session_id, include_self=False)
+        print(f"Chat message broadcasted to session {session_id}")
     
-    @socketio.on('session_control')
+    @socketio.on('whiteboard_draw')
+    def handle_whiteboard_draw(data):
+        """Handle whiteboard drawing events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid whiteboard data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast drawing data to all participants
+        drawing_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'drawing_data': data.get('drawing_data'),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('whiteboard_draw', drawing_data, room=session_id, include_self=False)
+        print(f"Whiteboard drawing from {user_name} broadcasted to session {session_id}")
+    
+    @socketio.on('whiteboard_clear')
+    def handle_whiteboard_clear(data):
+        """Handle whiteboard clear events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid whiteboard data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast clear event to all participants
+        clear_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('whiteboard_clear', clear_data, room=session_id, include_self=False)
+        print(f"Whiteboard cleared by {user_name} in session {session_id}")
+    
+    @socketio.on('screen_share_started')
+    def handle_screen_share_started(data):
+        """Handle screen sharing started events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid screen share data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast screen share event to all participants
+        share_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('screen_share_started', share_data, room=session_id, include_self=False)
+        print(f"Screen share started by {user_name} in session {session_id}")
+    
+    @socketio.on('screen_share_stopped')
+    def handle_screen_share_stopped(data):
+        """Handle screen sharing stopped events"""
+        session_id = data.get('session_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not user_id:
+            emit('error', {'message': 'Invalid screen share data'})
+            return
+        
+        if session_id not in active_sessions:
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        # Broadcast screen share stopped event to all participants
+        share_data = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        emit('screen_share_stopped', share_data, room=session_id, include_self=False)
+        print(f"Screen share stopped by {user_name} in session {session_id}")
+    
+    # WebRTC signaling events
+    @socketio.on('webrtc_offer')
+    def handle_webrtc_offer(data):
+        """Relay WebRTC offer from one peer to another"""
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        offer = data.get('offer')
+        sender_id = session.get('user_id')
+        sender_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not offer:
+            print(f"WebRTC offer missing session_id or offer data")
+            emit('error', {'message': 'Invalid WebRTC offer data'})
+            return
+        
+        if session_id not in active_sessions:
+            print(f"WebRTC offer: session {session_id} not found in active_sessions")
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        print(f"[WEBRTC_OFFER] From {sender_name} (user_id: {sender_id}) in session {session_id}")
+        
+        # Relay offer to target user or broadcast to all in session
+        relay_data = {
+            'session_id': session_id,
+            'from_user_id': sender_id,  # Use from_user_id to match template expectations
+            'user_name': sender_name,
+            'offer': offer,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if target_user_id:
+            # Direct offer to specific user using socket mapping
+            relay_data['target_user_id'] = target_user_id
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('webrtc_offer', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent offer directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('webrtc_offer', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
+        else:
+            # Broadcast to all participants in the session
+            emit('webrtc_offer', relay_data, room=session_id, include_self=False)
+            print(f"[WEBRTC_OFFER] Broadcasted to session {session_id}")
+    
+    @socketio.on('webrtc_answer')
+    def handle_webrtc_answer(data):
+        """Relay WebRTC answer from one peer to another"""
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        answer = data.get('answer')
+        sender_id = session.get('user_id')
+        sender_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not answer:
+            print(f"WebRTC answer missing session_id or answer data")
+            emit('error', {'message': 'Invalid WebRTC answer data'})
+            return
+        
+        if session_id not in active_sessions:
+            print(f"WebRTC answer: session {session_id} not found in active_sessions")
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        print(f"[WEBRTC_ANSWER] From {sender_name} (user_id: {sender_id}) in session {session_id}")
+        
+        # Relay answer to target user or broadcast to all in session
+        relay_data = {
+            'session_id': session_id,
+            'from_user_id': sender_id,  # Use from_user_id to match template expectations
+            'user_name': sender_name,
+            'answer': answer,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if target_user_id:
+            # Direct answer to specific user using socket mapping
+            relay_data['target_user_id'] = target_user_id
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('webrtc_answer', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent answer directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('webrtc_answer', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
+        else:
+            emit('webrtc_answer', relay_data, room=session_id, include_self=False)
+            print(f"[WEBRTC_ANSWER] Broadcasted to session {session_id}")
+    
+    @socketio.on('ice_candidate')
+    @socketio.on('webrtc_ice_candidate')  # Support both for backwards compatibility
+    def handle_webrtc_ice_candidate(data):
+        """Relay ICE candidate from one peer to another"""
+        session_id = data.get('session_id')
+        target_user_id = data.get('target_user_id')
+        candidate = data.get('candidate')
+        sender_id = session.get('user_id')
+        sender_name = session.get('user_name', 'Unknown')
+        
+        if not session_id or not candidate:
+            print(f"WebRTC ICE candidate missing session_id or candidate data")
+            emit('error', {'message': 'Invalid ICE candidate data'})
+            return
+        
+        if session_id not in active_sessions:
+            print(f"WebRTC ICE candidate: session {session_id} not found in active_sessions")
+            emit('error', {'message': 'Session not found'})
+            return
+        
+        print(f"[WEBRTC_ICE] From {sender_name} (user_id: {sender_id}) in session {session_id}")
+        
+        # Relay ICE candidate to target user or broadcast to all in session
+        relay_data = {
+            'session_id': session_id,
+            'from_user_id': sender_id,  # Use from_user_id to match template expectations
+            'user_name': sender_name,
+            'candidate': candidate,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if target_user_id:
+            # Direct ICE candidate to specific user using socket mapping
+            relay_data['target_user_id'] = target_user_id
+            target_socket_id = user_socket_mapping.get(target_user_id)
+            if target_socket_id:
+                emit('ice_candidate', relay_data, to=target_socket_id)
+                print(f"[WEBRTC_RELAY] Sent ICE candidate directly to socket {target_socket_id} (user {target_user_id})")
+            else:
+                # Fallback to room broadcast if socket mapping not found
+                emit('ice_candidate', relay_data, room=session_id, include_self=False)
+                print(f"[WEBRTC_RELAY] Socket mapping not found for user {target_user_id}, broadcasted to room")
+        else:
+            emit('ice_candidate', relay_data, room=session_id, include_self=False)
+            print(f"[WEBRTC_ICE] Broadcasted to session {session_id}")
+    
+    # Forum chat events
+    @socketio.on('join_forum')
+    def handle_join_forum(data):
+        """Handle joining a discussion forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        user_type = session.get('user_type', 'student')
+        
+        if not forum_id or not user_id:
+            return
+        
+        # Join the forum room
+        join_room(f"forum_{forum_id}")
+        
+        # Add user to online users for this forum
+        if forum_id not in online_users:
+            online_users[forum_id] = {}
+        
+        # If session did not have a name, try to resolve it from DB
+        if not user_name or user_name in ['Unknown', '']:
+            try:
+                if user_type == 'teacher':
+                    teacher = db.get_teacher_by_id(user_id)
+                    if teacher and teacher.get('name'):
+                        user_name = teacher.get('name')
+                else:
+                    student = db.get_student_by_id(user_id)
+                    if student and student.get('name'):
+                        user_name = student.get('name')
+                # persist back to session for future events
+                session['user_name'] = user_name
+            except Exception:
+                # leave user_name as-is if lookup fails
+                pass
+
+        online_users[forum_id][user_id] = {
+            'id': user_id,
+            'name': user_name,
+            'type': user_type
+        }
+        
+        # Notify others in the forum
+        emit('user_joined_forum', {
+            'user': {
+                'id': user_id,
+                'name': user_name,
+                'type': user_type
+            }
+        }, room=f"forum_{forum_id}", include_self=False)
+        
+        # Send current online users to the new user
+        emit('forum_users', list(online_users[forum_id].values()), room=f"forum_{forum_id}")
+        print(f"User {user_name} joined forum {forum_id}")
+    
+    @socketio.on('leave_forum')
+    def handle_leave_forum(data):
+        """Handle leaving a discussion forum"""
+        forum_id = data.get('forum_id')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        
+        if not forum_id or not user_id:
+            return
+        
+        # Leave the forum room
+        leave_room(f"forum_{forum_id}")
+        
+        # Remove user from online users
+        if forum_id in online_users and user_id in online_users[forum_id]:
+            del online_users[forum_id][user_id]
+            
+            # Notify others in the forum
+            emit('user_left_forum', {
+                'user_id': user_id,
+                'user_name': user_name
+            }, room=f"forum_{forum_id}", include_self=False)
+        
+        print(f"User {user_name} left forum {forum_id}")
+    
+    @socketio.on('forum_message')
+    def handle_forum_message(data):
+        """Handle messages in discussion forum"""
+        forum_id = data.get('forum_id')
+        message = data.get('message')
+        attachment = data.get('attachment')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Unknown')
+        user_type = session.get('user_type', 'student')
+
+        if not forum_id or (not message and not attachment) or not user_id:
+            return
+
+        try:
+            # Use ChatService to save messages
+            from services.chat_service import ChatService
+            chat_service = ChatService()
+
+            # If attachment is present, ensure it has url and name
+            saved_attachment = None
+            if attachment and isinstance(attachment, dict) and attachment.get('url'):
+                saved_attachment = attachment
+
+            saved = chat_service.save_message(
+                institution_id=session.get('institution_id') or None,
+                forum_id=forum_id,
+                user_id=user_id,
+                user_name=user_name,
+                user_type=user_type,
+                message=message or '',
+                attachment=saved_attachment
+            )
+
+            timestamp = saved.get('created_at') if saved else datetime.now().isoformat()
+
+            # Broadcast message to all users in the forum
+            emit('forum_message', {
+                'message': message,
+                'user_id': user_id,
+                'user_name': user_name,
+                'user_type': user_type,
+                'attachment': saved_attachment,
+                'timestamp': timestamp
+            }, room=f"forum_{forum_id}")
+            print(f"Forum message from {user_name} broadcasted to forum {forum_id}")
+
+        except Exception as e:
+            print(f"Error handling forum message: {e}") 
     def handle_session_control(data):
         """Handle session control commands (teacher only)"""
         session_id = data.get('session_id')
@@ -744,6 +1306,93 @@ def health_check():
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/session_health/<session_id>', methods=['GET'])
+def session_health_check(session_id):
+    """Session health check endpoint"""
+    try:
+        if session_id not in active_sessions:
+            return jsonify({
+                'success': False,
+                'status': 'not_found',
+                'message': 'Session not found'
+            }), 404
+        
+        session_info = active_sessions[session_id]
+        participants = session_participants.get(session_id, [])
+        
+        # Compute uptime
+        started_at_iso = session_info.get('started_at')
+        uptime_seconds = None
+        if started_at_iso:
+            try:
+                started_dt = datetime.fromisoformat(started_at_iso)
+                uptime_seconds = int((datetime.now() - started_dt).total_seconds())
+            except Exception:
+                uptime_seconds = None
+        # Derive average RTT if samples exist
+        metrics = session_info.get('metrics', {})
+        rtts = metrics.get('rtt_samples', [])
+        avg_rtt_ms = int(sum(rtts) / len(rtts)) if rtts else None
+        last_heartbeat = metrics.get('last_heartbeat')
+        return jsonify({
+            'success': True,
+            'status': 'active',
+            'session_id': session_id,
+            'lecture_id': session_info.get('lecture_id'),
+            'started_at': started_at_iso,
+            'uptime_seconds': uptime_seconds,
+            'participants_count': len(participants),
+            'participants': participants,
+            'recording_status': session_info.get('recording_status'),
+            'quality_reports': session_info.get('quality_reports', []),
+            'avg_rtt_ms': avg_rtt_ms,
+            'last_heartbeat': last_heartbeat,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/session/by_lecture/<lecture_id>', methods=['GET'])
+def get_session_by_lecture(lecture_id):
+    """Get active session_id for a lecture"""
+    try:
+        session_id = f"session_{lecture_id}"
+        
+        if session_id in active_sessions:
+            session_info = active_sessions[session_id]
+            return jsonify({
+                'success': True,
+                'session_id': session_id,
+                'lecture_id': lecture_id,
+                'active': True,
+                'started_at': session_info.get('started_at'),
+                'teacher_id': session_info.get('teacher_id'),
+                'participants_count': len(session_participants.get(session_id, [])),
+                'timestamp': datetime.now().isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'session_id': session_id,
+                'lecture_id': lecture_id,
+                'active': False,
+                'message': 'No active session for this lecture',
+                'timestamp': datetime.now().isoformat()
+            }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500

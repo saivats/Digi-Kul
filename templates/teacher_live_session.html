@@ -6,6 +6,7 @@
     <title>Live Session • Digi Kul</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -16,6 +17,10 @@
                 Digi Kul - Live Session
             </a>
             <div class="navbar-nav ms-auto">
+                <div id="networkStatus" class="navbar-text me-3" style="display:flex;align-items:center;gap:6px;">
+                    <span id="networkQualityBadge" class="badge bg-secondary" style="min-width:60px;">Init</span>
+                    <i class="bi bi-wifi text-light" id="networkQualityIcon"></i>
+                </div>
                 <span class="navbar-text me-3">
                     <i class="bi bi-person-circle me-1"></i>
                     Teacher
@@ -51,12 +56,31 @@
         overflow-y: auto;
     }
     
+    /* Zoom-style layout when screen sharing is active */
+    .video-grid.screen-sharing {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper.screenshare {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        height: 70vh;
+    }
+    
+    .video-grid.screen-sharing .video-wrapper:not(.screenshare) {
+        grid-column: auto;
+        grid-row: 2;
+        height: 100px;
+    }
+    
     .video-wrapper {
         position: relative;
         background: #333;
         border-radius: 8px;
         overflow: hidden;
         min-height: 200px;
+        transition: all 0.3s ease;
     }
     
     .video-wrapper.teacher {
@@ -67,10 +91,18 @@
         border: 2px solid #6c757d;
     }
     
+    .video-wrapper.screenshare {
+        border: 4px solid #ffc107;
+    }
+    
     .video-wrapper video {
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+    
+    .screenshare video {
+        object-fit: contain;
     }
     
     .video-label {
@@ -226,6 +258,36 @@
         font-weight: bold;
     }
     
+    .participant-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        min-height: 60px;
+    }
+    
+    .participant-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .participant-name {
+        font-weight: bold;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .participant-type {
+        font-size: 12px;
+        color: #666;
+        text-transform: capitalize;
+    }
+    
     .create-poll-form {
         background: #f8f9fa;
         border: 1px solid #dee2e6;
@@ -277,6 +339,17 @@
         padding: 10px 20px;
         border-radius: 25px;
         z-index: 1000;
+    }
+    
+    .network-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        padding: 5px 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        min-width: 120px;
     }
     
     .control-btn {
@@ -352,6 +425,7 @@
         <div class="sidebar-tabs">
             <button class="sidebar-tab active" onclick="switchSidebarTab('polls')">📊 Polls</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('materials')">📁 Materials</button>
+            <button class="sidebar-tab" onclick="switchSidebarTab('whiteboard')">🎨 Whiteboard</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('chat')">💬 Chat</button>
             <button class="sidebar-tab" onclick="switchSidebarTab('participants')">👥 People</button>
         </div>
@@ -391,6 +465,25 @@
             </div>
         </div>
         
+        <!-- Whiteboard Panel -->
+        <div id="whiteboard-panel" class="tab-panel">
+            <div class="polls-container" id="whiteboard-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4>Whiteboard</h4>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="clearWhiteboard()" style="padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button onclick="setWhiteboardTool('pen')" id="pen-tool" style="padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">✏️ Pen</button>
+                    <button onclick="setWhiteboardTool('eraser')" id="eraser-tool" style="padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">🧹 Eraser</button>
+                    <input type="color" id="color-picker" onchange="setWhiteboardColor(this.value)" style="width: 40px; height: 35px; border: none; border-radius: 4px; cursor: pointer;">
+                    <input type="range" id="brush-size" min="1" max="10" value="3" onchange="setBrushSize(this.value)" style="width: 80px;">
+                </div>
+                <canvas id="whiteboard-canvas" width="300" height="400" style="border: 2px solid #ddd; border-radius: 8px; cursor: crosshair; background: white;"></canvas>
+            </div>
+        </div>
+        
         <!-- Chat Panel -->
         <div id="chat-panel" class="tab-panel">
             <div class="polls-container" id="chat-container">
@@ -407,8 +500,19 @@
         <!-- Participants Panel -->
         <div id="participants-panel" class="tab-panel">
             <div class="polls-container" id="participants-container">
-                <div id="participants-list">
+                <h4>Session Participants</h4>
+                <div id="participants-list" style="max-height: 300px; overflow-y: auto;">
                     <!-- Participants will be added here -->
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                    <h5>Session Health</h5>
+                    <div id="session-health" style="font-size:13px;">
+                        <div id="health-participants">Participants: --</div>
+                        <div id="health-recording">Recording: --</div>
+                        <div id="health-uptime">Uptime: --</div>
+                        <div id="health-rtt">Avg RTT: --</div>
+                        <div id="health-reports" style="margin-top:8px; max-height:120px; overflow:auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -418,6 +522,10 @@
 <!-- Session Controls -->
 <div class="session-controls">
     <div id="participants-count">👥 0 participants</div>
+    <div id="networkStatus" class="network-status">
+        <i class="bi bi-wifi text-success"></i>
+        <span class="text-success">Checking...</span>
+    </div>
     <button class="control-btn" id="mic-btn" title="Microphone">🎤</button>
     <button class="control-btn" id="cam-btn" title="Camera">📹</button>
     <button class="control-btn" id="screen-btn" title="Share Screen">🖥️</button>
@@ -438,6 +546,7 @@
     let isScreenSharing = false;
     let isRecording = false;
     let localStream = null;
+    let originalCameraStream = null; // Store original camera stream for restoration
     let peerConnections = new Map();
     let remoteStreams = new Map();
     let mediaRecorder = null;
@@ -445,6 +554,18 @@
     let currentLectureId = null;
     let polls = [];
     let userVotes = new Map();
+    let connectionQuality = 'high'; // Track connection quality
+    let bandwidthMonitor = null; // Monitor bandwidth
+    
+    // Whiteboard variables
+    let whiteboardCanvas = null;
+    let whiteboardCtx = null;
+    let isDrawing = false;
+    let currentTool = 'pen';
+    let currentColor = '#000000';
+    let brushSize = 3;
+    let lastX = 0;
+    let lastY = 0;
     
     // WebRTC configuration
     const rtcConfig = {
@@ -456,9 +577,8 @@
     
     // Initialize when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        // Get session ID from URL
-        const pathParts = window.location.pathname.split('/');
-        sessionId = pathParts[pathParts.length - 1];
+        // Session ID and lecture ID will be set from Flask template variables in initializeSession()
+        // Do NOT extract from URL as that gives incorrect format
         
         initializeSession();
         setupEventListeners();
@@ -477,27 +597,43 @@
                 name: userName
             };
             
-            // Connect to socket
-            socket = io();
+            // Get lecture ID and session ID first (needed before socket connection)
+            currentLectureId = '{{ lecture_id }}';
+            sessionId = '{{ session_id }}';
             
-            // Setup socket event listeners
-            setupSocketListeners();
+            console.log('[TEACHER_INIT] Current Lecture ID:', currentLectureId);
+            console.log('[TEACHER_INIT] Session ID:', sessionId);
+            console.log('[TEACHER_INIT] Expected format: session_<lecture_id>');
             
-            // Get user media (video and audio for teachers)
+            // Validate session_id format
+            if (!sessionId || sessionId === '' || sessionId === 'None') {
+                console.error('[TEACHER_INIT] ERROR: session_id not provided by server!');
+                showError('Session initialization failed. Please try again.');
+                return;
+            }
+            
+            if (!sessionId.startsWith('session_')) {
+                console.error('[TEACHER_INIT] ERROR: Invalid session_id format:', sessionId);
+                showError('Invalid session format. Please refresh and try again.');
+                return;
+            }
+            
+            // IMPORTANT: Get user media FIRST, then connect socket
+            // This ensures localStream exists when peer connections are created
             await getUserMedia();
+            console.log('[TEACHER_INIT] getUserMedia complete, localStream ready');
             
-            // Join session
-            socket.emit('join_session', {
-                session_id: sessionId,
-                user_id: userId,
-                user_type: userType,
-                user_name: userName
+            // Now initialize socket after media is ready
+            socket = io({
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
             });
             
-            // Get lecture ID from server template variable
-            currentLectureId = '{{ lecture_id }}';
-            
-            console.log('Current Lecture ID:', currentLectureId);
+            // Setup socket listeners (includes connect handler with join_session)
+            setupSocketListeners();
             
             // Load polls and materials if we have a valid lecture ID
             if (currentLectureId && currentLectureId !== 'None' && currentLectureId !== '' && currentLectureId !== 'undefined') {
@@ -507,13 +643,92 @@
                 console.warn('No valid lecture ID found, polls will not be loaded');
             }
             
+            // Initialize whiteboard
+            initializeWhiteboard();
+            
+            // Start bandwidth monitoring
+            startBandwidthMonitoring();
+            // Start periodic quality reporting and health polling
+            try { startQualityReporting(); } catch(e){ console.warn('startQualityReporting failed', e); }
+            
         } catch (error) {
             console.error('Failed to initialize session:', error);
             showError('Failed to join session: ' + error.message);
         }
     }
     
+    // Update network status in the UI
+    function updateNetworkStatus(status) {
+        const networkElement = document.getElementById('networkStatus');
+        if (!networkElement) return;
+        
+        let icon, text, colorClass;
+        
+        switch(status) {
+            case 'Good':
+                icon = 'bi-wifi';
+                text = 'Good Connection';
+                colorClass = 'text-success';
+                break;
+            case 'Fair':
+                icon = 'bi-wifi-1';
+                text = 'Fair Connection';
+                colorClass = 'text-warning';
+                break;
+            case 'Poor':
+                icon = 'bi-wifi-2';
+                text = 'Poor Connection';
+                colorClass = 'text-danger';
+                break;
+            case 'Offline':
+                icon = 'bi-wifi-off';
+                text = 'Disconnected';
+                colorClass = 'text-danger';
+                break;
+            default:
+                icon = 'bi-wifi';
+                text = 'Checking...';
+                colorClass = 'text-secondary';
+        }
+        
+        networkElement.innerHTML = `
+            <i class="bi ${icon} ${colorClass}"></i>
+            <span class="${colorClass}">${text}</span>
+        `;
+    }
+    
     function setupSocketListeners() {
+        // Connection events
+        socket.on('connect', function() {
+            console.log('Socket connected, joining session:', sessionId);
+            updateNetworkStatus('Good');
+            
+            // Join the session as teacher
+            socket.emit('join_session', {
+                session_id: sessionId,
+                role: 'teacher',
+                user_id: currentUser.id,
+                user_name: currentUser.name
+            });
+            
+            // Add self to participants list immediately for better UX
+            addParticipant({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                role: 'teacher'
+            });
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Socket disconnected');
+            updateNetworkStatus('Offline');
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.error('Connection error:', error);
+            updateNetworkStatus('Poor');
+        });
+        
         socket.on('session_info', (data) => {
             updateParticipantsList(data.participants);
             // Initiate WebRTC connections with all participants
@@ -541,6 +756,13 @@
             addChatMessage('system', `${data.user_name} left the session`);
         });
         
+        socket.on('session_participants', (participants) => {
+            console.log('Received session participants:', participants);
+            updateParticipantsList(participants);
+            // Also update the participants count
+            document.getElementById('participants-count').textContent = `👥 ${participants.length} participants`;
+        });
+        
         socket.on('webrtc_offer', async (data) => {
             await handleWebRTCOffer(data);
         });
@@ -554,6 +776,7 @@
         });
         
         socket.on('chat_message', (data) => {
+            console.log('Received chat message:', data);
             addChatMessage(data.user_name, data.message, data.timestamp, data.user_id === currentUser.id);
         });
         
@@ -565,13 +788,40 @@
         socket.on('poll_vote', (data) => {
             updatePollResults(data.poll_id, data.results);
         });
+        
+        socket.on('whiteboard_draw', (data) => {
+            // Don't process our own drawing events
+            if (data.user_id === currentUser.id) return;
+            
+            // Draw the received drawing data
+            drawRemoteWhiteboard(data.drawing_data);
+        });
+        
+        socket.on('whiteboard_clear', (data) => {
+            // Don't process our own clear events
+            if (data.user_id === currentUser.id) return;
+            
+            // Clear the whiteboard
+            if (whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+        });
     }
     
     async function getUserMedia() {
         try {
+            // Start with conservative settings for better bandwidth optimization
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
+                video: {
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 15, max: 30 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
             });
             
             // Create local video element
@@ -608,6 +858,16 @@
         video.muted = isLocal;
         video.playsInline = true;
         
+        // Explicitly play the video and handle errors
+        video.onloadedmetadata = () => {
+            console.log(`[TEACHER] Video metadata loaded for ${userId}, attempting play`);
+            video.play().then(() => {
+                console.log(`[TEACHER] Video playing for ${userId}`);
+            }).catch(err => {
+                console.error(`[TEACHER] Error playing video for ${userId}:`, err);
+            });
+        };
+        
         const label = document.createElement('div');
         label.className = 'video-label';
         label.textContent = isLocal ? 'You' : `User ${userId.split('_')[1]}`;
@@ -637,22 +897,28 @@
     
     async function handleWebRTCOffer(data) {
         try {
-            console.log('Handling WebRTC offer from:', data.from_user_id);
+            console.log('[TEACHER] Handling WebRTC offer from:', data.from_user_id);
+            console.log('[TEACHER] Offer SDP:', data.offer);
             const peerConnection = new RTCPeerConnection(rtcConfig);
             peerConnections.set(data.from_user_id, peerConnection);
             
             // Add local stream
             if (localStream) {
+                console.log('[TEACHER] Adding tracks to peer connection for:', data.from_user_id);
+                console.log('[TEACHER] Local stream tracks:', localStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
                 localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
+                    const sender = peerConnection.addTrack(track, localStream);
+                    console.log('[TEACHER] Added track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
                 });
-                console.log('Added local stream to peer connection');
+            } else {
+                console.error('[TEACHER] No localStream when handling offer from:', data.from_user_id);
             }
             
             // Handle remote stream
             peerConnection.ontrack = (event) => {
-                console.log('Received remote stream from:', data.from_user_id);
+                console.log('[TEACHER] Received track from:', data.from_user_id, 'kind:', event.track.kind);
                 const remoteStream = event.streams[0];
+                console.log('[TEACHER] Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
                 remoteStreams.set(data.from_user_id, remoteStream);
                 createVideoElement(data.from_user_id, remoteStream);
             };
@@ -660,12 +926,15 @@
             // Handle ICE candidates
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log('[TEACHER] ICE candidate for:', data.from_user_id, event.candidate);
                     socket.emit('ice_candidate', {
                         session_id: sessionId,
                         target_user_id: data.from_user_id,
                         candidate: event.candidate,
                         from_user_id: currentUser.id
                     });
+                } else {
+                    console.log('[TEACHER] ICE gathering complete for:', data.from_user_id);
                 }
             };
             
@@ -718,17 +987,30 @@
         const peerConnection = new RTCPeerConnection(rtcConfig);
         peerConnections.set(targetUserId, peerConnection);
         
+        // Monitor connection state
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`[TEACHER] Connection state with ${targetUserId}:`, peerConnection.connectionState);
+        };
+        
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`[TEACHER] ICE connection state with ${targetUserId}:`, peerConnection.iceConnectionState);
+        };
+        
         // Add local stream
         if (localStream) {
             localStream.getTracks().forEach(track => {
                 peerConnection.addTrack(track, localStream);
+                console.log(`[TEACHER] Added ${track.kind} track to connection with ${targetUserId}`);
             });
+        } else {
+            console.warn('[TEACHER] No local stream available when creating peer connection!');
         }
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-            console.log('Received remote stream from:', targetUserId);
+            console.log('[TEACHER] Received track from:', targetUserId, 'kind:', event.track.kind);
             const remoteStream = event.streams[0];
+            console.log('[TEACHER] Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
             remoteStreams.set(targetUserId, remoteStream);
             createVideoElement(targetUserId, remoteStream);
         };
@@ -736,12 +1018,15 @@
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
+                console.log('[TEACHER] Sending ICE candidate to:', targetUserId, event.candidate);
                 socket.emit('ice_candidate', {
                     session_id: sessionId,
                     target_user_id: targetUserId,
                     candidate: event.candidate,
                     from_user_id: currentUser.id
                 });
+            } else {
+                console.log('[TEACHER] ICE gathering complete for:', targetUserId);
             }
         };
         
@@ -750,12 +1035,15 @@
     
     async function initiateCall(targetUserId) {
         try {
-            console.log('Initiating call with:', targetUserId);
+            console.log('[TEACHER] Initiating call with:', targetUserId);
             const peerConnection = await createPeerConnection(targetUserId);
+            console.log('[TEACHER] Peer connection created');
             
             // Create offer
             const offer = await peerConnection.createOffer();
+            console.log('[TEACHER] Created offer:', offer);
             await peerConnection.setLocalDescription(offer);
+            console.log('[TEACHER] Set local description (offer)');
             
             // Send offer
             socket.emit('webrtc_offer', {
@@ -765,9 +1053,9 @@
                 from_user_id: currentUser.id
             });
             
-            console.log('Sent WebRTC offer to:', targetUserId);
+            console.log('[TEACHER] Sent WebRTC offer to:', targetUserId);
         } catch (error) {
-            console.error('Failed to initiate call:', error);
+            console.error('[TEACHER] Failed to initiate call:', error);
         }
     }
     
@@ -836,20 +1124,48 @@
     async function toggleScreenShare() {
         try {
             if (!isScreenSharing) {
+                console.log('Starting screen share...');
+                
+                // Get screen share stream with optimized settings
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: true
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 15, max: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
                 
-                // Stop current video track
+                // Store original camera stream for restoration
+                if (localStream && !originalCameraStream) {
+                    originalCameraStream = localStream.clone();
+                }
+                
+                // Stop current video track but keep audio
                 if (localStream) {
                     localStream.getVideoTracks().forEach(track => track.stop());
                 }
                 
-                // Create new stream with screen share
+                // Create new stream with screen share video and original audio
                 const newStream = new MediaStream();
-                screenStream.getVideoTracks().forEach(track => newStream.addTrack(track));
-                if (localStream) {
+                screenStream.getVideoTracks().forEach(track => {
+                    track.applyConstraints({
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 15 }
+                    });
+                    newStream.addTrack(track);
+                });
+                
+                // Keep original audio track if available
+                if (originalCameraStream) {
+                    originalCameraStream.getAudioTracks().forEach(track => newStream.addTrack(track));
+                } else if (localStream) {
                     localStream.getAudioTracks().forEach(track => newStream.addTrack(track));
                 }
                 
@@ -862,76 +1178,130 @@
                     localVideo.srcObject = localStream;
                 }
                 
-                // Update all peer connections with new stream
+                // Update all peer connections with new video track
+                const videoTrack = screenStream.getVideoTracks()[0];
                 peerConnections.forEach((peerConnection, userId) => {
                     const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                    if (sender && videoTrack) {
+                        sender.replaceTrack(videoTrack).catch(err => {
+                            console.warn('Failed to replace video track:', err);
+                        });
                     }
                 });
                 
                 isScreenSharing = true;
                 document.getElementById('screen-btn').classList.add('active');
+                document.getElementById('screen-btn').innerHTML = '<i class="bi bi-stop-circle"></i>';
+                
+                // Add screenshare class to video grid and mark screen share video
+                const videoGrid = document.getElementById('video-grid');
+                videoGrid.classList.add('screen-sharing');
+                const localVideoWrapper = document.getElementById(`wrapper-${currentUser.id}`);
+                if (localVideoWrapper) {
+                    localVideoWrapper.classList.add('screenshare');
+                }
                 
                 // Handle screen share end
-                screenStream.getVideoTracks()[0].onended = () => {
+                videoTrack.onended = () => {
+                    console.log('Screen share ended by user');
                     toggleScreenShare();
                 };
                 
-                console.log('Screen sharing started');
+                console.log('Screen sharing started successfully');
                 
                 // Notify students about screen sharing
                 socket.emit('screen_share_started', {
                     session_id: sessionId,
-                    user_id: userId
+                    user_id: currentUser.id
                 });
+                
             } else {
+                console.log('Stopping screen share...');
+                
                 // Stop screen sharing and restore camera
-                const cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
-                });
-                
-                // Stop current video track
-                if (localStream) {
-                    localStream.getVideoTracks().forEach(track => track.stop());
-                }
-                
-                // Create new stream with camera
-                const newStream = new MediaStream();
-                cameraStream.getVideoTracks().forEach(track => newStream.addTrack(track));
-                cameraStream.getAudioTracks().forEach(track => newStream.addTrack(track));
-                
-                // Update local stream
-                localStream = newStream;
-                
-                // Update local video element
-                const localVideo = document.getElementById('local-video');
-                if (localVideo) {
-                    localVideo.srcObject = localStream;
-                }
-                
-                // Update all peer connections with new stream
-                peerConnections.forEach((peerConnection, userId) => {
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(cameraStream.getVideoTracks()[0]);
+                try {
+                    const cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 },
+                            frameRate: { ideal: 15, max: 30 }
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                    
+                    // Stop current screen share tracks
+                    if (localStream) {
+                        localStream.getVideoTracks().forEach(track => track.stop());
                     }
-                });
-                
-                isScreenSharing = false;
-                document.getElementById('screen-btn').classList.remove('active');
-                
-                console.log('Screen sharing stopped, camera restored');
-                
-                // Notify students about screen sharing stop
-                socket.emit('screen_share_stopped', {
-                    session_id: sessionId,
-                    user_id: userId
-                });
+                    
+                    // Create new stream with camera
+                    const newStream = new MediaStream();
+                    cameraStream.getVideoTracks().forEach(track => {
+                        track.applyConstraints({
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 15 }
+                        });
+                        newStream.addTrack(track);
+                    });
+                    
+                    // Keep audio track
+                    if (localStream) {
+                        localStream.getAudioTracks().forEach(track => newStream.addTrack(track));
+                    }
+                    
+                    // Update local stream
+                    localStream = newStream;
+                    
+                    // Update local video element
+                    const localVideo = document.getElementById('local-video');
+                    if (localVideo) {
+                        localVideo.srcObject = localStream;
+                    }
+                    
+                    // Update all peer connections with camera track
+                    const videoTrack = newStream.getVideoTracks()[0];
+                    peerConnections.forEach((peerConnection, userId) => {
+                        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender && videoTrack) {
+                            sender.replaceTrack(videoTrack).catch(err => {
+                                console.warn('Failed to replace video track:', err);
+                            });
+                        }
+                    });
+                    
+                    isScreenSharing = false;
+                    document.getElementById('screen-btn').classList.remove('active');
+                    document.getElementById('screen-btn').innerHTML = '<i class="bi bi-display"></i>';
+                    
+                    // Remove screenshare class from video grid
+                    const videoGrid = document.getElementById('video-grid');
+                    videoGrid.classList.remove('screen-sharing');
+                    const localVideoWrapper = document.getElementById(`wrapper-${currentUser.id}`);
+                    if (localVideoWrapper) {
+                        localVideoWrapper.classList.remove('screenshare');
+                    }
+                    
+                    console.log('Screen sharing stopped, camera restored successfully');
+                    
+                    // Notify students about screen sharing stop
+                    socket.emit('screen_share_stopped', {
+                        session_id: sessionId,
+                        user_id: currentUser.id
+                    });
+                    
+                } catch (cameraError) {
+                    console.error('Failed to restore camera:', cameraError);
+                    showAlert('Failed to restore camera. Please refresh the page.', 'error');
+                }
             }
         } catch (error) {
             console.error('Failed to toggle screen share:', error);
+            showAlert('Screen sharing failed: ' + error.message, 'error');
         }
     }
 
@@ -1070,21 +1440,49 @@
     
     function addParticipant(participant) {
         const participantsList = document.getElementById('participants-list');
+        if (!participantsList) {
+            console.error('Participants list element not found');
+            return;
+        }
+        
+        // Check if participant already exists
+        const existingParticipant = document.getElementById(`participant-${participant.user_id}`);
+        if (existingParticipant) {
+            console.log('Participant already exists:', participant.user_name);
+            return;
+        }
+        
         const participantDiv = document.createElement('div');
         participantDiv.className = `participant ${participant.user_type}`;
         participantDiv.id = `participant-${participant.user_id}`;
+        participantDiv.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            min-height: 60px;
+        `;
         
-        const avatar = participant.user_name.charAt(0).toUpperCase();
+        const avatar = participant.user_name ? participant.user_name.charAt(0).toUpperCase() : '?';
+        const userName = participant.user_name || 'Unknown User';
+        const userType = participant.user_type || 'student';
         
         participantDiv.innerHTML = `
-            <div class="participant-avatar">${avatar}</div>
-            <div class="participant-info">
-                <h4>${participant.user_name}</h4>
-                <p>${participant.user_type}</p>
+            <div style="width: 40px; height: 40px; background: #007bff; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; flex-shrink: 0;">${avatar}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                <div style="font-size: 12px; color: #666; text-transform: capitalize;">${userType}</div>
             </div>
         `;
         
         participantsList.appendChild(participantDiv);
+        console.log('Added participant:', userName, 'Type:', userType);
+        
+        // Update participants count
+        updateParticipantsCount();
     }
     
     function removeParticipant(userId) {
@@ -1138,6 +1536,7 @@
         const message = input.value.trim();
         
         if (message && socket) {
+            console.log('Sending chat message:', message);
             socket.emit('chat_message', {
                 session_id: sessionId,
                 message: message,
@@ -1145,6 +1544,8 @@
                 user_name: currentUser.name
             });
             
+            // Add message to chat immediately for better UX
+            addChatMessage(currentUser.name, message, new Date().toISOString(), true);
             input.value = '';
         }
     }
@@ -1203,10 +1604,14 @@
         
         let optionsHTML = '';
         poll.options.forEach((option, index) => {
+            // Only mark as selected if this is the exact option the user voted for
             const isSelected = hasVoted && userVote === option;
             optionsHTML += `
                 <div class="poll-option ${isSelected ? 'selected' : ''}" 
                      onclick="voteOnPoll('${poll.id}', '${option}')">
+                    <input type="radio" name="poll-${poll.id}" value="${option}" ${isSelected ? 'checked' : ''} 
+                           onclick="event.stopPropagation();" 
+                           onchange="voteOnPoll('${poll.id}', '${option}')">
                     <span class="poll-option-text">${option}</span>
                 </div>
             `;
@@ -1317,28 +1722,43 @@
     async function loadMaterials() {
         if (!currentLectureId) {
             console.warn('No lecture ID available for loading materials');
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">No lecture selected</p>';
             return;
         }
         
         console.log('Loading materials for lecture ID:', currentLectureId);
         
         try {
-            const res = await fetch(`/api/teacher/lecture/${currentLectureId}/materials`, {
-                credentials: 'same-origin'
-            });
-            const data = await res.json();
+            // Show loading indicator
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">Loading materials...</p>';
             
+            const res = await fetch(`/api/teacher/lecture/${currentLectureId}/materials`, {
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
+            const data = await res.json();
             console.log('Materials API response:', data);
             
-            if (data.success) {
-                renderMaterials(data.materials);
+            if (data.success && data.materials) {
+                if (data.materials.length > 0) {
+                    renderMaterials(data.materials);
+                } else {
+                    document.getElementById('materials-list').innerHTML = '<p style="text-align: center; opacity: 0.7;">No materials available for this lecture</p>';
+                }
             } else {
                 console.error('Failed to load materials:', data.error);
-                document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+                document.getElementById('materials-list').innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load materials: ' + (data.error || 'Unknown error') + '</p>';
             }
         } catch (error) {
             console.error('Failed to load materials:', error);
-            document.getElementById('materials-list').innerHTML = '<p>Failed to load materials</p>';
+            document.getElementById('materials-list').innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load materials: ' + error.message + '</p>';
         }
     }
     
@@ -1396,6 +1816,479 @@
             alert.style.display = 'none';
         }, 3000);
     }
+    
+    // Whiteboard Functions
+    function attachCanvasResizeHandler(canvas, callback) {
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.max(300, Math.floor(rect.width));
+                canvas.height = Math.max(200, Math.floor(rect.height));
+                if (callback) callback();
+            }, 200);
+        });
+    }
+    
+    function initializeWhiteboard() {
+        whiteboardCanvas = document.getElementById('whiteboard-canvas');
+        if (whiteboardCanvas) {
+            whiteboardCtx = whiteboardCanvas.getContext('2d');
+            // Initialize canvas size
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            whiteboardCanvas.width = Math.max(300, Math.floor(rect.width));
+            whiteboardCanvas.height = Math.max(200, Math.floor(rect.height));
+            attachCanvasResizeHandler(whiteboardCanvas, function() {
+                if (whiteboardCtx) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    try { window.replayStrokeHistory(sessionId || 'default_canvas', whiteboardCtx, whiteboardCanvas); } catch(e){}
+                }
+            });
+            setupWhiteboardEventListeners();
+            // Load persisted strokes (if any) and replay
+            try {
+                const canvasId = sessionId || 'default_canvas';
+                window.strokeHistory = window.strokeHistory || {};
+                const persisted = window.strokeHistory[canvasId] || (window.loadStrokeHistoryFromStorage ? loadStrokeHistoryFromStorage(canvasId) : []);
+                if (persisted && persisted.length) {
+                    window.strokeHistory[canvasId] = persisted;
+                    try { window.replayStrokeHistory(canvasId, whiteboardCtx, whiteboardCanvas); } catch(e){}
+                }
+            } catch(e) {
+                console.warn('Failed to load persisted whiteboard', e);
+            }
+            console.log('Whiteboard initialized');
+        }
+    }
+    
+    function setupWhiteboardEventListeners() {
+        if (!whiteboardCanvas) return;
+        
+    whiteboardCanvas.addEventListener('mousedown', startDrawing);
+    whiteboardCanvas.addEventListener('mousemove', draw);
+    whiteboardCanvas.addEventListener('mouseup', stopDrawing);
+    whiteboardCanvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events for mobile
+        whiteboardCanvas.addEventListener('touchstart', handleTouch);
+        whiteboardCanvas.addEventListener('touchmove', handleTouch);
+        whiteboardCanvas.addEventListener('touchend', stopDrawing);
+    }
+    
+    function handleTouch(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        whiteboardCanvas.dispatchEvent(mouseEvent);
+    }
+    
+    function startDrawing(e) {
+        isDrawing = true;
+        const rect = whiteboardCanvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = whiteboardCanvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(lastX, lastY);
+        whiteboardCtx.lineTo(currentX, currentY);
+        whiteboardCtx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
+        whiteboardCtx.lineWidth = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.stroke();
+        
+        // Broadcast drawing data using normalized coords + throttle
+        if (socket && sessionId) {
+            const from = normalizePoint(lastX, lastY, whiteboardCanvas);
+            const to = normalizePoint(currentX, currentY, whiteboardCanvas);
+            const drawingPayload = {
+                from: from,
+                to: to,
+                color: currentTool === 'eraser' ? '#ffffff' : currentColor,
+                lineWidth: currentTool === 'eraser' ? brushSize * 3 : brushSize,
+                tool: currentTool
+            };
+            if (!window.__wbThrottledEmit) {
+                window.__wbThrottledEmit = throttle(function(payload) {
+                    socket.emit('whiteboard_draw', {
+                        session_id: sessionId,
+                        drawing_data: payload,
+                        user_id: currentUser.id
+                    });
+                }, 25);
+            }
+            window.__wbThrottledEmit(drawingPayload);
+        }
+        
+        lastX = currentX;
+        lastY = currentY;
+    }
+    
+    function stopDrawing() {
+        isDrawing = false;
+    }
+    
+    function setWhiteboardTool(tool) {
+        currentTool = tool;
+        
+        // Update button styles
+        document.getElementById('pen-tool').style.background = tool === 'pen' ? '#0056b3' : '#007bff';
+        document.getElementById('eraser-tool').style.background = tool === 'eraser' ? '#545b62' : '#6c757d';
+        
+        // Update cursor
+        whiteboardCanvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
+    }
+    
+    function setWhiteboardColor(color) {
+        currentColor = color;
+    }
+    
+    function setBrushSize(size) {
+        brushSize = parseInt(size);
+    }
+    
+    function clearWhiteboard() {
+        if (whiteboardCtx) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            
+            // Broadcast clear event to other participants
+            if (socket) {
+                socket.emit('whiteboard_clear', {
+                    session_id: sessionId,
+                    user_id: currentUser.id
+                });
+            }
+            
+            showAlert('Whiteboard cleared', 'success');
+        }
+    }
+    
+    // Whiteboard helper functions
+    function normalizePoint(x, y, canvas) {
+        return {
+            x: x / canvas.width,
+            y: y / canvas.height
+        };
+    }
+    
+    function denormalizePoint(normX, normY, canvas) {
+        return {
+            x: normX * canvas.width,
+            y: normY * canvas.height
+        };
+    }
+    
+    function throttle(func, delay) {
+        let lastCall = 0;
+        return function(...args) {
+            const now = Date.now();
+            if (now - lastCall >= delay) {
+                lastCall = now;
+                return func(...args);
+            }
+        };
+    }
+    
+    function drawRemoteWhiteboard(drawingData) {
+        if (!whiteboardCtx) return;
+        const from = denormalizePoint(drawingData.from.x, drawingData.from.y, whiteboardCanvas);
+        const to = denormalizePoint(drawingData.to.x, drawingData.to.y, whiteboardCanvas);
+
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(from.x, from.y);
+        whiteboardCtx.lineTo(to.x, to.y);
+        whiteboardCtx.strokeStyle = drawingData.color || '#000';
+        whiteboardCtx.lineWidth = drawingData.lineWidth || 2;
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.stroke();
+    }
+    
+    // Enhanced bandwidth monitoring and adaptive quality
+    function startBandwidthMonitoring() {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+        
+        // Initial network status check
+        updateNetworkStatus();
+        
+        bandwidthMonitor = setInterval(async () => {
+            try {
+                // Test connection speed with multiple methods
+                const startTime = performance.now();
+                const response = await fetch('/api/teacher/debug/storage', {
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                const endTime = performance.now();
+                
+                const latency = endTime - startTime;
+                const newQuality = determineQuality(latency);
+                
+                // Update network status display
+                updateNetworkStatusDisplay(latency, newQuality);
+                
+                if (newQuality !== connectionQuality) {
+                    connectionQuality = newQuality;
+                    adjustStreamQuality();
+                    console.log(`Connection quality changed to: ${connectionQuality}`);
+                    
+                    // Just update the indicator, no notifications
+                }
+            } catch (error) {
+                console.warn('Bandwidth monitoring failed:', error);
+                updateNetworkStatusDisplay(null, 'offline');
+            }
+        }, 5000); // Check every 5 seconds for more responsive monitoring
+    }
+
+    // Periodic quality reporting to the server and polling of session health
+    let __qualityReportInterval = null;
+    let __healthPollInterval = null;
+
+    function startQualityReporting() {
+        // send a lightweight quality report every 20s
+        if (__qualityReportInterval) clearInterval(__qualityReportInterval);
+        sendQualityReport();
+        __qualityReportInterval = setInterval(sendQualityReport, 20000);
+
+        // poll session health every 10s to update teacher UI
+        if (__healthPollInterval) clearInterval(__healthPollInterval);
+        pollSessionHealth();
+        __healthPollInterval = setInterval(pollSessionHealth, 10000);
+    }
+
+    function stopQualityReporting() {
+        if (__qualityReportInterval) clearInterval(__qualityReportInterval);
+        if (__healthPollInterval) clearInterval(__healthPollInterval);
+    }
+
+    async function sendQualityReport() {
+        try {
+            if (!socket || !sessionId) return;
+
+            // Compose a basic report using available metrics
+            const report = {
+                connectionQuality: connectionQuality || 'unknown',
+                latencySample: performance.now(),
+                participants: (document.getElementById('participants-list') || {children:[]}).children.length,
+                timestamp: new Date().toISOString()
+            };
+
+            // If we have access to peerConnections, include a rough count
+            try {
+                report.peer_count = peerConnections ? peerConnections.size : 0;
+            } catch (e) { report.peer_count = 0; }
+
+            // Use socket.emit to send the quality_report (server returns an ACK)
+            if (window.sendWithAck) {
+                sendWithAck('quality_report', { session_id: sessionId, report: report }, function(err, ack){
+                    if (err) console.warn('quality_report not acked', err);
+                }, 1, 1000);
+            } else if (socket && socket.emit) {
+                socket.emit('quality_report', { session_id: sessionId, report: report });
+            }
+        } catch (e) {
+            console.warn('sendQualityReport failed', e);
+        }
+    }
+
+    async function pollSessionHealth() {
+        try {
+            const res = await fetch(`/api/session_health/${sessionId}`);
+            if (!res.ok) return;
+            const j = await res.json();
+            if (!j.success) return;
+
+            // Update participants and recording status
+            const parts = j.participants || [];
+            document.getElementById('health-participants').textContent = `Participants: ${parts.length}`;
+            document.getElementById('participants-count').textContent = `👥 ${parts.length} participants`;
+
+            const rec = j.recording_status;
+            const recTxt = rec ? (rec.status || (rec.recording_stats && rec.recording_stats.duration ? 'recording' : 'idle')) : 'none';
+            document.getElementById('health-recording').textContent = `Recording: ${recTxt}`;
+
+            // Uptime & RTT metrics
+            if (j.uptime_seconds != null) {
+                const uptimeEl = document.getElementById('health-uptime');
+                if (uptimeEl) {
+                    const hours = Math.floor(j.uptime_seconds / 3600);
+                    const minutes = Math.floor((j.uptime_seconds % 3600) / 60);
+                    const seconds = j.uptime_seconds % 60;
+                    uptimeEl.textContent = `Uptime: ${hours}h ${minutes}m ${seconds}s`;
+                }
+            }
+            if (j.avg_rtt_ms != null) {
+                const rttEl = document.getElementById('health-rtt');
+                if (rttEl) {
+                    rttEl.textContent = `Avg RTT: ${j.avg_rtt_ms} ms`;
+                }
+            }
+
+            // Render recent quality reports
+            const reports = j.quality_reports || [];
+            const container = document.getElementById('health-reports');
+            container.innerHTML = '';
+            reports.slice(-10).reverse().forEach(r => {
+                const d = document.createElement('div');
+                d.style.fontSize = '12px';
+                d.style.marginBottom = '6px';
+                d.textContent = `${r.timestamp} • user:${r.user_id} • q:${r.report.connectionQuality || 'n/a'} peer:${r.report.peer_count || 0}`;
+                container.appendChild(d);
+            });
+
+        } catch (e) {
+            console.warn('pollSessionHealth failed', e);
+        }
+    }
+    
+    function updateNetworkStatus() {
+        // Check if online
+        if (!navigator.onLine) {
+            updateNetworkStatusDisplay(null, 'offline');
+            return;
+        }
+        
+        // Check connection type if available
+        if (navigator.connection) {
+            const connection = navigator.connection;
+            const effectiveType = connection.effectiveType;
+            const downlink = connection.downlink;
+            
+            console.log(`Network type: ${effectiveType}, Speed: ${downlink}Mbps`);
+        }
+    }
+    
+    function updateNetworkStatusDisplay(latency, quality) {
+        const badge = document.getElementById('networkQualityBadge');
+        const icon = document.getElementById('networkQualityIcon');
+        if (!badge || !icon) return;
+        let text, badgeClass, iconClass;
+        switch(quality){
+            case 'offline': text='Offline'; badgeClass='bg-danger'; iconClass='bi-wifi-off'; break;
+            case 'high': text='Excellent'; badgeClass='bg-success'; iconClass='bi-wifi'; break;
+            case 'medium': text='Good'; badgeClass='bg-warning'; iconClass='bi-wifi-2'; break;
+            case 'low': text='Poor'; badgeClass='bg-danger'; iconClass='bi-wifi-1'; break;
+            default: text='Checking'; badgeClass='bg-secondary'; iconClass='bi-wifi';
+        }
+        badge.textContent = text;
+        badge.className = `badge ${badgeClass}`;
+        icon.className = `bi ${iconClass} text-light`;
+        if (latency != null) {
+            badge.title = `Latency: ${Math.round(latency)}ms`;
+        }
+    }
+    
+    function showNetworkNotification(quality) {
+        // Network quality is now shown in the status indicator only, no popups
+        // Quality indicators are in the top bar and control bar
+    }
+    
+    function determineQuality(latency) {
+        if (latency < 100) return 'high';
+        if (latency < 300) return 'medium';
+        return 'low';
+    }
+    
+    function adjustStreamQuality() {
+        if (!localStream) return;
+        
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            const constraints = getQualityConstraints(connectionQuality);
+            track.applyConstraints(constraints).catch(err => {
+                console.warn('Failed to apply quality constraints:', err);
+            });
+        });
+        
+        // Update peer connections
+        peerConnections.forEach((peerConnection, userId) => {
+            const senders = peerConnection.getSenders();
+            senders.forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                    const params = sender.getParameters();
+                    if (params.encodings) {
+                        params.encodings.forEach(encoding => {
+                            encoding.maxBitrate = getMaxBitrate(connectionQuality);
+                            encoding.scaleResolutionDownBy = getScaleFactor(connectionQuality);
+                        });
+                        sender.setParameters(params).catch(err => {
+                            console.warn('Failed to set encoding parameters:', err);
+                        });
+                    }
+                }
+            });
+        });
+    }
+    
+    function getQualityConstraints(quality) {
+        switch (quality) {
+            case 'high':
+                return {
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 480, max: 720 },
+                    frameRate: { ideal: 24, max: 30 }
+                };
+            case 'medium':
+                return {
+                    width: { ideal: 480, max: 640 },
+                    height: { ideal: 360, max: 480 },
+                    frameRate: { ideal: 15, max: 20 }
+                };
+            case 'low':
+                return {
+                    width: { ideal: 320, max: 480 },
+                    height: { ideal: 240, max: 360 },
+                    frameRate: { ideal: 10, max: 15 }
+                };
+            default:
+                return {
+                    width: { ideal: 480 },
+                    height: { ideal: 360 },
+                    frameRate: { ideal: 15 }
+                };
+        }
+    }
+    
+    function getMaxBitrate(quality) {
+        switch (quality) {
+            case 'high': return 1500000; // 1.5 Mbps (reduced from 2)
+            case 'medium': return 750000; // 750 Kbps (reduced from 1 Mbps)
+            case 'low': return 300000; // 300 Kbps (reduced from 500)
+            default: return 750000;
+        }
+    }
+    
+    function getScaleFactor(quality) {
+        switch (quality) {
+            case 'high': return 1;
+            case 'medium': return 1.5;
+            case 'low': return 2.5; // More aggressive scaling for low quality
+            default: return 1.5;
+        }
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (bandwidthMonitor) {
+            clearInterval(bandwidthMonitor);
+        }
+    });
+    
 </script>
 
     <!-- Bootstrap JS -->

@@ -6,6 +6,124 @@
     <title>Student Dashboard - Digi Kul</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bs-body-bg: #1a1a1a;
+            --bs-body-color: #e9ecef;
+            --bs-dark: #212529;
+            --bs-secondary: #6c757d;
+        }
+        
+        body {
+            background-color: #1a1a1a !important;
+            color: #e9ecef !important;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+            border-bottom: 1px solid #495057;
+        }
+        
+        .card {
+            background-color: #2d3748 !important;
+            border: 1px solid #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+            border-bottom: 1px solid #495057 !important;
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid #495057 !important;
+        }
+        
+        .nav-tabs .nav-link {
+            color: #adb5bd !important;
+            border: 1px solid transparent !important;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: #495057 #495057 #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            border-color: #495057 #495057 #2d3748 !important;
+        }
+        
+        .form-control {
+            background-color: #495057 !important;
+            border: 1px solid #6c757d !important;
+            color: #e9ecef !important;
+        }
+        
+        .form-control:focus {
+            background-color: #495057 !important;
+            border-color: #667eea !important;
+            color: #e9ecef !important;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+        }
+        
+        .btn-outline-light {
+            border-color: #6c757d !important;
+            color: #e9ecef !important;
+        }
+        
+        .btn-outline-light:hover {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #fff !important;
+        }
+        
+        .table {
+            color: #e9ecef !important;
+        }
+        
+        .table-striped > tbody > tr:nth-of-type(odd) > td {
+            background-color: rgba(73, 80, 87, 0.3) !important;
+        }
+        
+        .modal-content {
+            background-color: #2d3748 !important;
+            color: #e9ecef !important;
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #495057 !important;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid #495057 !important;
+        }
+        
+        .toast {
+            background-color: #2d3748 !important;
+            color: #e9ecef !important;
+        }
+        
+        .toast-header {
+            background-color: #495057 !important;
+            color: #e9ecef !important;
+            border-bottom: 1px solid #6c757d !important;
+        }
+        
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        
+        .bg-light {
+            background-color: #495057 !important;
+        }
+        
+        .border {
+            border-color: #495057 !important;
+        }
+    </style>
     <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
     <style>
         .chatbot-container {
@@ -123,6 +241,25 @@
             border: 1px solid #e9ecef;
         }
         
+        /* Fix text visibility on dark backgrounds */
+        .card-text, .text-muted, .card-title {
+            color: #333 !important;
+        }
+        
+        .card-body {
+            background: #fff;
+            color: #333;
+        }
+        
+        .card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+        }
+        
+        .badge {
+            color: #fff !important;
+        }
+        
         .chatbot-input {
             padding: 15px;
             border-top: 1px solid #e9ecef;
@@ -192,7 +329,7 @@
         <!-- Dashboard Stats -->
         <div class="row mb-4">
             <div class="col-md-3">
-                <div class="card bg-primary text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -207,7 +344,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-success text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -222,7 +359,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-warning text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -237,7 +374,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-info text-white">
+                <div class="card text-white" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -253,26 +390,81 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card" style="border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                        <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="showEnrollModal()">
+                                    <i class="bi bi-plus-circle me-2"></i>Enroll in Cohort
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="loadLectures()">
+                                    <i class="bi bi-calendar-event me-2"></i>View Lectures
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="loadMaterials()">
+                                    <i class="bi bi-download me-2"></i>Download Materials
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <button class="btn w-100 text-white" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onclick="toggleChatbot()">
+                                    <i class="bi bi-chat-dots me-2"></i>Ask Asha
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content Tabs -->
-        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist" style="border-bottom: 2px solid #e9ecef;">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab">
+                <button class="nav-link active" id="cohorts-tab" data-bs-toggle="tab" data-bs-target="#cohorts" type="button" role="tab" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-people me-2"></i>My Cohorts
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab">
+                <button class="nav-link" id="lectures-tab" data-bs-toggle="tab" data-bs-target="#lectures" type="button" role="tab" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-calendar-event me-2"></i>Lectures
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab">
+                <button class="nav-link" id="materials-tab" data-bs-toggle="tab" data-bs-target="#materials" type="button" role="tab" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-file-earmark-text me-2"></i>Materials
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab">
+                <button class="nav-link" id="quizzes-tab" data-bs-toggle="tab" data-bs-target="#quizzes" type="button" role="tab" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
                     <i class="bi bi-question-circle me-2"></i>Quizzes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="polls-tab" data-bs-toggle="tab" data-bs-target="#polls" type="button" role="tab" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
+                    <i class="bi bi-bar-chart me-2"></i>Polls
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
+                    <i class="bi bi-chat-dots me-2"></i>Discussions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="grades-tab" data-bs-toggle="tab" data-bs-target="#grades" type="button" role="tab" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
+                    <i class="bi bi-award me-2"></i>Grades
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="recordings-tab" data-bs-toggle="tab" data-bs-target="#recordings" type="button" role="tab" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-right: 5px; border-radius: 10px 10px 0 0;">
+                    <i class="bi bi-play-circle me-2"></i>Recordings
                 </button>
             </li>
         </ul>
@@ -348,6 +540,74 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Polls Tab -->
+            <div class="tab-pane fade" id="polls" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Active Polls</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="pollsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No polls available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discussions Tab -->
+            <div class="tab-pane fade" id="discussions" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Cohort Discussions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="discussionsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No discussions available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grades Tab -->
+            <div class="tab-pane fade" id="grades" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">My Grades</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="gradesList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-award fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No grades available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recordings Tab -->
+            <div class="tab-pane fade" id="recordings" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recorded Lectures</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recordingsList">
+                            <div class="text-center py-4">
+                                <i class="bi bi-play-circle fs-1 text-muted"></i>
+                                <p class="text-muted mt-2">No recordings available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -418,6 +678,45 @@
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
 
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="bi bi-${type === 'success' ? 'check-circle-fill text-success' : 
+                                           type === 'error' ? 'exclamation-triangle-fill text-danger' : 
+                                           type === 'warning' ? 'exclamation-triangle-fill text-warning' : 
+                                           'info-circle-fill text-info'} me-2"></i>
+                        <strong class="me-auto">DigiKul</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: 3000
+            });
+            
+            toast.show();
+            
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                this.remove();
+            });
+        }
+    </script>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -455,7 +754,11 @@
                     loadCohorts(),
                     loadLectures(),
                     loadMaterials(),
-                    loadQuizzes()
+                    loadQuizzes(),
+                    loadPolls(),
+                    loadDiscussions(),
+                    loadGrades(),
+                    loadRecordings()
                 ]);
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -479,6 +782,10 @@
 
         async function loadLectures() {
             try {
+                // Switch to lectures tab
+                const lecturesTab = new bootstrap.Tab(document.getElementById('lectures-tab'));
+                lecturesTab.show();
+                
                 const response = await fetch('/api/student/lectures');
                 const data = await response.json();
                 
@@ -494,6 +801,10 @@
 
         async function loadMaterials() {
             try {
+                // Switch to materials tab
+                const materialsTab = new bootstrap.Tab(document.getElementById('materials-tab'));
+                materialsTab.show();
+                
                 const response = await fetch('/api/student/materials');
                 const data = await response.json();
                 
@@ -565,21 +876,58 @@
                 return;
             }
             
-            container.innerHTML = lectures.map(lecture => `
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title">${lecture.title}</h6>
-                        <p class="card-text text-muted">${lecture.description || 'No description'}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-clock me-1"></i>
-                                ${new Date(lecture.scheduled_time).toLocaleString()}
-                            </small>
-                            <span class="badge bg-primary">${lecture.duration} min</span>
+            const now = new Date();
+            
+            container.innerHTML = lectures.map(lecture => {
+                const lectureTime = new Date(lecture.scheduled_time);
+                const endTime = new Date(lectureTime.getTime() + (lecture.duration * 60000));
+                // Determine live status either from explicit status flag or time window
+                const statusField = (lecture.status || '').toLowerCase();
+                const isLiveTime = now >= lectureTime && now <= endTime;
+                const isLive = statusField === 'live' || isLiveTime;
+                const isUpcoming = now < lectureTime;
+                const isPast = now > endTime;
+                
+                let statusBadge = '';
+                let actionButton = '';
+                
+                if (isLive) {
+                    statusBadge = '<span class="badge bg-danger me-2">LIVE</span>';
+                    actionButton = `<button class="btn btn-sm btn-success" onclick="joinLiveSession('${lecture.id}')">
+                        <i class="bi bi-play-circle me-1"></i>Join Live
+                    </button>`;
+                } else if (isUpcoming) {
+                    statusBadge = '<span class="badge bg-warning me-2">Upcoming</span>';
+                    actionButton = `<button class="btn btn-sm btn-secondary" disabled>
+                        <i class="bi bi-clock me-1"></i>Not Started
+                    </button>`;
+                } else {
+                    statusBadge = '<span class="badge bg-secondary me-2">Ended</span>';
+                    actionButton = `<button class="btn btn-sm btn-outline-secondary" disabled>
+                        <i class="bi bi-check-circle me-1"></i>Completed
+                    </button>`;
+                }
+                
+                return `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">${lecture.title}</h6>
+                            <p class="card-text text-muted">${lecture.description || 'No description'}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>
+                                    ${lectureTime.toLocaleString()}
+                                </small>
+                                <div>
+                                    <span class="badge bg-primary me-2">${lecture.duration} min</span>
+                                    ${statusBadge}
+                                    ${actionButton}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderMaterials(materials) {
@@ -715,12 +1063,10 @@
             showTypingIndicator();
             
             try {
-                // Simulate AI response (replace with actual AI integration)
-                setTimeout(() => {
-                    hideTypingIndicator();
-                    const response = generateAshaResponse(message);
-                    addMessage(response, 'asha');
-                }, 1000 + Math.random() * 2000);
+                // Get AI response
+                const response = await generateAshaResponse(message);
+                hideTypingIndicator();
+                addMessage(response, 'asha');
             } catch (error) {
                 hideTypingIndicator();
                 addMessage('Sorry, I encountered an error. Please try again.', 'asha');
@@ -770,7 +1116,38 @@
             }
         }
 
-        function generateAshaResponse(userMessage) {
+        async function generateAshaResponse(userMessage) {
+            try {
+                // Check if API keys are configured
+                const response = await fetch('/api/student/chatbot/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: userMessage,
+                        user_id: currentUser.id,
+                        user_name: currentUser.name
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.response) {
+                        return data.response;
+                    }
+                }
+                
+                // Fallback to simple responses if API is not available
+                return generateFallbackResponse(userMessage);
+                
+            } catch (error) {
+                console.error('Chatbot API error:', error);
+                return generateFallbackResponse(userMessage);
+            }
+        }
+        
+        function generateFallbackResponse(userMessage) {
             const message = userMessage.toLowerCase();
             
             // Simple response patterns
@@ -824,15 +1201,381 @@
             }
         }
 
-        function downloadMaterial(materialId) {
-            // Implement material download
-            showToast('Download feature coming soon!', 'info');
+        async function downloadMaterial(materialId) {
+            try {
+                const response = await fetch(`/api/student/materials/${materialId}/download`);
+                
+                if (response.ok) {
+                    // If it's a redirect to Supabase Storage, the browser will handle it
+                    if (response.redirected) {
+                        window.open(response.url, '_blank');
+                    } else {
+                        // For local files, trigger download
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `material_${materialId}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    }
+                    showToast('Material downloaded successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to download material', 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download material', 'error');
+            }
         }
 
-        function startQuiz(quizId) {
-            // Implement quiz start
-            showToast('Quiz feature coming soon!', 'info');
+        async function startQuiz(quizId) {
+            try {
+                // Redirect to quiz attempt page
+                window.location.href = `/api/student/quiz-attempt/${quizId}`;
+            } catch (error) {
+                console.error('Quiz start error:', error);
+                showToast('Failed to start quiz', 'error');
+            }
         }
+
+        // Additional loading functions
+        async function loadPolls() {
+            try {
+                const response = await fetch('/api/student/polls');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderPolls(data.polls);
+                }
+            } catch (error) {
+                console.error('Error loading polls:', error);
+            }
+        }
+
+        async function loadDiscussions() {
+            try {
+                const response = await fetch('/api/student/discussions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderDiscussions(data.discussions);
+                }
+            } catch (error) {
+                console.error('Error loading discussions:', error);
+            }
+        }
+
+        async function loadGrades() {
+            try {
+                const response = await fetch('/api/student/grades');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderGrades(data.grades);
+                }
+            } catch (error) {
+                console.error('Error loading grades:', error);
+            }
+        }
+
+        async function loadRecordings() {
+            try {
+                const response = await fetch('/api/student/recordings');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderRecordings(data.recordings);
+                }
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+            }
+        }
+
+        function renderPolls(polls) {
+            const container = document.getElementById('pollsList');
+            
+            if (polls.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No polls available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = polls.map(poll => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${poll.question}</h6>
+                        <div class="mb-3">
+                            ${poll.options.map((option, index) => `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="poll_${poll.id}" id="option_${poll.id}_${index}" value="${option}">
+                                    <label class="form-check-label" for="option_${poll.id}_${index}">${option}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${new Date(poll.created_at).toLocaleDateString()}
+                            </small>
+                            <div>
+                                <button class="btn btn-sm btn-primary me-2" onclick="votePoll('${poll.id}')">Vote</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="viewPollResults('${poll.id}')">Results</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDiscussions(discussions) {
+            const container = document.getElementById('discussionsList');
+            
+            if (discussions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-chat-dots fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No discussions available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = discussions.map(discussion => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${discussion.title}</h6>
+                        <p class="card-text text-muted">${discussion.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-people me-1"></i>
+                                ${discussion.cohort_name || 'Unknown Cohort'}
+                            </small>
+                            <button class="btn btn-sm btn-primary" onclick="viewDiscussion('${discussion.id}')">
+                                <i class="bi bi-chat-dots me-1"></i>View Discussion
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGrades(grades) {
+            const container = document.getElementById('gradesList');
+            
+            if (grades.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-award fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No grades available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = grades.map(grade => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${grade.lecture_title || 'Assignment'}</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Grade:</strong> ${grade.grade}/${grade.max_grade}</p>
+                                <p class="mb-1"><strong>Percentage:</strong> ${grade.percentage.toFixed(1)}%</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Type:</strong> ${grade.grade_type}</p>
+                                <p class="mb-1"><strong>Date:</strong> ${new Date(grade.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        ${grade.comments ? `<p class="mt-2"><strong>Comments:</strong> ${grade.comments}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRecordings(recordings) {
+            const container = document.getElementById('recordingsList');
+            
+            if (recordings.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-play-circle fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">No recordings available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recordings.map(recording => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${recording.title || 'Lecture Recording'}</h6>
+                        <p class="card-text text-muted">${recording.description || 'No description'}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                ${recording.duration ? Math.floor(recording.duration / 60) + ' min' : 'Unknown duration'}
+                                <span class="ms-3">
+                                    <i class="bi bi-download me-1"></i>
+                                    ${recording.download_count || 0} downloads
+                                </span>
+                            </small>
+                            <button class="btn btn-sm btn-primary" onclick="downloadRecording('${recording.id}')">
+                                <i class="bi bi-download me-1"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Additional functionality
+        async function votePoll(pollId) {
+            const selectedOption = document.querySelector(`input[name="poll_${pollId}"]:checked`);
+            if (!selectedOption) {
+                showToast('Please select an option', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/student/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ selected_option: selectedOption.value })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Vote submitted successfully!', 'success');
+                    loadPolls(); // Refresh polls
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Vote error:', error);
+                showToast('Failed to submit vote', 'error');
+            }
+        }
+
+        async function viewPollResults(pollId) {
+            try {
+                const response = await fetch(`/api/student/polls/${pollId}/results`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show results in a modal or new page
+                    showToast('Poll results loaded', 'info');
+                    // Implement results display
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Results error:', error);
+                showToast('Failed to load results', 'error');
+            }
+        }
+
+        function viewDiscussion(forumId) {
+            // Navigate to discussion page
+            window.location.href = `/api/student/discussion/${forumId}`;
+        }
+
+        async function joinLiveSession(lectureId) {
+            try {
+                const response = await fetch(`/api/student/live-session/${lectureId}`);
+                
+                if (response.ok) {
+                    // Redirect to live session
+                    window.location.href = `/api/student/live-session/${lectureId}`;
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to join live session', 'error');
+                }
+            } catch (error) {
+                console.error('Join live session error:', error);
+                showToast('Failed to join live session', 'error');
+            }
+        }
+
+        async function downloadRecording(recordingId) {
+            try {
+                const response = await fetch(`/api/student/recordings/${recordingId}/download`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `recording_${recordingId}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showToast('Recording downloaded successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to download recording', 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download recording', 'error');
+            }
+        }
+
+        // --- Live session real-time updates ---
+        let liveSocket;
+        function initLiveSocket() {
+            try {
+                if (typeof io !== 'function') {
+                    console.warn('Socket.IO not available');
+                    return;
+                }
+                liveSocket = io();
+                liveSocket.on('connect', () => {
+                    console.log('Student dashboard connected to Socket.IO');
+                });
+                liveSocket.on('disconnect', () => {
+                    console.log('Student dashboard disconnected from Socket.IO');
+                });
+                // When any teacher starts a live session, refresh lectures and show a toast
+                liveSocket.on('live_session_started', (data) => {
+                    try {
+                        const title = (data && (data.lecture_title || data.event)) || 'Live session';
+                        showToast(`${title} is now live`, 'success');
+                    } catch (e) {
+                        console.warn('Toast error:', e);
+                    }
+                    // Refresh the lectures list so Join buttons appear without reload
+                    try { loadLectures(); } catch (e) { console.warn('loadLectures not available yet'); }
+                });
+            } catch (e) {
+                console.warn('initLiveSocket error:', e);
+            }
+        }
+
+        // Initialize socket after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initLiveSocket();
+            // Lightweight polling fallback in case the real-time event is missed
+            try {
+                setInterval(() => {
+                    // Only poll while this dashboard page is active
+                    if (document.visibilityState === 'visible') {
+                        loadLectures();
+                    }
+                }, 30000);
+            } catch (_) { /* no-op */ }
+        });
     </script>
 </body>
 </html>

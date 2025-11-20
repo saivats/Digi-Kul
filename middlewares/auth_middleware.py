@@ -9,6 +9,31 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
 
+# Module-level decorators for convenience (allow importing directly)
+def login_required(f):
+    """Decorator to require login for routes (works for web and API endpoints)."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or not session.get('user_id'):
+            # If it's an API request, return JSON
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'error': 'Please log in to access this API'}), 401
+            session.clear()
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_login_required(f):
+    """Decorator specifically for API routes that require login."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or not session.get('user_id'):
+            return jsonify({'error': 'Please log in to access this API'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 class AuthMiddleware:
     def __init__(self, app, db: DatabaseManager):
         """Initialize authentication middleware"""

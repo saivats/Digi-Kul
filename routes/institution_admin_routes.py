@@ -242,6 +242,57 @@ def create_cohort():
         )
         
         if cohort_id:
+            print(f"✅ Cohort created successfully: {cohort_id}")
+            print(f"📧 Starting email notification process...")
+            
+            # Check email service configuration
+            if not email_service.smtp_username or not email_service.smtp_password:
+                print("⚠️ Email service not configured - SMTP credentials missing")
+                return jsonify({
+                    'success': True,
+                    'message': 'Cohort created successfully (email notifications disabled)',
+                    'cohort_id': cohort_id
+                }), 201
+            
+            # Send email notifications
+            try:
+                # Get institution admin details
+                admin = db.get_institution_admin_by_id(session.get('user_id'))
+                cohort = db.get_cohort_by_id(cohort_id)
+                
+                if admin and cohort:
+                    # Send confirmation email to admin
+                    try:
+                        email_service.send_welcome_email(
+                            user_email=admin['email'],
+                            user_name=admin['name'],
+                            user_type='institution_admin',
+                            cohort_name=cohort['name']
+                        )
+                        print(f"✅ Sent cohort creation confirmation to admin: {admin['email']}")
+                    except Exception as admin_email_error:
+                        print(f"❌ Error sending confirmation to admin: {admin_email_error}")
+                    
+                    # Get all teachers in the institution
+                    teachers = db.get_institution_teachers(institution_id)
+                    print(f"📧 Sending cohort notifications to {len(teachers)} teachers")
+                    
+                    # Send email to each teacher
+                    for teacher in teachers:
+                        try:
+                            email_service.send_welcome_email(
+                                user_email=teacher['email'],
+                                user_name=teacher['name'],
+                                user_type='teacher',
+                                cohort_name=cohort['name']
+                            )
+                            print(f"✅ Sent notification to teacher: {teacher['email']}")
+                        except Exception as teacher_email_error:
+                            print(f"❌ Error sending notification to teacher {teacher['email']}: {teacher_email_error}")
+            except Exception as email_error:
+                print(f"Error sending cohort notifications: {email_error}")
+                # Don't fail the cohort creation if email fails
+            
             return jsonify({
                 'success': True,
                 'message': 'Cohort created successfully',
@@ -339,6 +390,23 @@ def manage_cohort_teachers(cohort_id):
             )
             
             if success:
+                # Send email notification to teacher
+                try:
+                    teacher = db.get_teacher_by_id(teacher_id)
+                    cohort = db.get_cohort_by_id(cohort_id)
+                    
+                    if teacher and cohort:
+                        email_service.send_welcome_email(
+                            user_email=teacher['email'],
+                            user_name=teacher['name'],
+                            user_type='teacher',
+                            cohort_name=cohort['name']
+                        )
+                        print(f"✅ Sent teacher assignment notification to: {teacher['email']}")
+                except Exception as email_error:
+                    print(f"❌ Error sending teacher assignment notification: {email_error}")
+                    # Don't fail the assignment if email fails
+                
                 return jsonify({
                     'success': True,
                     'message': 'Teacher assigned to cohort successfully'

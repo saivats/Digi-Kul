@@ -694,8 +694,8 @@
                     name: userName
                 };
                 
-                // Connect to socket
-                socket = io();
+                // Initialize socket connection (shared initialization in static/js/app.js)
+                initializeSocket();
                 
                 // Setup socket event listeners
                 setupSocketListeners();
@@ -1425,7 +1425,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ response: option })
+                    body: JSON.stringify({ selected_option: option })
                 });
                 
                 const data = await res.json();
