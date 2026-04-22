@@ -1,316 +1,194 @@
-# Digi Kul Teachers Portal
+# Digi-Kul
+*Digital Gurukul — Bringing quality education to every corner of India, regardless of bandwidth*
 
-A comprehensive educational platform built with Flask that supports institution-based cohort management, live lecture sessions, quiz systems, and session recording.
+![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=flat&logo=Flutter&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
+![Next JS](https://img.shields.io/badge/Next-black?style=flat&logo=next.js&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)
+![Status](https://img.shields.io/badge/Status-Active%20Development-orange.svg)
 
-## 🚀 Features
+---
 
-### 🏢 Institution-Based Cohort Management
-- **Multiple Institutions**: Support for multiple educational institutions
-- **Cohort Organization**: Students belong to one cohort with scoped access
-- **Teacher Multi-Cohort Access**: Teachers can belong to multiple cohorts and select one upon login
-- **Proper Database Relationships**: Institution → Cohorts → Users with proper foreign keys
+## The Problem
 
-### 📧 SMTP Email Notifications
-- **Welcome Emails**: Automatic welcome emails upon student/teacher registration
-- **Cohort Notifications**: Email notifications when students join cohorts
-- **Lecture Updates**: Email notifications for lecture changes
-- **Quiz Notifications**: Email alerts for new quizzes
-- **Configurable SMTP**: Support for various SMTP providers
+India has over 40,000 colleges under the AICTE mandate tasked with delivering digital education to millions of students. However, a significant reality remains overlooked: over 60% of students in Tier 2/3 cities and rural areas rely exclusively on fluctuating 2G, 3G, or low-end 4G mobile internet connections on mid-range Android devices. 
 
-### 📚 Lecture & Material Management
-- **Lecture Scheduling**: 
-  - Prevent scheduling lectures in the past
-  - Allow "now" lectures for immediate start
-  - Future scheduling with validation
-- **Lecture Expiry Logic**: Lectures expire after ending, not joinable but logged
-- **Material Access**: Students can access uploaded resources and past attended lectures
-- **File Compression**: Automatic compression of audio, image, and PDF files
+Existing proprietary platforms like Zoom, Google Meet, and Microsoft Teams were built for broadband infrastructure. They typically require stable 5-10 Mbps connections to function smoothly. For the majority of rural students, these platforms are entirely unusable, leading to severe audio stuttering, constant disconnections, and massive battery drain.
 
-### 🎯 Comprehensive Quiz System
-- **Quiz Creation**: Teachers can create quizzes within cohorts
-- **Multiple Choice Questions**: Support for multiple-choice questions with correct answers
-- **Time Limits**: Optional time limits for quizzes
-- **Multiple Attempts**: Configurable maximum attempts per student
-- **Analytics Dashboard**: 
-  - Individual student performance tracking
-  - Aggregate performance metrics
-  - Graphical analytics with charts
-  - Question-level analytics
-- **Real-time Results**: Dynamic results and performance tracking
+The result is a growing digital divide where policy mandates digital education, but the physical infrastructure cannot support it. Digi-Kul is built as an open-source solution to close this exact gap—delivering high-quality, continuous educational access on ultra-low bandwidth.
 
-### 📹 Session Recording
-- **Live Session Recording**: Record video, audio, and chat during live sessions
-- **Multiple Recording Types**: Full recording, audio-only, or chat-only
-- **Participant Activity Logging**: Track participant joins, leaves, and activities
-- **Chat Logging**: Automatic logging of all chat messages during sessions
-- **Recording Management**: Start, stop, and manage recordings
-- **File Organization**: Organized storage of recording chunks and metadata
+## The Solution
 
-### 🎨 Modern UI/UX
-- **Responsive Design**: Modern, responsive design with Bootstrap/Tailwind
-- **Card-Based Layout**: Replace lists/forms with modern cards
-- **Modal Popups**: Modal popups for creating/editing lectures, materials, quizzes
-- **Toast Notifications**: Real-time toast notifications for user feedback
-- **Cohort Selection**: Dropdown for teachers to select active cohort
-- **Interactive Dashboards**: Modern dashboard with cards for materials, lectures, quizzes
-- **Chart Integration**: Quiz analytics with graphs and charts
+Digi-Kul solves the bandwidth crisis through an audio-first WebRTC architecture and an aggressively offline-capable mobile application.
 
-### 🔐 Security & Access Control
-- **Cohort Scoping**: Middleware for data access scoping by cohort
-- **Role-Based Access**: Different access levels for students, teachers, and admins
-- **Session Management**: Enhanced session security with proper expiration
-- **Row Level Security**: Database-level security with RLS policies
+| Feature | Description | Status |
+|---|---|---|
+| Audio-First Live Sessions | WebRTC with automatic degradation from video → audio → text based on bandwidth | 🚧 In Progress |
+| Offline PWA | Materials and quizzes cached locally, quiz submissions sync when reconnected | 🚧 In Progress |
+| Multi-Tenant Institutions | Each college gets isolated data, custom branding, own admin | 📋 Planned |
+| Bandwidth Adaptation | Auto-detects connection quality and switches session mode in real time | 🚧 In Progress |
+| Quiz Engine | Offline-tolerant quiz taking with analytics for teachers | 🚧 In Progress |
+| Attendance Tracking | Per-student attendance calendar with threshold warnings | ✅ Complete |
+| Material Management | Upload, compress, cache and download study materials offline | ✅ Complete |
+| Session Recording | Chunk-based audio recording with playback | 📋 Planned |
 
-## 🏗️ Architecture
+## Architecture
 
-### Modular Structure
-```
-Digi_Kul_TeachersPortal/
-├── main.py                 # Main application entry point
-├── config.py              # Configuration settings
-├── supabase_schema.sql    # Database schema
-├── middlewares/           # Authentication and cohort middleware
-├── services/              # Business logic services
-├── routes/                # API route blueprints
-├── utils/                 # Utility functions
-├── templates/             # HTML templates
-└── static/               # Static assets
+```text
+┌─────────────────────────────────────────────────────┐
+│                    Digi-Kul Platform                 │
+├──────────────┬──────────────────┬───────────────────┤
+│   Flutter    │    Next.js 14    │   FastAPI Backend │
+│  Mobile App  │    Web App       │                   │
+│  (Students)  │ (Teachers +      │  REST API         │
+│              │  Admins)         │  Socket.IO        │
+│  Android     │  PWA             │  WebRTC Signaling │
+│  iOS         │                  │                   │
+└──────┬───────┴────────┬─────────┴────────┬──────────┘
+       │                │                  │
+       └────────────────┴──────────────────┘
+                        │
+              ┌─────────▼──────────┐
+              │     Supabase       │
+              │  PostgreSQL + RLS  │
+              │  File Storage      │
+              └────────────────────┘
 ```
 
-### Services
-- **CohortService**: Institution and cohort management
-- **LectureService**: Lecture scheduling and management
-- **QuizService**: Quiz creation, taking, and analytics
-- **AdminService**: Administrative operations
-- **SessionRecordingService**: Live session recording
-- **EmailService**: SMTP email notifications
+- **mobile/** — Flutter student app (Android/iOS). Audio-first session joining, offline material access, quiz taking with sync queue.
+- **frontend/** — Next.js 14 teacher and admin web app. Session hosting, material uploads, quiz creation, analytics.
+- **backend/** — FastAPI server. REST API, Socket.IO real-time events, WebRTC signaling relay, email notifications.
 
-### Middleware
-- **AuthMiddleware**: Authentication decorators
-- **CohortMiddleware**: Cohort-based access control
+## Repository Structure
 
-## 🛠️ Installation
+```text
+digi-kul/
+├── backend/          # FastAPI (Python) — API + Socket.IO + WebRTC signaling
+├── frontend/         # Next.js 14 — Teacher & Admin web app (PWA)
+├── mobile/           # Flutter — Student mobile app (Android + iOS)
+├── docs/             # Architecture diagrams, API docs
+├── docker-compose.yml
+└── README.md
+```
+
+> The backend and frontend are currently being rebuilt from the ground up with production-grade architecture. The Flutter mobile app is actively under development.
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Mobile | Flutter 3.19 + Dart 3.3 | Student app — Android & iOS |
+| Mobile State | Riverpod + Freezed | Reactive state + immutable models |
+| Mobile Storage | Isar 3.x | Offline-first local database |
+| Web Frontend | Next.js 14 (App Router) | Teacher & admin dashboard |
+| Web Styling | Tailwind CSS + shadcn/ui | Component system |
+| Backend | FastAPI (Python 3.11) | REST API + async performance |
+| Real-time | Socket.IO + WebRTC | Live sessions + signaling |
+| Database | Supabase (PostgreSQL) | Multi-tenant data + RLS |
+| File Storage | Supabase Storage | Materials + recordings |
+| Auth | JWT (httpOnly cookies) | Stateless, PWA-compatible |
+| Background | Workmanager (Flutter) | Offline quiz sync |
+| Notifications | Firebase Cloud Messaging | Push notifications |
+
+## Getting Started
 
 ### Prerequisites
-- Python 3.8+
-- Supabase account
-- SMTP email service (optional)
+- Flutter 3.19+
+- Python 3.11+
+- Node.js 18+
+- Docker + Docker Compose (optional but recommended)
+- Supabase account (free tier works)
 
-### Setup
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Digi_Kul_TeachersPortal
-   ```
+### Quick Start (Docker)
+```bash
+git clone https://github.com/saivats/Digi-Kul.git
+cd Digi-Kul
+cp backend/.env.example backend/.env   # fill in Supabase + SMTP keys
+docker-compose up --build
+```
+Web app: `http://localhost:3000`  
+API docs: `http://localhost:8000/docs`
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment variables**
-   ```bash
-   # Copy example config
-   cp config.example.py config.py
-   
-   # Edit config.py with your settings
-   ```
-
-4. **Database setup**
-   - Create a Supabase project
-   - Run the SQL schema from `supabase_schema.sql`
-   - Update your Supabase URL and key in config.py
-
-5. **Run the application**
-   ```bash
-   python main.py
-   ```
-
-## 📊 Database Schema
-
-### Core Tables
-- **institutions**: Educational institutions
-- **teachers**: Teacher accounts with institution association
-- **students**: Student accounts with institution association
-- **cohorts**: Learning cohorts within institutions
-- **lectures**: Lecture schedules and details
-- **materials**: Teaching materials and resources
-
-### Quiz System Tables
-- **quiz_sets**: Quiz containers with metadata
-- **quizzes**: Individual quiz questions
-- **quiz_attempts**: Student quiz attempts
-- **quiz_responses**: Individual question responses
-
-### Session Recording Tables
-- **session_recordings**: Recording metadata and statistics
-- **recording_chunks**: Video/audio chunks for recordings
-
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/register/teacher` - Teacher registration (admin only)
-- `POST /api/auth/register/student` - Student registration (admin only)
-
-### Cohorts
-- `GET /api/cohorts/` - Get all cohorts
-- `POST /api/cohorts/` - Create cohort (admin only)
-- `GET /api/cohorts/teacher` - Get teacher's cohorts
-- `POST /api/cohorts/student/join` - Join cohort with code
-
-### Lectures
-- `POST /api/lectures` - Create lecture
-- `POST /api/lectures/instant` - Create instant lecture
-- `GET /api/lectures` - Get user's lectures
-- `POST /api/lectures/<id>/materials` - Upload material
-
-### Quizzes
-- `POST /api/quiz/sets` - Create quiz set
-- `POST /api/quiz/sets/<id>/questions` - Add quiz question
-- `POST /api/quiz/sets/<id>/start` - Start quiz attempt
-- `GET /api/quiz/sets/<id>/analytics` - Get quiz analytics
-
-### Session Recording
-- `POST /api/recordings/start` - Start recording
-- `POST /api/recordings/stop` - Stop recording
-- `GET /api/recordings/status/<session_id>` - Get recording status
-- `GET /api/lectures/<id>/recordings` - Get lecture recordings
-
-## 🔧 Configuration
-
-### Environment Variables
-```python
-# Supabase Configuration
-SUPABASE_URL = "your-supabase-url"
-SUPABASE_KEY = "your-supabase-key"
-
-# SMTP Configuration
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USERNAME = "your-email@gmail.com"
-SMTP_PASSWORD = "your-app-password"
-SMTP_SENDER_EMAIL = "your-email@gmail.com"
-
-# Application Configuration
-SECRET_KEY = "your-secret-key"
-UPLOAD_FOLDER = "uploads"
-COMPRESSED_FOLDER = "compressed"
+### Mobile App
+```bash
+cd mobile
+flutter pub get
+# Create mobile/.env with your API URL
+flutter run
 ```
 
-## 🌐 WebSocket Events
-
-### Live Sessions
-- `join_session` - Join a live session
-- `leave_session` - Leave a live session
-- `chat_message` - Send chat message
-- `webrtc_offer/answer` - WebRTC signaling
-- `ice_candidate` - ICE candidate exchange
-
-### Recording
-- `start_recording` - Start session recording
-- `stop_recording` - Stop session recording
-- `recording_chunk` - Send video/audio chunk
-- `get_recording_status` - Get recording status
-
-## 📱 Usage Examples
-
-### Creating a Lecture
-```javascript
-// Create a scheduled lecture
-fetch('/api/lectures', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-        title: 'Mathematics 101',
-        description: 'Introduction to algebra',
-        scheduled_time: '2024-01-15T10:00:00Z',
-        duration: 60,
-        cohort_id: 'cohort-uuid'
-    })
-});
+### Manual Backend Setup
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-### Starting a Quiz
-```javascript
-// Start a quiz attempt
-fetch('/api/quiz/sets/quiz-uuid/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'}
-});
+## Environment Variables
+
+Backend `.env`:
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+SECRET_KEY=your-strong-random-secret
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_HOURS=8
+REFRESH_TOKEN_EXPIRE_DAYS=7
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_SENDER_EMAIL=noreply@digikul.in
+SMTP_SENDER_NAME=Digi-Kul
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
 ```
 
-### Starting Recording
-```javascript
-// Start session recording
-socket.emit('start_recording', {
-    session_id: 'session-uuid',
-    lecture_id: 'lecture-uuid',
-    recording_type: 'full'
-});
+Mobile `.env` (dart-define):
+```env
+API_BASE_URL=http://10.0.2.2:8000
+SOCKET_URL=http://10.0.2.2:8000
 ```
 
-## 🔒 Security Features
+## Roadmap
 
-- **Row Level Security (RLS)**: Database-level access control
-- **Cohort Scoping**: Users can only access data from their cohorts
-- **Session Security**: Enhanced session management with proper expiration
-- **Input Validation**: Comprehensive input validation and sanitization
-- **File Upload Security**: Secure file handling with type validation
+**Phase 1 — Mobile Foundation** ✅
+- Isar offline database, JWT auth, Dio client, go_router navigation
 
-## 🚀 Deployment
+**Phase 2 — Core Student Features** ✅  
+- Dashboard, Materials (with offline download), Attendance tracking
 
-### Production Considerations
-1. **Environment Variables**: Set all required environment variables
-2. **Database**: Use production Supabase instance
-3. **File Storage**: Configure proper file storage (AWS S3, etc.)
-4. **SMTP**: Use production SMTP service
-5. **SSL**: Enable HTTPS for production
-6. **Monitoring**: Set up logging and monitoring
+**Phase 3 — Live Sessions** 🚧
+- WebRTC audio-first, Socket.IO, bandwidth-adaptive mode switching
 
-### Docker Deployment
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 5000
-CMD ["python", "main.py"]
-```
+**Phase 4 — Quiz Engine** 📋
+- Offline quiz taking, IndexedDB sync queue, analytics
 
-## 🤝 Contributing
+**Phase 5 — Backend (FastAPI)** 📋
+- Full REST API, WebRTC signaling, email notifications, multi-tenancy
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+**Phase 6 — Web Frontend (Next.js)** 📋
+- Teacher dashboard, session hosting, material management, PWA
 
-## 📄 License
+**Phase 7 — Production** 📋
+- Docker Compose, CI/CD, deployment docs, performance testing on 3G
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Contributing
 
-## 🆘 Support
+- Fork the repository
+- Create a feature branch: `git checkout -b feature/your-feature`
+- Commit with conventional commits: `feat:`, `fix:`, `docs:` etc.
+- Open a pull request against `main`
+- All PRs must pass `flutter analyze` (mobile) and equivalent linting for backend/frontend
 
-For support and questions:
-- Create an issue in the repository
-- Check the documentation
-- Review the API endpoints
+## License
 
-## 🔄 Version History
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### v2.0.0
-- Added institution-based cohort management
-- Implemented comprehensive quiz system
-- Added session recording functionality
-- Enhanced UI/UX with modern design
-- Added SMTP email notifications
-- Implemented cohort scoping middleware
+> Built to solve a real problem. Free to use, fork, and deploy for any educational institution.
 
-### v1.0.0
-- Basic lecture management
-- Simple user authentication
-- File upload functionality
-- Live session support
+---
+
+> *Digi-Kul is an open-source initiative. "Digi" from Digital, "Kul" from Gurukul — the ancient Indian institution of learning. We believe every student deserves access to quality education, regardless of where they live or how fast their internet is.*
