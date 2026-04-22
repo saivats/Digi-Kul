@@ -1,6 +1,5 @@
 # Python
 venv
-.env
 
 # IntelliJ / Android Studio
 *.iml
@@ -22,3 +21,15 @@ venv
 .externalNativeBuild
 .cxx
 local.properties
+
+# Dart/Flutter
+.dart_tool/
+build/
+
+# Environment
+.env
+*.env
+mobile/.env
+
+# Secrets
+backend/.env
