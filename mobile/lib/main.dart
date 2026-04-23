@@ -1,10 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'app.dart';
+import 'core/background/background_tasks.dart';
 import 'core/storage/isar_service.dart';
 import 'core/storage/preferences.dart';
+
+const refreshCacheTaskName = 'com.digikul.refreshCache';
+const syncPendingTaskName = 'com.digikul.syncPending';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +27,19 @@ Future<void> main() async {
     ),
   );
 
+  await Firebase.initializeApp();
   await PreferencesService.init();
   await IsarService.instance;
+
+  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+
+  await Workmanager().registerPeriodicTask(
+    refreshCacheTaskName,
+    refreshCacheTaskName,
+    frequency: const Duration(hours: 4),
+    constraints: Constraints(networkType: NetworkType.connected),
+    existingWorkPolicy: ExistingWorkPolicy.keep,
+  );
 
   runApp(
     const ProviderScope(

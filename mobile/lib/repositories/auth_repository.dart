@@ -35,6 +35,7 @@ class AuthRepository {
       final accessToken = data['access_token'] as String?;
       if (accessToken != null) {
         await SecureStorageService.saveAuthToken(accessToken);
+        await PreferencesService.setWorkerAuthToken(accessToken);
       }
 
       final refreshToken = data['refresh_token'] as String?;
@@ -87,6 +88,7 @@ class AuthRepository {
       _logger.w('Logout API call failed, clearing local data anyway');
     } finally {
       await SecureStorageService.clearAuth();
+      await PreferencesService.clearWorkerAuthToken();
       await PreferencesService.clearProfile();
     }
   }

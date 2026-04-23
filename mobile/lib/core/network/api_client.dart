@@ -83,6 +83,24 @@ class ApiClient {
     );
   }
 
+  Future<Response> getQuizQuestions(String quizSetId) {
+    return _dio.get(ApiConstants.quizQuestions(quizSetId));
+  }
+
+  Future<Response> submitQuizAttempt({
+    required String attemptId,
+    required Map<String, String> answers,
+  }) {
+    return _dio.post(
+      ApiConstants.quizAttemptSubmit(attemptId),
+      data: {'answers': answers},
+    );
+  }
+
+  Future<Response> getQuizResult(String attemptId) {
+    return _dio.get(ApiConstants.quizResult(attemptId));
+  }
+
   Future<Response> getAttendance() {
     return _dio.get(ApiConstants.attendance);
   }

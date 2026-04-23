@@ -7,7 +7,11 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
+import '../features/live_session/screens/live_session_screen.dart';
 import '../features/materials/screens/materials_screen.dart';
+import '../features/quiz/screens/quiz_attempt_screen.dart';
+import '../features/quiz/screens/quiz_list_screen.dart';
+import '../features/quiz/screens/quiz_result_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -48,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
       ),
+
       ShellRoute(
         builder: (context, state, child) =>
             _ShellScaffold(child: child),
@@ -76,21 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/quiz',
             name: 'quizList',
             builder: (context, state) =>
-                const _PlaceholderScreen(title: 'Quizzes'),
-            routes: [
-              GoRoute(
-                path: ':quizSetId/attempt',
-                name: 'quizAttempt',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Quiz Attempt'),
-              ),
-              GoRoute(
-                path: ':quizSetId/result',
-                name: 'quizResult',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Quiz Result'),
-              ),
-            ],
+                const QuizListScreen(),
           ),
           GoRoute(
             path: '/attendance',
@@ -106,11 +97,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+
+      GoRoute(
+        path: '/quiz/:quizSetId/attempt',
+        name: 'quizAttempt',
+        builder: (context, state) => QuizAttemptScreen(
+          quizSetId: state.pathParameters['quizSetId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/quiz/:quizSetId/result/:attemptId',
+        name: 'quizResult',
+        builder: (context, state) => QuizResultScreen(
+          quizSetId: state.pathParameters['quizSetId']!,
+          attemptId: state.pathParameters['attemptId']!,
+        ),
+      ),
+
       GoRoute(
         path: '/session/:sessionId',
         name: 'liveSession',
-        builder: (context, state) =>
-            const _PlaceholderScreen(title: 'Live Session'),
+        builder: (context, state) => LiveSessionScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
     ],
   );

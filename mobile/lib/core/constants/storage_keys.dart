@@ -18,5 +18,6 @@ class StorageKeys {
   static const notificationsEnabled = 'notifications_enabled';
   static const language = 'language';
 
+  static const workerAuthToken = 'worker_auth_token';
   static const sqliteDbName = 'digikul_offline';
 }

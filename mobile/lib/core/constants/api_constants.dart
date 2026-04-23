@@ -31,4 +31,13 @@ class ApiConstants {
   static const studentProfile = '/student/profile';
   static const attendance = '/student/attendance';
   static const fcmToken = '/student/fcm-token';
+
+  static String quizQuestions(String quizSetId) =>
+      '/student/quizzes/$quizSetId/questions';
+
+  static String quizAttemptSubmit(String attemptId) =>
+      '/student/quiz-attempts/$attemptId/submit';
+
+  static String quizResult(String attemptId) =>
+      '/student/quiz-attempts/$attemptId/result';
 }

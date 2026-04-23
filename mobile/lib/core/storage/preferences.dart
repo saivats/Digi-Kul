@@ -77,6 +77,15 @@ class PreferencesService {
     return decoded.cast<Map<String, dynamic>>();
   }
 
+  static String? get workerAuthToken =>
+      _instance.getString(StorageKeys.workerAuthToken);
+
+  static Future<void> setWorkerAuthToken(String token) =>
+      _instance.setString(StorageKeys.workerAuthToken, token);
+
+  static Future<void> clearWorkerAuthToken() =>
+      _instance.remove(StorageKeys.workerAuthToken);
+
   static Future<void> clearProfile() async {
     await _instance.remove(StorageKeys.studentId);
     await _instance.remove(StorageKeys.studentName);
