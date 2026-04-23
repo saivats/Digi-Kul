@@ -25,9 +25,8 @@ class BandwidthMonitor {
     try {
       final dio = Dio(BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        headers: _authToken != null
-            ? {'Authorization': 'Bearer $_authToken'}
-            : null,
+        headers:
+            _authToken != null ? {'Authorization': 'Bearer $_authToken'} : null,
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 5),
       ));
@@ -41,7 +40,7 @@ class BandwidthMonitor {
       final kbps = ((responseBytes * 8) / elapsedMs * 1000 / 1024).round();
 
       _lastEstimateKbps = kbps.clamp(0, 100000);
-      _logger.i('Bandwidth probe: ${_lastEstimateKbps} kbps ($elapsedMs ms)');
+      _logger.i('Bandwidth probe: $_lastEstimateKbps kbps ($elapsedMs ms)');
 
       onModeRecommendation(determineModeFromBandwidth(_lastEstimateKbps));
       return _lastEstimateKbps;
@@ -53,7 +52,8 @@ class BandwidthMonitor {
     }
   }
 
-  void startPeriodicMonitoring({Duration interval = const Duration(seconds: 10)}) {
+  void startPeriodicMonitoring(
+      {Duration interval = const Duration(seconds: 10)}) {
     _timer?.cancel();
     _timer = Timer.periodic(interval, (_) => runProbe());
   }

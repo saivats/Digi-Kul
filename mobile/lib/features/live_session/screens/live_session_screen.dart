@@ -94,17 +94,15 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
               _PollBanner(
                 poll: session.activePoll!,
                 onVote: (option) {
-                  ref.read(sessionProvider(_params).notifier)
+                  ref
+                      .read(sessionProvider(_params).notifier)
                       .votePoll(session.activePoll!.id, option);
                 },
               ),
-
             _ParticipantBar(participants: session.participants),
-
             Expanded(
               child: _ChatArea(messages: session.chatMessages),
             ),
-
             _ChatInput(
               controller: _chatController,
               onSend: () {
@@ -154,8 +152,14 @@ class _ConnectionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, icon) = switch (status) {
       SessionConnectionStatus.connected => (AppColors.success, Icons.wifi),
-      SessionConnectionStatus.connecting => (AppColors.warning, Icons.wifi_find),
-      SessionConnectionStatus.reconnecting => (AppColors.warning, Icons.wifi_find),
+      SessionConnectionStatus.connecting => (
+          AppColors.warning,
+          Icons.wifi_find
+        ),
+      SessionConnectionStatus.reconnecting => (
+          AppColors.warning,
+          Icons.wifi_find
+        ),
       SessionConnectionStatus.disconnected => (AppColors.error, Icons.wifi_off),
       SessionConnectionStatus.error => (AppColors.error, Icons.error_outline),
     };
@@ -188,7 +192,8 @@ class _ModeBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColors.primary),
           const SizedBox(width: 4),
-          Text(label, style: AppTextStyles.labelSmall(color: AppColors.primary)),
+          Text(label,
+              style: AppTextStyles.labelSmall(color: AppColors.primary)),
         ],
       ),
     );
@@ -205,13 +210,14 @@ class _ParticipantBar extends StatelessWidget {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.people_outline, size: 16, color: AppColors.textSecondary),
+          const Icon(Icons.people_outline,
+              size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 8),
           Text(
             '${participants.length} participant${participants.length == 1 ? '' : 's'}',
@@ -250,9 +256,8 @@ class _PollBanner extends StatelessWidget {
               return ChoiceChip(
                 label: Text(option),
                 selected: isSelected,
-                onSelected: poll.selectedOption == null
-                    ? (_) => onVote(option)
-                    : null,
+                onSelected:
+                    poll.selectedOption == null ? (_) => onVote(option) : null,
               );
             }).toList(),
           ),
@@ -326,7 +331,8 @@ class _ChatBubble extends StatelessWidget {
                 Text(
                   message.senderName,
                   style: AppTextStyles.labelSmall(
-                    color: isTeacher ? AppColors.primary : AppColors.textSecondary,
+                    color:
+                        isTeacher ? AppColors.primary : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -353,7 +359,7 @@ class _ChatInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),

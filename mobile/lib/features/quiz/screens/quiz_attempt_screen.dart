@@ -44,8 +44,7 @@ class QuizAttemptScreen extends ConsumerWidget {
           QuizAttemptPhase.loading => const Center(
               child: CircularProgressIndicator(),
             ),
-          QuizAttemptPhase.active ||
-          QuizAttemptPhase.submitting => _QuizBody(
+          QuizAttemptPhase.active || QuizAttemptPhase.submitting => _QuizBody(
               state: attemptState,
               quizSetId: quizSetId,
             ),
@@ -58,12 +57,14 @@ class QuizAttemptScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: AppColors.error),
                   const SizedBox(height: 16),
                   Text(
                     attemptState.errorMessage ?? 'Something went wrong.',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodyMedium(
+                        color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -246,7 +247,8 @@ class _OptionTile extends StatelessWidget {
                   isSelected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color:
+                      isSelected ? AppColors.primary : AppColors.textSecondary,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -287,15 +289,16 @@ class _NavigationBar extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: AppColors.divider)),
+        border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         children: [
           if (!isFirst)
             OutlinedButton.icon(
-              onPressed: isSubmitting ? null : () => notifier.previousQuestion(),
+              onPressed:
+                  isSubmitting ? null : () => notifier.previousQuestion(),
               icon: const Icon(Icons.chevron_left, size: 18),
               label: const Text('Previous'),
             ),
@@ -343,7 +346,8 @@ class _SubmittedView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
+            const Icon(Icons.check_circle_outline,
+                size: 64, color: AppColors.success),
             const SizedBox(height: 16),
             Text('Quiz Submitted!', style: AppTextStyles.headlineLarge()),
             const SizedBox(height: 8),
@@ -381,7 +385,8 @@ class _QueuedView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 64, color: AppColors.warning),
+            const Icon(Icons.cloud_off_outlined,
+                size: 64, color: AppColors.warning),
             const SizedBox(height: 16),
             Text('Saved Offline', style: AppTextStyles.headlineLarge()),
             const SizedBox(height: 8),

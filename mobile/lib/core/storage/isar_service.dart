@@ -3,7 +3,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models/lecture/cached_lecture.dart';
 import '../../models/material/cached_material.dart';
-import '../../models/quiz/cached_quiz_set.dart';
 import '../../models/quiz/pending_quiz_submission.dart';
 import '../../models/attendance/cached_attendance.dart';
 import '../../models/notification/cached_notification.dart';
@@ -18,7 +17,6 @@ class IsarService {
       [
         CachedLectureSchema,
         CachedMaterialSchema,
-        CachedQuizSetSchema,
         PendingQuizSubmissionSchema,
         CachedAttendanceSchema,
         CachedNotificationSchema,

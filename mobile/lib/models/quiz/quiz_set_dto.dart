@@ -16,7 +16,9 @@ class QuizSetDto with _$QuizSetDto {
     @JsonKey(name: 'cohort_id') @Default('') String cohortId,
     @JsonKey(name: 'question_count') @Default(0) int questionCount,
     @JsonKey(name: 'time_limit_seconds') int? timeLimitSeconds,
-    @JsonKey(name: 'show_correct_answers') @Default(true) bool showCorrectAnswers,
+    @JsonKey(name: 'show_correct_answers')
+    @Default(true)
+    bool showCorrectAnswers,
     @JsonKey(name: 'available_from') required DateTime availableFrom,
     @JsonKey(name: 'available_until') DateTime? availableUntil,
     @Default('available') String status,
@@ -32,11 +34,13 @@ class QuizSetDto with _$QuizSetDto {
         description: cached.description,
         cohortId: cached.cohortId,
         questionCount: cached.questionCount,
-        timeLimitSeconds: cached.timeLimitSeconds,
+        timeLimitSeconds: cached.timeLimitMinutes == null
+            ? null
+            : cached.timeLimitMinutes! * 60,
         showCorrectAnswers: cached.showCorrectAnswers,
-        availableFrom: cached.availableFrom,
+        availableFrom:
+            cached.availableFrom ?? DateTime.fromMillisecondsSinceEpoch(0),
         availableUntil: cached.availableUntil,
-        status: cached.status,
       );
 
   bool get isAvailable =>
@@ -46,17 +50,18 @@ class QuizSetDto with _$QuizSetDto {
       availableUntil != null && availableUntil!.isBefore(DateTime.now());
 
   CachedQuizSet toCached() {
-    return CachedQuizSet()
-      ..serverId = id
-      ..title = title
-      ..description = description
-      ..cohortId = cohortId
-      ..questionCount = questionCount
-      ..timeLimitSeconds = timeLimitSeconds
-      ..showCorrectAnswers = showCorrectAnswers
-      ..availableFrom = availableFrom
-      ..availableUntil = availableUntil
-      ..status = status
-      ..cachedAt = DateTime.now();
+    return CachedQuizSet(
+      serverId: id,
+      title: title,
+      description: description,
+      cohortId: cohortId,
+      questionCount: questionCount,
+      timeLimitMinutes:
+          timeLimitSeconds == null ? null : (timeLimitSeconds! / 60).ceil(),
+      showCorrectAnswers: showCorrectAnswers,
+      availableFrom: availableFrom,
+      availableUntil: availableUntil,
+      cachedAt: DateTime.now(),
+    );
   }
 }

@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:isar/isar.dart';
 import 'package:logger/logger.dart';
 
 import '../../../core/storage/isar_service.dart';
@@ -81,7 +79,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
     _socketService.connect();
 
-    if (BandwidthMonitor.determineModeFromBandwidth(bandwidth) != SessionMode.text) {
+    if (BandwidthMonitor.determineModeFromBandwidth(bandwidth) !=
+        SessionMode.text) {
       await _initWebRtc();
     }
 
@@ -120,9 +119,9 @@ class SessionNotifier extends StateNotifier<SessionState> {
       final notification = CachedNotification()
         ..serverId = message.id
         ..title = 'Chat: ${message.senderName}'
-        ..body = message.content
+        ..message = message.content
         ..type = 'session_chat'
-        ..receivedAt = message.timestamp
+        ..createdAt = message.timestamp
         ..isRead = true;
 
       await isar.writeTxn(() async {

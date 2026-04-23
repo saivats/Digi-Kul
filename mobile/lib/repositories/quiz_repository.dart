@@ -1,11 +1,12 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart';
 import 'package:logger/logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../core/network/api_client.dart';
 import '../core/storage/isar_service.dart';
-import '../models/quiz/cached_quiz_set.dart';
 import '../models/quiz/pending_quiz_submission.dart';
 import '../models/quiz/quiz_attempt_dto.dart';
 import '../models/quiz/quiz_question_dto.dart';
@@ -16,7 +17,7 @@ import '../providers/core_providers.dart';
 part 'quiz_repository.g.dart';
 
 @riverpod
-QuizRepository quizRepository(QuizRepositoryRef ref) {
+QuizRepository quizRepository(Ref ref) {
   final apiClient = ref.watch(apiClientProvider);
   return QuizRepository(apiClient);
 }
@@ -28,11 +29,6 @@ class QuizRepository {
   final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
 
   Future<List<QuizSetDto>> getQuizSets() async {
-    final isar = await IsarService.instance;
-
-    final cached = await isar.cachedQuizSets.where().findAll();
-    final cachedDtos = cached.map(QuizSetDto.fromCached).toList();
-
     try {
       final response = await _apiClient.getQuizSets();
       final data = response.data;
@@ -42,20 +38,12 @@ class QuizRepository {
             .map((e) => QuizSetDto.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        await isar.writeTxn(() async {
-          await isar.cachedQuizSets.clear();
-          for (final quiz in quizzes) {
-            await isar.cachedQuizSets.put(quiz.toCached());
-          }
-        });
-
         return quizzes;
       }
 
-      return cachedDtos;
-    } catch (e) {
-      _logger.w('Failed to fetch quizzes from API, returning cached: $e');
-      return cachedDtos;
+      return [];
+    } catch (_) {
+      return [];
     }
   }
 
@@ -91,7 +79,8 @@ class QuizRepository {
       return QuizResultDto.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       _logger.w('Online submit failed, queueing for background sync: $e');
-      await _queueForSync(attemptId: attemptId, answers: answers, quizSetId: quizSetId);
+      await _queueForSync(
+          attemptId: attemptId, answers: answers, quizSetId: quizSetId);
       return null;
     }
   }
@@ -124,10 +113,7 @@ class QuizRepository {
 
   Future<int> pendingSubmissionCount() async {
     final isar = await IsarService.instance;
-    return isar.pendingQuizSubmissions
-        .filter()
-        .isSyncedEqualTo(false)
-        .count();
+    return isar.pendingQuizSubmissions.filter().isSyncedEqualTo(false).count();
   }
 
   Future<void> syncPendingSubmissions() async {
@@ -140,7 +126,8 @@ class QuizRepository {
 
     for (final submission in pending) {
       try {
-        final answers = jsonDecode(submission.answersJson) as Map<String, dynamic>;
+        final answers =
+            jsonDecode(submission.answersJson) as Map<String, dynamic>;
         final stringAnswers = answers.map((k, v) => MapEntry(k, v.toString()));
 
         await _apiClient.submitQuizAttempt(
