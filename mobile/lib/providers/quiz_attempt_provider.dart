@@ -23,7 +23,11 @@ class QuizAttempt extends _$QuizAttempt {
   Future<void> _initQuiz() async {
     try {
       final repo = ref.read(quizRepositoryProvider);
-      final questions = await repo.getQuestions(quizSetId);
+      final attempt = await repo.startAttempt(quizSetId);
+      final questions = await repo.getQuestionsForAttempt(
+        attemptId: attempt.id,
+        quizSetId: quizSetId,
+      );
 
       if (questions.isEmpty) {
         state = state.copyWith(
@@ -33,14 +37,13 @@ class QuizAttempt extends _$QuizAttempt {
         return;
       }
 
-      final attempt = await repo.startAttempt(quizSetId);
-
       state = state.copyWith(
         phase: QuizAttemptPhase.active,
         questions: questions,
         attemptId: attempt.id,
         currentQuestionIndex: 0,
       );
+      await _saveLocally();
 
       final quizSets = await repo.getQuizSets();
       final matchingSet = quizSets.where((s) => s.id == quizSetId).firstOrNull;
@@ -82,6 +85,7 @@ class QuizAttempt extends _$QuizAttempt {
     final updatedAnswers = Map<String, String>.from(state.answers);
     updatedAnswers[questionId] = answer;
     state = state.copyWith(answers: updatedAnswers);
+    _saveLocally();
   }
 
   void goToQuestion(int index) {
@@ -128,6 +132,17 @@ class QuizAttempt extends _$QuizAttempt {
         errorMessage: 'Failed to submit quiz: $e',
       );
     }
+  }
+
+  Future<void> _saveLocally() async {
+    final attemptId = state.attemptId;
+    if (attemptId == null || attemptId.isEmpty) return;
+
+    await ref.read(quizRepositoryProvider).saveAnswerLocally(
+          attemptId: attemptId,
+          quizSetId: quizSetId,
+          answers: state.answers,
+        );
   }
 
   bool get allQuestionsAnswered =>

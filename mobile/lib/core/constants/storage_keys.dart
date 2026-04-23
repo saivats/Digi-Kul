@@ -19,5 +19,6 @@ class StorageKeys {
   static const language = 'language';
 
   static const workerAuthToken = 'worker_auth_token';
+  static const workerSessionCookie = 'worker_session_cookie';
   static const sqliteDbName = 'digikul_offline';
 }

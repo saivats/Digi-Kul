@@ -2937,7 +2937,18 @@ class SupabaseDatabaseManager:
                 'responded_at': datetime.now().isoformat()
             }
             
-            result = self.supabase.table('quiz_responses').insert(response_data).execute()
+            existing = self.supabase.table('quiz_responses').select('id').eq(
+                'attempt_id', attempt_id
+            ).eq('quiz_id', quiz_id).execute()
+
+            if existing.data:
+                result = self.supabase.table('quiz_responses').update(
+                    response_data
+                ).eq('id', existing.data[0]['id']).execute()
+            else:
+                result = self.supabase.table('quiz_responses').insert(
+                    response_data
+                ).execute()
             return result.data[0]['id'] if result.data else None, "Response submitted"
         except Exception as e:
             print(f"Error submitting quiz response: {e}")

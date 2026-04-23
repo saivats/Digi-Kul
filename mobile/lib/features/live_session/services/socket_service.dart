@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../models/session/session_state.dart';
 
 typedef EventCallback = void Function(Map<String, dynamic> data);
@@ -22,31 +23,47 @@ class SocketService {
   io.Socket? _socket;
 
   final _participantJoined = StreamController<Participant>.broadcast();
+  final _participantsSnapshot = StreamController<List<Participant>>.broadcast();
   final _participantLeft = StreamController<String>.broadcast();
   final _chatMessage = StreamController<ChatMessage>.broadcast();
+  final _webRtcOffer = StreamController<Map<String, dynamic>>.broadcast();
+  final _webRtcAnswer = StreamController<Map<String, dynamic>>.broadcast();
+  final _iceCandidate = StreamController<Map<String, dynamic>>.broadcast();
   final _pollStarted = StreamController<ActivePoll>.broadcast();
   final _pollEnded = StreamController<String>.broadcast();
   final _sessionEnded = StreamController<void>.broadcast();
   final _modeChanged = StreamController<SessionMode>.broadcast();
   final _audioLevel = StreamController<Map<String, double>>.broadcast();
-  final _connectionStatus = StreamController<SessionConnectionStatus>.broadcast();
+  final _connectionStatus =
+      StreamController<SessionConnectionStatus>.broadcast();
 
   Stream<Participant> get onParticipantJoined => _participantJoined.stream;
+  Stream<List<Participant>> get onParticipantsSnapshot =>
+      _participantsSnapshot.stream;
   Stream<String> get onParticipantLeft => _participantLeft.stream;
   Stream<ChatMessage> get onChatMessage => _chatMessage.stream;
+  Stream<Map<String, dynamic>> get onWebRtcOffer => _webRtcOffer.stream;
+  Stream<Map<String, dynamic>> get onWebRtcAnswer => _webRtcAnswer.stream;
+  Stream<Map<String, dynamic>> get onIceCandidate => _iceCandidate.stream;
   Stream<ActivePoll> get onPollStarted => _pollStarted.stream;
   Stream<String> get onPollEnded => _pollEnded.stream;
   Stream<void> get onSessionEnded => _sessionEnded.stream;
   Stream<SessionMode> get onModeChanged => _modeChanged.stream;
   Stream<Map<String, double>> get onAudioLevel => _audioLevel.stream;
-  Stream<SessionConnectionStatus> get onConnectionStatus => _connectionStatus.stream;
+  Stream<SessionConnectionStatus> get onConnectionStatus =>
+      _connectionStatus.stream;
 
-  void connect() {
+  Future<void> connect() async {
+    final sessionCookie = await SecureStorageService.getSessionCookie();
     _socket = io.io(
       ApiConstants.socketUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
-          .setExtraHeaders({'Authorization': 'Bearer $_authToken'})
+          .setExtraHeaders({
+            if (_authToken.isNotEmpty) 'Authorization': 'Bearer $_authToken',
+            if (sessionCookie != null && sessionCookie.isNotEmpty)
+              'Cookie': sessionCookie,
+          })
           .enableAutoConnect()
           .enableReconnection()
           .setReconnectionDelay(1000)
@@ -79,21 +96,29 @@ class SocketService {
       _connectionStatus.add(SessionConnectionStatus.error);
     });
 
-    _socket!.on('participant_joined', (data) {
-      if (data is Map<String, dynamic>) {
-        _participantJoined.add(Participant.fromJson(data));
+    _socket!.on('user_joined', (data) {
+      if (data is Map) {
+        _participantJoined.add(_participantFromSocket(data));
       }
     });
 
-    _socket!.on('participant_left', (data) {
-      if (data is Map<String, dynamic>) {
-        _participantLeft.add(data['id'] as String? ?? '');
+    _socket!.on('session_participants', (data) {
+      if (data is List) {
+        _participantsSnapshot.add(
+          data.whereType<Map>().map(_participantFromSocket).toList(),
+        );
+      }
+    });
+
+    _socket!.on('user_left', (data) {
+      if (data is Map) {
+        _participantLeft.add(data['user_id'] as String? ?? '');
       }
     });
 
     _socket!.on('chat_message', (data) {
-      if (data is Map<String, dynamic>) {
-        _chatMessage.add(ChatMessage.fromJson(data));
+      if (data is Map) {
+        _chatMessage.add(_chatMessageFromSocket(data));
       }
     });
 
@@ -129,12 +154,24 @@ class SocketService {
         _audioLevel.add(data.map((k, v) => MapEntry(k, (v as num).toDouble())));
       }
     });
+
+    _socket!.on('webrtc_offer', (data) {
+      if (data is Map) _webRtcOffer.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket!.on('webrtc_answer', (data) {
+      if (data is Map) _webRtcAnswer.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket!.on('ice_candidate', (data) {
+      if (data is Map) _iceCandidate.add(Map<String, dynamic>.from(data));
+    });
   }
 
   void sendChatMessage(String content) {
-    _socket?.emit('send_message', {
+    _socket?.emit('chat_message', {
       'session_id': _sessionId,
-      'content': content,
+      'message': content,
     });
   }
 
@@ -149,23 +186,23 @@ class SocketService {
   void sendOffer(String targetId, Map<String, dynamic> sdp) {
     _socket?.emit('webrtc_offer', {
       'session_id': _sessionId,
-      'target_id': targetId,
-      'sdp': sdp,
+      'target_user_id': targetId,
+      'offer': sdp,
     });
   }
 
   void sendAnswer(String targetId, Map<String, dynamic> sdp) {
     _socket?.emit('webrtc_answer', {
       'session_id': _sessionId,
-      'target_id': targetId,
-      'sdp': sdp,
+      'target_user_id': targetId,
+      'answer': sdp,
     });
   }
 
   void sendIceCandidate(String targetId, Map<String, dynamic> candidate) {
-    _socket?.emit('webrtc_ice_candidate', {
+    _socket?.emit('ice_candidate', {
       'session_id': _sessionId,
-      'target_id': targetId,
+      'target_user_id': targetId,
       'candidate': candidate,
     });
   }
@@ -179,13 +216,46 @@ class SocketService {
     _socket?.disconnect();
     _socket?.dispose();
     _participantJoined.close();
+    _participantsSnapshot.close();
     _participantLeft.close();
     _chatMessage.close();
+    _webRtcOffer.close();
+    _webRtcAnswer.close();
+    _iceCandidate.close();
     _pollStarted.close();
     _pollEnded.close();
     _sessionEnded.close();
     _modeChanged.close();
     _audioLevel.close();
     _connectionStatus.close();
+  }
+
+  Participant _participantFromSocket(Map<dynamic, dynamic> data) {
+    final userId = data['user_id'] as String? ?? data['id'] as String? ?? '';
+    final role =
+        data['user_type'] as String? ?? data['role'] as String? ?? 'student';
+    return Participant(
+      id: userId,
+      name: data['user_name'] as String? ?? data['name'] as String? ?? 'User',
+      role: role,
+      isMuted: data['is_muted'] as bool? ?? false,
+    );
+  }
+
+  ChatMessage _chatMessageFromSocket(Map<dynamic, dynamic> data) {
+    return ChatMessage(
+      id: data['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
+      senderId:
+          data['user_id'] as String? ?? data['sender_id'] as String? ?? '',
+      senderName: data['user_name'] as String? ??
+          data['sender_name'] as String? ??
+          'User',
+      content: data['message'] as String? ?? data['content'] as String? ?? '',
+      timestamp: DateTime.tryParse(data['timestamp'] as String? ?? '') ??
+          DateTime.now(),
+      senderRole:
+          data['user_type'] as String? ?? data['role'] as String? ?? 'student',
+    );
   }
 }

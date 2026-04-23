@@ -3,7 +3,7 @@ Authentication Routes
 Handles user login, logout, registration, and session management.
 """
 
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash, render_template
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash, render_template, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
 from utils.database_supabase import SupabaseDatabaseManager as DatabaseManager
@@ -20,6 +20,15 @@ cohort_service = CohortService(db, email_service)
 
 # Global online users tracking
 online_users = {}
+auth_middleware = None
+
+def set_auth_middleware(middleware):
+    """Share the app-level auth middleware with auth routes."""
+    global auth_middleware
+    auth_middleware = middleware
+
+def _online_users():
+    return auth_middleware.online_users if auth_middleware else online_users
 
 @auth_bp.route('/')
 def index():
@@ -93,8 +102,9 @@ def register_teacher():
 def register_student():
     """Register a new student with image upload"""
     try:
-        # Get form data (including file uploads)
-        data = request.form.to_dict()
+        # Get JSON from mobile or form data from the web registration page.
+        data = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+        data = data or {}
         
         # Validate required fields
         required_fields = ['first_name', 'last_name', 'email', 'password', 'institution_id']
@@ -118,7 +128,7 @@ def register_student():
                 from werkzeug.utils import secure_filename
                 
                 # Create uploads directory if it doesn't exist
-                upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'students')
+                upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'students')
                 os.makedirs(upload_dir, exist_ok=True)
                 
                 # Generate unique filename
@@ -212,7 +222,7 @@ def login():
             session['user_name'] = 'Admin'
             session['user_email'] = 'admin@local'
             
-            online_users['admin'] = {
+            _online_users()['admin'] = {
                 'name': 'Admin',
                 'email': 'admin@local',
                 'type': 'admin',
@@ -247,7 +257,7 @@ def login():
         session['user_email'] = user['email']
         
         # Track online users
-        online_users[user['id']] = {
+        _online_users()[user['id']] = {
             'name': user['name'],
             'email': user['email'],
             'type': user_type,
@@ -264,6 +274,11 @@ def login():
             'success': True,
             'message': 'Login successful',
             'user_type': user_type,
+            'user_id': user['id'],
+            'user_name': user.get('name', ''),
+            'user_email': user.get('email', email),
+            'institution_id': user.get('institution_id', ''),
+            'cohort_id': user.get('cohort_id'),
             'redirect_url': f'/{user_type}/dashboard'
         }), 200
         
@@ -278,8 +293,8 @@ def logout():
         user_type = session.get('user_type')
         
         # Remove from online users tracking
-        if user_id and user_id in online_users:
-            del online_users[user_id]
+        if user_id and user_id in _online_users():
+            del _online_users()[user_id]
         
         # Clear all session data
         session.clear()
@@ -322,8 +337,8 @@ def logout_page():
         user_type = session.get('user_type')
         
         # Remove from online users tracking
-        if user_id and user_id in online_users:
-            del online_users[user_id]
+        if user_id and user_id in _online_users():
+            del _online_users()[user_id]
         
         # Clear all session data
         session.clear()
@@ -364,7 +379,7 @@ def validate_session():
         user_id = session.get('user_id')
         
         # Check if user is still in online_users
-        if user_id not in online_users:
+        if user_id not in _online_users():
             session.clear()
             return jsonify({'valid': False, 'error': 'Session expired'}), 401
         
@@ -393,8 +408,8 @@ def force_logout():
             return jsonify({'error': 'User ID required'}), 400
         
         # Remove from online users
-        if target_user_id in online_users:
-            del online_users[target_user_id]
+        if target_user_id in _online_users():
+            del _online_users()[target_user_id]
         
         return jsonify({
             'success': True,

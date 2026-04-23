@@ -40,7 +40,7 @@ from services.session_recording_service import SessionRecordingService
 from utils.email_service import EmailService
 
 # Import route blueprints
-from routes.auth_routes import auth_bp
+from routes.auth_routes import auth_bp, set_auth_middleware as set_auth_routes_auth_middleware
 from routes.cohort_routes import cohort_bp
 from routes.lecture_routes import lecture_bp
 from routes.quiz_routes import quiz_bp
@@ -79,6 +79,7 @@ from routes.institution_routes import set_auth_middleware as set_institution_aut
 from routes.teacher_routes import set_auth_middleware as set_teacher_auth_middleware
 from routes.student_routes import set_auth_middleware as set_student_auth_middleware
 set_auth_middleware(auth_middleware)
+set_auth_routes_auth_middleware(auth_middleware)
 set_institution_auth_middleware(auth_middleware)
 set_teacher_auth_middleware(auth_middleware)
 set_student_auth_middleware(auth_middleware)
@@ -1492,4 +1493,3 @@ if __name__ == '__main__':
         socketio.run(app, debug=True, host='0.0.0.0', port=5000)
     else:
         app.run(debug=True, host='0.0.0.0', port=5000)
-        

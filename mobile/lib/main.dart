@@ -9,9 +9,6 @@ import 'core/background/background_tasks.dart';
 import 'core/storage/isar_service.dart';
 import 'core/storage/preferences.dart';
 
-const refreshCacheTaskName = 'com.digikul.refreshCache';
-const syncPendingTaskName = 'com.digikul.syncPending';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

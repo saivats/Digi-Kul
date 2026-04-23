@@ -87,6 +87,10 @@ class ApiClient {
     return _dio.get(ApiConstants.quizQuestions(quizSetId));
   }
 
+  Future<Response> getQuizQuestionsForAttempt(String attemptId) {
+    return _dio.get(ApiConstants.quizAttemptQuestions(attemptId));
+  }
+
   Future<Response> submitQuizAttempt({
     required String attemptId,
     required Map<String, String> answers,
@@ -109,7 +113,9 @@ class ApiClient {
     return _dio.post(ApiConstants.fcmToken, data: {'token': token});
   }
 
-  Future<Response> downloadMaterial(String url, String savePath, {
+  Future<Response> downloadMaterial(
+    String url,
+    String savePath, {
     void Function(int, int)? onReceiveProgress,
   }) {
     return _dio.download(url, savePath, onReceiveProgress: onReceiveProgress);

@@ -46,9 +46,12 @@ class PreferencesService {
   }
 
   static String? get studentId => _instance.getString(StorageKeys.studentId);
-  static String? get studentName => _instance.getString(StorageKeys.studentName);
-  static String? get studentEmail => _instance.getString(StorageKeys.studentEmail);
-  static String? get institutionId => _instance.getString(StorageKeys.institutionId);
+  static String? get studentName =>
+      _instance.getString(StorageKeys.studentName);
+  static String? get studentEmail =>
+      _instance.getString(StorageKeys.studentEmail);
+  static String? get institutionId =>
+      _instance.getString(StorageKeys.institutionId);
   static String? get cohortId => _instance.getString(StorageKeys.cohortId);
   static String? get institutionName =>
       _instance.getString(StorageKeys.institutionName);
@@ -65,7 +68,8 @@ class PreferencesService {
   static Future<void> setNotificationsEnabled(bool value) =>
       _instance.setBool(StorageKeys.notificationsEnabled, value);
 
-  static Future<void> cacheInstitutions(List<Map<String, dynamic>> institutions) async {
+  static Future<void> cacheInstitutions(
+      List<Map<String, dynamic>> institutions) async {
     final encoded = jsonEncode(institutions);
     await _instance.setString(StorageKeys.cachedInstitutions, encoded);
   }
@@ -85,6 +89,15 @@ class PreferencesService {
 
   static Future<void> clearWorkerAuthToken() =>
       _instance.remove(StorageKeys.workerAuthToken);
+
+  static String? get workerSessionCookie =>
+      _instance.getString(StorageKeys.workerSessionCookie);
+
+  static Future<void> setWorkerSessionCookie(String cookie) =>
+      _instance.setString(StorageKeys.workerSessionCookie, cookie);
+
+  static Future<void> clearWorkerSessionCookie() =>
+      _instance.remove(StorageKeys.workerSessionCookie);
 
   static Future<void> clearProfile() async {
     await _instance.remove(StorageKeys.studentId);

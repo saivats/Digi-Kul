@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import 'package:workmanager/workmanager.dart';
+
+import '../background/background_tasks.dart';
 
 enum ConnectionType { wifi, mobile, none }
 
@@ -25,11 +28,22 @@ class ConnectivityService {
 
   static final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
   static final _connectivity = Connectivity();
+  static ConnectivityState _lastState = ConnectivityState.offline;
 
   static Stream<ConnectivityState> get stream {
-    return _connectivity.onConnectivityChanged.map((results) {
-      final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
-      return _mapResult(result);
+    return _connectivity.onConnectivityChanged.asyncMap((results) async {
+      final result =
+          results.isNotEmpty ? results.first : ConnectivityResult.none;
+      final state = _mapResult(result);
+      if (!_lastState.isOnline && state.isOnline) {
+        await Workmanager().registerOneOffTask(
+          '$syncPendingTaskName-${DateTime.now().millisecondsSinceEpoch}',
+          syncPendingTaskName,
+          constraints: Constraints(networkType: NetworkType.connected),
+        );
+      }
+      _lastState = state;
+      return state;
     });
   }
 

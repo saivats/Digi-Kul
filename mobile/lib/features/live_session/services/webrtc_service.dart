@@ -72,8 +72,44 @@ class WebRtcService {
     return mungedOffer;
   }
 
+  Future<RTCSessionDescription?> handleOffer(Map<String, dynamic> data) async {
+    if (_peerConnection == null) return null;
+
+    final offerData = data['offer'] is Map
+        ? Map<String, dynamic>.from(data['offer'] as Map)
+        : data;
+    final offer = RTCSessionDescription(
+      offerData['sdp'] as String?,
+      offerData['type'] as String?,
+    );
+
+    await _peerConnection!.setRemoteDescription(offer);
+    final answer = await _peerConnection!.createAnswer({
+      'offerToReceiveAudio': true,
+      'offerToReceiveVideo': false,
+    });
+    final mungedAnswer = RTCSessionDescription(
+      _mungeAudioSdp(answer.sdp ?? ''),
+      answer.type,
+    );
+    await _peerConnection!.setLocalDescription(mungedAnswer);
+    return mungedAnswer;
+  }
+
   Future<void> handleAnswer(RTCSessionDescription answer) async {
     await _peerConnection?.setRemoteDescription(answer);
+  }
+
+  Future<void> handleAnswerData(Map<String, dynamic> data) async {
+    final answerData = data['answer'] is Map
+        ? Map<String, dynamic>.from(data['answer'] as Map)
+        : data;
+    await handleAnswer(
+      RTCSessionDescription(
+        answerData['sdp'] as String?,
+        answerData['type'] as String?,
+      ),
+    );
   }
 
   Future<void> addIceCandidate(RTCIceCandidate candidate) async {
@@ -88,6 +124,19 @@ class WebRtcService {
         _logger.e('ICE candidate retry failed: $retryError');
       }
     }
+  }
+
+  Future<void> addIceCandidateData(Map<String, dynamic> data) async {
+    final candidateData = data['candidate'] is Map
+        ? Map<String, dynamic>.from(data['candidate'] as Map)
+        : data;
+    await addIceCandidate(
+      RTCIceCandidate(
+        candidateData['candidate'] as String?,
+        candidateData['sdpMid'] as String?,
+        candidateData['sdpMLineIndex'] as int?,
+      ),
+    );
   }
 
   String _mungeAdp(String sdp) {

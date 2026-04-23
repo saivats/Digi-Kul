@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../constants/storage_keys.dart';
+import 'preferences.dart';
 
 class SecureStorageService {
   SecureStorageService._();
@@ -28,6 +29,7 @@ class SecureStorageService {
 
   static Future<void> saveSessionCookie(String cookie) async {
     await _storage.write(key: StorageKeys.sessionCookie, value: cookie);
+    await PreferencesService.setWorkerSessionCookie(cookie);
   }
 
   static Future<String?> getSessionCookie() async {
@@ -38,6 +40,7 @@ class SecureStorageService {
     await _storage.delete(key: StorageKeys.authToken);
     await _storage.delete(key: StorageKeys.refreshToken);
     await _storage.delete(key: StorageKeys.sessionCookie);
+    await PreferencesService.clearWorkerSessionCookie();
   }
 
   static Future<void> clearAll() async {

@@ -14,30 +14,33 @@ class ApiConstants {
   static const connectionTimeout = Duration(seconds: 15);
   static const receiveTimeout = Duration(seconds: 30);
 
-  static const login = '/login';
-  static const registerStudent = '/register/student';
-  static const validateSession = '/validate-session';
-  static const logout = '/logout';
-  static const institutions = '/institutions';
-  static const studentCohorts = '/student/cohorts';
-  static const studentLectures = '/student/lectures';
-  static const upcomingLectures = '/student/lectures/upcoming';
-  static const studentMaterials = '/student/materials';
-  static const studentQuizzes = '/student/quizzes';
-  static const quizAttempts = '/student/quiz-attempts';
-  static const quizResponses = '/student/quiz-responses';
-  static const studentRecordings = '/student/recordings';
-  static const studentDashboard = '/student/dashboard';
-  static const studentProfile = '/student/profile';
-  static const attendance = '/student/attendance';
-  static const fcmToken = '/student/fcm-token';
+  static const login = '/api/auth/login';
+  static const registerStudent = '/api/auth/register/student';
+  static const validateSession = '/api/auth/validate-session';
+  static const logout = '/api/auth/logout';
+  static const institutions = '/api/public/institutions';
+  static const studentCohorts = '/api/student/cohorts';
+  static const studentLectures = '/api/student/lectures';
+  static const upcomingLectures = '/api/student/lectures/upcoming';
+  static const studentMaterials = '/api/student/materials';
+  static const studentQuizzes = '/api/student/quizzes';
+  static const quizAttempts = '/api/student/quiz-attempts';
+  static const quizResponses = '/api/student/quiz-responses';
+  static const studentRecordings = '/api/student/recordings';
+  static const studentDashboard = '/api/student/dashboard';
+  static const studentProfile = '/api/student/profile';
+  static const attendance = '/api/student/attendance';
+  static const fcmToken = '/api/student/fcm-token';
 
   static String quizQuestions(String quizSetId) =>
-      '/student/quizzes/$quizSetId/questions';
+      '/api/student/quizzes/$quizSetId/questions';
+
+  static String quizAttemptQuestions(String attemptId) =>
+      '$quizAttempts/$attemptId/questions';
 
   static String quizAttemptSubmit(String attemptId) =>
-      '/student/quiz-attempts/$attemptId/submit';
+      '$quizAttempts/$attemptId/submit';
 
   static String quizResult(String attemptId) =>
-      '/student/quiz-attempts/$attemptId/result';
+      '$quizAttempts/$attemptId/result';
 }

@@ -792,19 +792,113 @@ def finish_quiz_attempt(attempt_id):
             return jsonify({'error': 'Access denied'}), 403
         
         # Finish attempt
-        result = db.finish_quiz_attempt(attempt_id)
+        success, message = db.finish_quiz_attempt(attempt_id, student_id)
         
-        if result:
+        if success:
             return jsonify({
                 'success': True,
-                'result': result,
-                'message': 'Quiz completed successfully'
+                'message': message
             }), 200
         else:
-            return jsonify({'error': 'Failed to finish quiz attempt'}), 500
+            return jsonify({'error': message}), 500
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/quiz-attempts/<attempt_id>/submit', methods=['POST'])
+@student_required
+def submit_quiz_attempt_bulk(attempt_id):
+    """Submit all answers for a quiz attempt and finish it."""
+    try:
+        student_id = session.get('user_id')
+        attempt = db.get_quiz_attempt_by_id(attempt_id)
+        if not attempt or attempt['student_id'] != student_id:
+            return jsonify({'error': 'Access denied'}), 403
+
+        data = request.get_json() or {}
+        answers = data.get('answers') or {}
+        if not isinstance(answers, dict):
+            return jsonify({'error': 'answers must be an object'}), 400
+
+        for question_id, selected_answer in answers.items():
+            response_id, message = db.submit_quiz_response(
+                attempt_id=attempt_id,
+                quiz_id=question_id,
+                student_id=student_id,
+                selected_answer=str(selected_answer)
+            )
+            if not response_id:
+                return jsonify({'error': message, 'question_id': question_id}), 500
+
+        success, message = db.finish_quiz_attempt(attempt_id, student_id)
+        if not success:
+            return jsonify({'error': message}), 500
+
+        result = _build_quiz_result(attempt_id)
+        return jsonify({
+            'success': True,
+            'result': result,
+            'message': 'Quiz completed successfully'
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/quiz-attempts/<attempt_id>/result', methods=['GET'])
+@student_required
+def get_quiz_attempt_result(attempt_id):
+    """Return quiz result and optional answer review for a completed attempt."""
+    try:
+        student_id = session.get('user_id')
+        attempt = db.get_quiz_attempt_by_id(attempt_id)
+        if not attempt or attempt['student_id'] != student_id:
+            return jsonify({'error': 'Access denied'}), 403
+
+        return jsonify({
+            'success': True,
+            'result': _build_quiz_result(attempt_id)
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def _build_quiz_result(attempt_id):
+    """Build the mobile quiz result payload from attempt, response, and question rows."""
+    attempt = db.get_quiz_attempt_by_id(attempt_id) or {}
+    quiz_set_id = attempt.get('quiz_set_id')
+    questions = db.get_quiz_questions(quiz_set_id) if quiz_set_id else []
+
+    responses_result = db.supabase.table('quiz_responses').select('*').eq(
+        'attempt_id', attempt_id
+    ).execute()
+    responses = responses_result.data if responses_result.data else []
+    responses_by_question = {r.get('quiz_id'): r for r in responses}
+
+    total_questions = len(questions) if questions else attempt.get('total_questions', 0) or 0
+    correct_answers = sum(1 for r in responses if r.get('is_correct', False))
+    percentage = int((correct_answers / total_questions * 100)) if total_questions else 0
+
+    review = []
+    for question in questions:
+        response = responses_by_question.get(question.get('id')) or {}
+        review.append({
+            'question_id': question.get('id'),
+            'question': question.get('question') or question.get('question_text') or '',
+            'options': question.get('options') or [],
+            'selected_answer': response.get('selected_answer') or response.get('response'),
+            'correct_answer': question.get('correct_answer'),
+            'is_correct': response.get('is_correct', False)
+        })
+
+    return {
+        'attempt_id': attempt_id,
+        'quiz_set_id': quiz_set_id,
+        'total_questions': total_questions,
+        'correct_answers': correct_answers,
+        'score_percentage': attempt.get('score') or percentage,
+        'time_taken_seconds': attempt.get('time_taken_seconds') or attempt.get('time_taken'),
+        'review': review
+    }
 
 @student_bp.route('/profile', methods=['GET'])
 @student_required

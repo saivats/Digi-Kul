@@ -32,6 +32,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
   late final SocketService _socketService;
   WebRtcService? _webRtcService;
   BandwidthMonitor? _bandwidthMonitor;
+  String _teacherUserId = 'teacher';
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
   Future<void> _init() async {
@@ -53,14 +54,32 @@ class SessionNotifier extends StateNotifier<SessionState> {
         state = state.copyWith(connectionStatus: status);
       }),
       _socketService.onParticipantJoined.listen((participant) {
+        if (participant.role == 'teacher') {
+          _teacherUserId = participant.id;
+        }
         final updated = [...state.participants, participant];
         state = state.copyWith(participants: updated);
+      }),
+      _socketService.onParticipantsSnapshot.listen((participants) {
+        final teacher =
+            participants.where((p) => p.role == 'teacher').firstOrNull;
+        if (teacher != null) {
+          _teacherUserId = teacher.id;
+        }
+        state = state.copyWith(participants: participants);
       }),
       _socketService.onParticipantLeft.listen((id) {
         final updated = state.participants.where((p) => p.id != id).toList();
         state = state.copyWith(participants: updated);
       }),
       _socketService.onChatMessage.listen(_onChatMessage),
+      _socketService.onWebRtcOffer.listen(_onWebRtcOffer),
+      _socketService.onWebRtcAnswer.listen((data) {
+        _webRtcService?.handleAnswerData(data);
+      }),
+      _socketService.onIceCandidate.listen((data) {
+        _webRtcService?.addIceCandidateData(data);
+      }),
       _socketService.onPollStarted.listen((poll) {
         state = state.copyWith(activePoll: poll);
       }),
@@ -77,12 +96,12 @@ class SessionNotifier extends StateNotifier<SessionState> {
       }),
     ]);
 
-    _socketService.connect();
-
     if (BandwidthMonitor.determineModeFromBandwidth(bandwidth) !=
         SessionMode.text) {
       await _initWebRtc();
     }
+
+    await _socketService.connect();
 
     _bandwidthMonitor!.startPeriodicMonitoring();
   }
@@ -91,16 +110,11 @@ class SessionNotifier extends StateNotifier<SessionState> {
     try {
       _webRtcService = WebRtcService(
         onIceCandidate: (candidate) {
-          _socketService.sendIceCandidate('teacher', candidate.toMap());
+          _socketService.sendIceCandidate(_teacherUserId, candidate.toMap());
         },
       );
 
       await _webRtcService!.initialize();
-
-      final offer = await _webRtcService!.createOffer();
-      if (offer != null) {
-        _socketService.sendOffer('teacher', offer.toMap());
-      }
     } catch (e) {
       _logger.e('WebRTC init failed, falling back to text: $e');
       state = state.copyWith(currentMode: SessionMode.text);
@@ -136,8 +150,35 @@ class SessionNotifier extends StateNotifier<SessionState> {
     if (mode != state.currentMode) {
       _logger.i('Bandwidth recommends mode: ${mode.name}');
       state = state.copyWith(
+        currentMode: mode,
         estimatedBandwidthKbps: _bandwidthMonitor?.lastEstimateKbps ?? 0,
       );
+    }
+  }
+
+  Future<void> _onWebRtcOffer(Map<String, dynamic> data) async {
+    try {
+      final fromUserId = data['from_user_id'] as String?;
+      if (fromUserId != null && fromUserId.isNotEmpty) {
+        _teacherUserId = fromUserId;
+      }
+
+      if (_webRtcService == null) {
+        _webRtcService = WebRtcService(
+          onIceCandidate: (candidate) {
+            _socketService.sendIceCandidate(_teacherUserId, candidate.toMap());
+          },
+        );
+        await _webRtcService!.initialize();
+      }
+
+      final answer = await _webRtcService!.handleOffer(data);
+      if (answer != null) {
+        _socketService.sendAnswer(_teacherUserId, answer.toMap());
+      }
+    } catch (e) {
+      _logger.e('Failed to handle WebRTC offer: $e');
+      state = state.copyWith(currentMode: SessionMode.text);
     }
   }
 
