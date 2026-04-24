@@ -3,13 +3,15 @@ class ApiConstants {
 
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: 'http://10.0.2.2:8000',
   );
 
   static const socketUrl = String.fromEnvironment(
     'SOCKET_URL',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: 'http://10.0.2.2:8000',
   );
+
+  static const String prodBaseUrl = 'https://api.digikul.in';
 
   static const connectionTimeout = Duration(seconds: 15);
   static const receiveTimeout = Duration(seconds: 30);

@@ -1,77 +1,60 @@
 # Digi-Kul
-*Digital Gurukul — Bringing quality education to every corner of India, regardless of bandwidth*
 
-![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=flat&logo=Flutter&logoColor=white)
+**Digital Gurukul — Bringing quality education to every corner of India, regardless of bandwidth**
+
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
-![Next JS](https://img.shields.io/badge/Next-black?style=flat&logo=next.js&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-black?style=flat&logo=next.js&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=flat&logo=Flutter&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange.svg)
 
 ---
 
 ## The Problem
 
-India has over 40,000 colleges under the AICTE mandate tasked with delivering digital education to millions of students. However, a significant reality remains overlooked: over 60% of students in Tier 2/3 cities and rural areas rely exclusively on fluctuating 2G, 3G, or low-end 4G mobile internet connections on mid-range Android devices. 
+India's higher education system serves over 40,000 AICTE-affiliated institutions and millions of students. Government policy mandates digital education delivery, yet the physical infrastructure tells a different story: over 60% of students in Tier-2/3 cities and rural areas depend on fluctuating 2G/3G mobile connections on mid-range Android devices.
 
-Existing proprietary platforms like Zoom, Google Meet, and Microsoft Teams were built for broadband infrastructure. They typically require stable 5-10 Mbps connections to function smoothly. For the majority of rural students, these platforms are entirely unusable, leading to severe audio stuttering, constant disconnections, and massive battery drain.
+Mainstream platforms (Zoom, Google Meet, Microsoft Teams) require 5–10 Mbps of stable broadband to function. For most rural students, these tools are unusable—constant buffering, audio drops, and battery drain make sustained participation impossible.
 
-The result is a growing digital divide where policy mandates digital education, but the physical infrastructure cannot support it. Digi-Kul is built as an open-source solution to close this exact gap—delivering high-quality, continuous educational access on ultra-low bandwidth.
+The result is a widening digital divide where the students who need digital education the most are the least able to access it.
 
 ## The Solution
 
-Digi-Kul solves the bandwidth crisis through an audio-first WebRTC architecture and an aggressively offline-capable mobile application.
+Digi-Kul is an open-source, audio-first educational platform designed from the ground up for ultra-low bandwidth environments.
 
-| Feature | Description | Status |
-|---|---|---|
-| Audio-First Live Sessions | WebRTC with automatic degradation from video → audio → text based on bandwidth | 🚧 In Progress |
-| Offline PWA | Materials and quizzes cached locally, quiz submissions sync when reconnected | 🚧 In Progress |
-| Multi-Tenant Institutions | Each college gets isolated data, custom branding, own admin | 📋 Planned |
-| Bandwidth Adaptation | Auto-detects connection quality and switches session mode in real time | 🚧 In Progress |
-| Quiz Engine | Offline-tolerant quiz taking with analytics for teachers | 🚧 In Progress |
-| Attendance Tracking | Per-student attendance calendar with threshold warnings | ✅ Complete |
-| Material Management | Upload, compress, cache and download study materials offline | ✅ Complete |
-| Session Recording | Chunk-based audio recording with playback | 📋 Planned |
+| Capability | Description |
+|---|---|
+| **Audio-First Live Sessions** | WebRTC with automatic degradation: video → audio → text, based on real-time bandwidth detection |
+| **Offline-First Mobile App** | Study materials and quizzes cached locally via Isar. Quiz submissions queue offline and sync when connectivity returns |
+| **Multi-Tenant Architecture** | Each institution gets isolated data scoping. Teachers from Institution A cannot access Institution B data |
+| **PWA Web Dashboard** | Teachers and admins access the platform through a progressive web app — installable, cacheable, works on intermittent connections |
+| **Real-Time Collaboration** | Chat, whiteboard, polls, and hand-raise during live sessions via Socket.IO |
+| **Quiz Engine** | Offline-tolerant quiz taking with automatic grading and analytics |
 
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────┐
-│                    Digi-Kul Platform                 │
-├──────────────┬──────────────────┬───────────────────┤
-│   Flutter    │    Next.js 14    │   FastAPI Backend │
-│  Mobile App  │    Web App       │                   │
-│  (Students)  │ (Teachers +      │  REST API         │
-│              │  Admins)         │  Socket.IO        │
-│  Android     │  PWA             │  WebRTC Signaling │
-│  iOS         │                  │                   │
-└──────┬───────┴────────┬─────────┴────────┬──────────┘
-       │                │                  │
-       └────────────────┴──────────────────┘
-                        │
-              ┌─────────▼──────────┐
-              │     Supabase       │
-              │  PostgreSQL + RLS  │
-              │  File Storage      │
-              └────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                     Digi-Kul Platform                    │
+├───────────────┬──────────────────┬──────────────────────┤
+│   Flutter     │    Next.js       │   FastAPI Backend     │
+│  Mobile App   │    Web App       │                      │
+│  (Students)   │ (Teachers +      │  57 REST endpoints   │
+│               │  Admins)         │  Socket.IO events    │
+│  Android/iOS  │  PWA             │  WebRTC signaling    │
+└───────┬───────┴────────┬─────────┴──────────┬───────────┘
+        │                │                    │
+        └────────────────┴────────────────────┘
+                         │
+               ┌─────────▼──────────┐
+               │     Supabase       │
+               │  PostgreSQL + RLS  │
+               │  File Storage      │
+               └────────────────────┘
 ```
 
-- **mobile/** — Flutter student app (Android/iOS). Audio-first session joining, offline material access, quiz taking with sync queue.
-- **frontend/** — Next.js 14 teacher and admin web app. Session hosting, material uploads, quiz creation, analytics.
-- **backend/** — FastAPI server. REST API, Socket.IO real-time events, WebRTC signaling relay, email notifications.
-
-## Repository Structure
-
-```text
-digi-kul/
-├── backend/          # FastAPI (Python) — API + Socket.IO + WebRTC signaling
-├── frontend/         # Next.js 14 — Teacher & Admin web app (PWA)
-├── mobile/           # Flutter — Student mobile app (Android + iOS)
-├── docs/             # Architecture diagrams, API docs
-├── docker-compose.yml
-└── README.md
-```
-
-> The backend and frontend are currently being rebuilt from the ground up with production-grade architecture. The Flutter mobile app is actively under development.
+- **`mobile/`** — Flutter student app (Android/iOS). Audio-first session joining, offline material access, quiz taking with background sync queue.
+- **`frontend/`** — Next.js teacher and admin web app. Live session hosting with WebRTC, material uploads, quiz creation, analytics dashboard. Ships as a PWA.
+- **`backend/`** — FastAPI server. 57 REST API endpoints, Socket.IO real-time event layer, WebRTC signaling relay, JWT authentication, multi-tenant data scoping.
 
 ## Tech Stack
 
@@ -80,63 +63,73 @@ digi-kul/
 | Mobile | Flutter 3.19 + Dart 3.3 | Student app — Android & iOS |
 | Mobile State | Riverpod + Freezed | Reactive state + immutable models |
 | Mobile Storage | Isar 3.x | Offline-first local database |
-| Web Frontend | Next.js 14 (App Router) | Teacher & admin dashboard |
+| Web Frontend | Next.js (App Router, TypeScript) | Teacher & admin dashboard (PWA) |
 | Web Styling | Tailwind CSS + shadcn/ui | Component system |
-| Backend | FastAPI (Python 3.11) | REST API + async performance |
-| Real-time | Socket.IO + WebRTC | Live sessions + signaling |
+| Backend | FastAPI (Python 3.11) | Async REST API + 57 endpoints |
+| Real-Time | Socket.IO + WebRTC | Live sessions + signaling |
 | Database | Supabase (PostgreSQL) | Multi-tenant data + RLS |
 | File Storage | Supabase Storage | Materials + recordings |
-| Auth | JWT (httpOnly cookies) | Stateless, PWA-compatible |
-| Background | Workmanager (Flutter) | Offline quiz sync |
+| Auth | JWT (Bearer tokens) | Stateless authentication |
+| Background Sync | WorkManager (Flutter) | Offline quiz submission queue |
 | Notifications | Firebase Cloud Messaging | Push notifications |
 
 ## Getting Started
 
 ### Prerequisites
-- Flutter 3.19+
-- Python 3.11+
-- Node.js 18+
-- Docker + Docker Compose (optional but recommended)
-- Supabase account (free tier works)
+
+- Docker + Docker Compose
+- (Optional) Flutter 3.19+ for mobile development
+- (Optional) Node.js 18+ for frontend development
+- (Optional) Python 3.11+ for backend development
 
 ### Quick Start (Docker)
+
 ```bash
 git clone https://github.com/saivats/Digi-Kul.git
 cd Digi-Kul
-cp .env.example .env   # fill in Supabase + SMTP keys
+cp .env.example .env          # fill in Supabase + SMTP credentials
+cp frontend/.env.example frontend/.env.local
 docker-compose up --build
 ```
-Web portal and API: `http://localhost:5000`
-Health check: `http://localhost:5000/api/health`
 
-### Mobile App
-```bash
-cd mobile
-flutter pub get
-# Use --dart-define for local endpoints when needed
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000 --dart-define=SOCKET_URL=http://10.0.2.2:5000
-```
+| Service | URL |
+|---|---|
+| Web App | `http://localhost` (port 80 via nginx) |
+| API | `http://localhost/api/health` |
+| Backend Direct | `http://localhost:8000` |
+| Frontend Direct | `http://localhost:3000` |
 
 ### Manual Backend Setup
+
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+venv\Scripts\activate          # Linux/Mac: source venv/bin/activate
 pip install -r requirements.txt
-python main.py
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-### Production Checks
+### Manual Frontend Setup
+
 ```bash
-python -m py_compile main.py routes/*.py services/*.py middlewares/*.py utils/*.py
-cd mobile && flutter analyze
+cd frontend
+npm install
+npm run dev
 ```
 
-GitHub Actions runs the same backend syntax and Flutter analyzer checks on pushes and pull requests to `main`.
+### Mobile App
+
+```bash
+cd mobile
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000 \
+            --dart-define=SOCKET_URL=http://10.0.2.2:8000
+```
 
 ## Environment Variables
 
-Backend `.env`:
+### Backend (`backend/.env`)
+
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-anon-key
@@ -154,7 +147,16 @@ FRONTEND_URL=http://localhost:3000
 CORS_ORIGINS=http://localhost:3000
 ```
 
-Mobile `.env` (dart-define):
+### Frontend (`frontend/.env.local`)
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
+NEXT_PUBLIC_APP_NAME=Digi-Kul
+```
+
+### Mobile (`--dart-define`)
+
 ```env
 API_BASE_URL=http://10.0.2.2:8000
 SOCKET_URL=http://10.0.2.2:8000
@@ -162,41 +164,29 @@ SOCKET_URL=http://10.0.2.2:8000
 
 ## Roadmap
 
-**Phase 1 — Mobile Foundation** ✅
-- Isar offline database, JWT auth, Dio client, go_router navigation
-
-**Phase 2 — Core Student Features** ✅  
-- Dashboard, Materials (with offline download), Attendance tracking
-
-**Phase 3 — Live Sessions** 🚧
-- WebRTC audio-first, Socket.IO, bandwidth-adaptive mode switching
-
-**Phase 4 — Quiz Engine** 📋
-- Offline quiz taking, IndexedDB sync queue, analytics
-
-**Phase 5 — Backend (FastAPI)** 📋
-- Full REST API, WebRTC signaling, email notifications, multi-tenancy
-
-**Phase 6 — Web Frontend (Next.js)** 📋
-- Teacher dashboard, session hosting, material management, PWA
-
-**Phase 7 — Production** 📋
-- Docker Compose, CI/CD, deployment docs, performance testing on 3G
+- [x] **Mobile Foundation** — Isar offline database, JWT auth, Dio HTTP client, go_router navigation
+- [x] **Core Student Features** — Dashboard, materials (offline download), attendance tracking
+- [x] **Live Sessions** — WebRTC audio-first, Socket.IO, bandwidth-adaptive mode switching
+- [x] **Quiz Engine** — Offline quiz taking, background sync queue, analytics
+- [x] **Backend (FastAPI)** — 57 REST endpoints, WebRTC signaling, multi-tenant scoping, Socket.IO events
+- [x] **Web Frontend (Next.js)** — Teacher/admin dashboards, live session hosting, PWA
+- [x] **Docker Deployment** — Multi-service compose with nginx reverse proxy
+- [ ] **Performance Testing** — 3G throttled benchmarks, load testing
+- [ ] **Production Hardening** — Rate limiting, request logging, Sentry integration
+- [ ] **Video Support** — Selective video streaming for high-bandwidth students
 
 ## Contributing
 
-- Fork the repository
-- Create a feature branch: `git checkout -b feature/your-feature`
-- Commit with conventional commits: `feat:`, `fix:`, `docs:` etc.
-- Open a pull request against `main`
-- All PRs must pass `flutter analyze` (mobile) and equivalent linting for backend/frontend
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit with conventional commits: `feat:`, `fix:`, `docs:`
+4. Open a pull request against `main`
+5. All PRs must pass `flutter analyze` and `npx tsc --noEmit`
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-> Built to solve a real problem. Free to use, fork, and deploy for any educational institution.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
-> *Digi-Kul is an open-source initiative. "Digi" from Digital, "Kul" from Gurukul — the ancient Indian institution of learning. We believe every student deserves access to quality education, regardless of where they live or how fast their internet is.*
+> *Digi-Kul is an open-source initiative. "Digi" from Digital, "Kul" from Gurukul — the ancient Indian institution of learning. Built to solve a real problem: every student deserves access to quality education, regardless of where they live or how fast their internet is.*
