@@ -103,18 +103,18 @@ digi-kul/
 ```bash
 git clone https://github.com/saivats/Digi-Kul.git
 cd Digi-Kul
-cp backend/.env.example backend/.env   # fill in Supabase + SMTP keys
+cp .env.example .env   # fill in Supabase + SMTP keys
 docker-compose up --build
 ```
-Web app: `http://localhost:3000`  
-API docs: `http://localhost:8000/docs`
+Web portal and API: `http://localhost:5000`
+Health check: `http://localhost:5000/api/health`
 
 ### Mobile App
 ```bash
 cd mobile
 flutter pub get
-# Create mobile/.env with your API URL
-flutter run
+# Use --dart-define for local endpoints when needed
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000 --dart-define=SOCKET_URL=http://10.0.2.2:5000
 ```
 
 ### Manual Backend Setup
@@ -123,8 +123,16 @@ cd backend
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python main.py
 ```
+
+### Production Checks
+```bash
+python -m py_compile main.py routes/*.py services/*.py middlewares/*.py utils/*.py
+cd mobile && flutter analyze
+```
+
+GitHub Actions runs the same backend syntax and Flutter analyzer checks on pushes and pull requests to `main`.
 
 ## Environment Variables
 
