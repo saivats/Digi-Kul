@@ -84,7 +84,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="role-select">Role</Label>
-              <Select value={userType} onValueChange={setUserType}>
+              <Select value={userType} onValueChange={(val) => setUserType(val ?? "student")}>
                 <SelectTrigger id="role-select">
                   <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
