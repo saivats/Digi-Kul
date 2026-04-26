@@ -12,6 +12,8 @@ import 'core/storage/preferences.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  debugPrint("🚀 Starting Digi-Kul Initialization...");
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -24,20 +26,46 @@ Future<void> main() async {
     ),
   );
 
-  await Firebase.initializeApp();
-  await PreferencesService.init();
-  await IsarService.instance;
+  try {
+    debugPrint('DEBUG: Initializing Firebase...');
+    await Firebase.initializeApp().timeout(const Duration(seconds: 5));
+    debugPrint('DEBUG: Firebase initialized');
+  } catch (e) {
+    debugPrint('DEBUG: Firebase initialization failed (ignored): $e');
+  }
 
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  try {
+    debugPrint("💾 Initializing Preferences...");
+    await PreferencesService.init();
+    debugPrint("✅ Preferences Ready");
+  } catch (e) {
+    debugPrint("❌ Preferences init failed: $e");
+  }
 
-  await Workmanager().registerPeriodicTask(
-    refreshCacheTaskName,
-    refreshCacheTaskName,
-    frequency: const Duration(hours: 4),
-    constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-  );
+  try {
+    debugPrint('DEBUG: Initializing Isar...');
+    await IsarService.instance;
+    debugPrint('DEBUG: Isar initialized');
+  } catch (e) {
+    debugPrint('DEBUG: Isar initialization failed: $e');
+  }
 
+  try {
+    debugPrint("👷 Initializing Workmanager...");
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    await Workmanager().registerPeriodicTask(
+      refreshCacheTaskName,
+      refreshCacheTaskName,
+      frequency: const Duration(hours: 4),
+      constraints: Constraints(networkType: NetworkType.connected),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+    );
+    debugPrint("✅ Workmanager Ready");
+  } catch (e) {
+    debugPrint("⚠️ Workmanager init failed: $e");
+  }
+
+  debugPrint("🎨 Launching UI...");
   runApp(
     const ProviderScope(
       child: DigikulApp(),

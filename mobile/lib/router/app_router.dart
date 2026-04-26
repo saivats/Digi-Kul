@@ -15,23 +15,22 @@ import '../features/quiz/screens/quiz_result_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final notifier = ref.watch(authProvider.notifier);
 
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: _AuthListenable(ref),
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isAuth = authState.status == AuthStatus.authenticated;
-      final isLoading = authState.status == AuthStatus.loading ||
-          authState.status == AuthStatus.initial;
+      final isUnauth = authState.status == AuthStatus.unauthenticated;
       final location = state.uri.path;
 
       final publicRoutes = ['/splash', '/login', '/register'];
       final isPublicRoute = publicRoutes.contains(location);
 
-      if (isLoading && location == '/splash') return null;
-
+      if (isUnauth && location == '/splash') return '/login';
       if (!isAuth && !isPublicRoute) return '/login';
-
       if (isAuth && isPublicRoute) return '/dashboard';
 
       return null;
@@ -205,5 +204,15 @@ class _PlaceholderScreen extends StatelessWidget {
       appBar: AppBar(title: Text(title)),
       body: Center(child: Text(title)),
     );
+  }
+}
+
+class _AuthListenable extends ChangeNotifier {
+  _AuthListenable(Ref ref) {
+    ref.listen(authProvider, (previous, next) {
+      if (previous?.status != next.status) {
+        notifyListeners();
+      }
+    });
   }
 }

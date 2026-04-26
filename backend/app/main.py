@@ -19,6 +19,7 @@ from app.routers import (
     student,
     super_admin,
     teacher,
+    public,
 )
 from app.socket_manager import sio_app
 
@@ -48,6 +49,7 @@ app.include_router(quiz.router)
 app.include_router(student.router)
 app.include_router(teacher.router)
 app.include_router(recording.router)
+app.include_router(public.router)
 
 app.mount("/ws", sio_app)
 

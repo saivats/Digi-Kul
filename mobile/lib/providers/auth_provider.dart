@@ -31,11 +31,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
 
   Future<void> checkAuthStatus() async {
+    print('DEBUG: checkAuthStatus started');
     state = state.copyWith(status: AuthStatus.loading);
-    final isValid = await _authRepository.validateSession();
-    state = state.copyWith(
-      status: isValid ? AuthStatus.authenticated : AuthStatus.unauthenticated,
-    );
+    try {
+      print('DEBUG: Calling validateSession...');
+      final isValid = await _authRepository.validateSession();
+      print('DEBUG: validateSession result: $isValid');
+      state = state.copyWith(
+        status: isValid ? AuthStatus.authenticated : AuthStatus.unauthenticated,
+      );
+    } catch (e) {
+      print('DEBUG: validateSession error: $e');
+      _logger.e('Error checking auth status: $e');
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    }
+    print('DEBUG: checkAuthStatus finished. State status: ${state.status}');
   }
 
   Future<void> login({
