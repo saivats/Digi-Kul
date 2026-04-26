@@ -35,7 +35,7 @@ Future<void> main() async {
     refreshCacheTaskName,
     frequency: const Duration(hours: 4),
     constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingWorkPolicy.keep,
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
   );
 
   runApp(
