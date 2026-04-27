@@ -55,16 +55,16 @@ def list_teachers(
     current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin")),
 ):
     db = get_supabase()
-    institution_id = current_user["institution_id"]
-    if not institution_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
-    result = (
-        db.table("teachers")
-        .select("id, name, email, subject, department, phone, is_active, created_at, last_login")
-        .eq("institution_id", institution_id)
-        .order("name")
-        .execute()
-    )
+    institution_id = current_user.get("institution_id")
+    
+    query = db.table("teachers").select("id, name, email, subject, department, phone, is_active, created_at, last_login").order("name")
+    
+    if current_user["user_type"] not in ("super_admin", "admin"):
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
+        query = query.eq("institution_id", institution_id)
+        
+    result = query.execute()
     return {"success": True, "data": result.data or [], "error": None}
 
 
@@ -106,3 +106,46 @@ def toggle_active(
     new_status = not teacher.data[0]["is_active"]
     db.table("teachers").update({"is_active": new_status}).eq("id", teacher_id).execute()
     return {"success": True, "data": {"is_active": new_status}, "error": None}
+
+
+@router.patch("/{teacher_id}")
+def admin_update_teacher(
+    teacher_id: str,
+    updates: dict,
+    current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin")),
+):
+    db = get_supabase()
+    institution_id = current_user.get("institution_id")
+    
+    # Filter safe fields
+    safe_fields = {"name", "subject", "department", "phone", "is_active"}
+    filtered = {k: v for k, v in updates.items() if k in safe_fields}
+    if not filtered:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No updatable fields")
+        
+    query = db.table("teachers").update(filtered).eq("id", teacher_id)
+    if current_user["user_type"] not in ("super_admin", "admin"):
+        query = query.eq("institution_id", institution_id)
+        
+    result = query.execute()
+    if not result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+    return {"success": True, "data": result.data[0], "error": None}
+
+
+@router.delete("/{teacher_id}")
+def admin_delete_teacher(
+    teacher_id: str,
+    current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin")),
+):
+    db = get_supabase()
+    institution_id = current_user.get("institution_id")
+    
+    query = db.table("teachers").update({"is_active": False}).eq("id", teacher_id)
+    if current_user["user_type"] not in ("super_admin", "admin"):
+        query = query.eq("institution_id", institution_id)
+        
+    result = query.execute()
+    if not result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+    return {"success": True, "data": {"deleted": True}, "error": None}

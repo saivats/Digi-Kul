@@ -32,10 +32,17 @@ def create_lecture(
 
 @router.get("")
 def list_lectures(current_user: dict = Depends(get_current_user)):
-    institution_id = current_user["institution_id"]
+    institution_id = current_user.get("institution_id")
     if current_user["user_type"] == "teacher":
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
         data = lecture_service.list_lectures_for_teacher(current_user["user_id"], institution_id)
+    elif current_user["user_type"] in ("super_admin", "admin"):
+        db = lecture_service.get_supabase()
+        data = db.table("lectures").select("*").eq("status", "scheduled").order("scheduled_time").execute().data or []
     else:
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
         data = lecture_service.get_active_lectures(institution_id)
     return {"success": True, "data": data, "error": None}
 

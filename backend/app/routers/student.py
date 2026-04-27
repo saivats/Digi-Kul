@@ -54,16 +54,16 @@ def list_students(
     current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin", "teacher")),
 ):
     db = get_supabase()
-    institution_id = current_user["institution_id"]
-    if not institution_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
-    result = (
-        db.table("students")
-        .select("id, name, email, student_id, phone, is_active, created_at, last_login")
-        .eq("institution_id", institution_id)
-        .order("name")
-        .execute()
-    )
+    institution_id = current_user.get("institution_id")
+    
+    query = db.table("students").select("id, name, email, student_id, phone, is_active, created_at, last_login").order("name")
+    
+    if current_user["user_type"] not in ("super_admin", "admin"):
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
+        query = query.eq("institution_id", institution_id)
+        
+    result = query.execute()
     return {"success": True, "data": result.data or [], "error": None}
 
 

@@ -73,6 +73,24 @@ def delete_cohort(cohort_id: str, institution_id: str) -> bool:
     return bool(result.data)
 
 
+def update_cohort(cohort_id: str, institution_id: str, updates: dict) -> dict | None:
+    db = get_supabase()
+    # Filter out sensitive or non-updatable fields
+    safe_fields = {"name", "description", "enrollment_code", "max_students", "academic_year", "semester", "start_date", "end_date", "is_active"}
+    filtered = {k: v for k, v in updates.items() if k in safe_fields}
+    if not filtered:
+        return None
+    
+    result = (
+        db.table("cohorts")
+        .update(filtered)
+        .eq("id", cohort_id)
+        .eq("institution_id", institution_id)
+        .execute()
+    )
+    return result.data[0] if result.data else None
+
+
 def get_cohort_students(cohort_id: str, institution_id: str) -> list[dict]:
     db = get_supabase()
     enrollments = (

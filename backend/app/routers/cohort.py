@@ -14,23 +14,31 @@ router = APIRouter(prefix="/api/cohorts", tags=["Cohorts"])
 
 @router.get("")
 def list_cohorts(current_user: dict = Depends(get_current_user)):
-    institution_id = current_user["institution_id"]
-    if not institution_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
+    institution_id = current_user.get("institution_id")
 
     if current_user["user_type"] == "teacher":
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
         data = cohort_service.get_teacher_cohorts(current_user["user_id"], institution_id)
     elif current_user["user_type"] == "student":
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
         data = cohort_service.get_student_cohorts(current_user["user_id"], institution_id)
+    elif current_user["user_type"] in ("super_admin", "admin"):
+        db = cohort_service.get_supabase()
+        data = db.table("cohorts").select("*").eq("is_active", True).order("created_at", desc=True).execute().data or []
     else:
+        if not institution_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No institution context")
         data = cohort_service.list_cohorts_for_institution(institution_id)
+        
     return {"success": True, "data": data, "error": None}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_cohort(
     body: CreateCohortRequest,
-    current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin")),
+    current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin", "teacher")),
 ):
     institution_id = current_user["institution_id"]
     if not institution_id:
@@ -50,6 +58,11 @@ def create_cohort(
     )
     if not data:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create cohort")
+    
+    # If a teacher creates a cohort, assign them to it immediately
+    if current_user["user_type"] == "teacher" and "id" in data:
+        cohort_service.assign_teacher_to_cohort(data["id"], current_user["user_id"], institution_id)
+
     return {"success": True, "data": data, "error": None}
 
 
@@ -59,6 +72,19 @@ def get_cohort(cohort_id: str, current_user: dict = Depends(get_current_user)):
     data = cohort_service.get_cohort(cohort_id, institution_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cohort not found")
+    return {"success": True, "data": data, "error": None}
+
+
+@router.patch("/{cohort_id}")
+def update_cohort(
+    cohort_id: str,
+    updates: dict,
+    current_user: dict = Depends(require_role("institution_admin", "admin", "super_admin")),
+):
+    institution_id = current_user["institution_id"]
+    data = cohort_service.update_cohort(cohort_id, institution_id, updates)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cohort not found or no updatable fields")
     return {"success": True, "data": data, "error": None}
 
 

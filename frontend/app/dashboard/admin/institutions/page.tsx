@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { listInstitutions } from "@/lib/api";
+import { CreateInstitutionDialog } from "@/components/CreateInstitutionDialog";
+import { EditInstitutionDialog } from "@/components/EditInstitutionDialog";
 
 export default function AdminInstitutionsPage() {
   const query = useQuery({
@@ -14,11 +16,14 @@ export default function AdminInstitutionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Institutions</h1>
-        <p className="text-muted-foreground mt-1">
-          All registered institutions on the platform.
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Institutions</h1>
+          <p className="text-muted-foreground mt-1">
+            All registered institutions on the platform.
+          </p>
+        </div>
+        <CreateInstitutionDialog />
       </div>
 
       <Card className="border-border/50">
@@ -31,6 +36,7 @@ export default function AdminInstitutionsPage() {
                   <th className="text-left p-4 font-medium text-muted-foreground">Domain</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Contact</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
+                  <th className="text-right p-4 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -58,6 +64,9 @@ export default function AdminInstitutionsPage() {
                         >
                           {inst.is_active ? "Active" : "Inactive"}
                         </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <EditInstitutionDialog institution={inst} />
                       </td>
                     </tr>
                   )

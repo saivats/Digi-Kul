@@ -31,13 +31,18 @@ function getNavLinks(userType: string) {
       { href: `${base}/quizzes`, label: "Quizzes" },
     ];
   }
-  return [
+  const adminLinks = [
     ...common,
-    { href: `${base}/institutions`, label: "Institutions" },
     { href: `${base}/teachers`, label: "Teachers" },
     { href: `${base}/students`, label: "Students" },
     { href: `${base}/cohorts`, label: "Cohorts" },
   ];
+
+  if (userType === "super_admin" || userType === "admin") {
+    adminLinks.splice(1, 0, { href: `${base}/institutions`, label: "Institutions" });
+  }
+
+  return adminLinks;
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -51,6 +56,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUser(u);
   }, [router]);
 
@@ -85,19 +91,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </Link>
             <Separator orientation="vertical" className="h-6" />
             <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    pathname === link.href
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link, idx) => {
+                const isActive = idx === 0
+                  ? pathname === link.href
+                  : pathname.startsWith(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
 

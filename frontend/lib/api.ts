@@ -65,6 +65,25 @@ export async function getCohort(cohortId: string) {
   return data;
 }
 
+export async function createCohort(body: {
+  name: string;
+  description?: string;
+  enrollment_code: string;
+  max_students?: number;
+  academic_year?: string;
+  semester?: number;
+  start_date?: string;
+  end_date?: string;
+}) {
+  const { data } = await api.post("/api/cohorts", body);
+  return data;
+}
+
+export async function getCohortStudents(cohortId: string) {
+  const { data } = await api.get(`/api/cohorts/${cohortId}/students`);
+  return data;
+}
+
 export async function listLectures() {
   const { data } = await api.get("/api/lectures");
   return data;
@@ -123,6 +142,21 @@ export async function getStudentProfile() {
 
 export async function listInstitutions() {
   const { data } = await api.get("/api/institutions");
+  return data;
+}
+
+export async function createInstitution(body: any) {
+  const { data } = await api.post("/api/institutions", body);
+  return data;
+}
+
+export async function updateInstitution(id: string, body: any) {
+  const { data } = await api.patch(`/api/institutions/${id}`, body);
+  return data;
+}
+
+export async function deleteInstitution(id: string) {
+  const { data } = await api.delete(`/api/institutions/${id}`);
   return data;
 }
 

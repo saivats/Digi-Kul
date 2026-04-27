@@ -17,7 +17,12 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     smtp_sender_email: str = "noreply@digikul.in"
 
-    cors_origins: str = "http://localhost:3000,http://localhost:8000"
+    cors_origins: str = (
+        "http://localhost,http://localhost:80,"
+        "http://localhost:3000,http://localhost:8000,"
+        "http://127.0.0.1,http://127.0.0.1:80,"
+        "http://127.0.0.1:3000,http://127.0.0.1:8000"
+    )
 
     upload_folder: str = "uploads"
     compressed_folder: str = "compressed"

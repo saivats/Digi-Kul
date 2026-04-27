@@ -135,7 +135,9 @@ class AuthRepository {
     try {
       final response = await _api.getInstitutions();
       final data = response.data as Map<String, dynamic>;
-      final institutions = (data['institutions'] as List<dynamic>?)
+      // Backend returns {"success": true, "data": [...]}
+      final institutionsList = data['data'] ?? data['institutions'];
+      final institutions = (institutionsList as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           [];
       await PreferencesService.cacheInstitutions(institutions);

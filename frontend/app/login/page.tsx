@@ -48,9 +48,28 @@ export default function LoginPage() {
       router.push(getDashboardPath(data.user_type));
     },
     onError: (error: unknown) => {
-      const message =
-        (error as { response?: { data?: { detail?: string } } })?.response
-          ?.data?.detail || "Login failed. Please check your credentials.";
+      const ax = error as {
+        message?: string;
+        response?: { data?: { detail?: unknown } };
+      };
+      const detail = ax.response?.data?.detail;
+      let message: string;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item) =>
+            typeof item === "object" && item && "msg" in item
+              ? String((item as { msg: string }).msg)
+              : JSON.stringify(item)
+          )
+          .join("; ");
+      } else if (ax.message === "Network Error") {
+        message =
+          "Cannot reach the API (network/CORS). Check NEXT_PUBLIC_API_URL, backend port, and CORS for your browser URL.";
+      } else {
+        message = "Login failed. Please check your credentials.";
+      }
       toast.error(message);
     },
   });

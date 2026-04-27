@@ -58,7 +58,7 @@ class _InstitutionSelectorState extends ConsumerState<InstitutionSelector> {
     }
 
     return DropdownButtonFormField<String>(
-      initialValue: _selectedId,
+      value: _selectedId,
       decoration: const InputDecoration(
         labelText: 'Institution',
         prefixIcon: Icon(Icons.school_outlined),

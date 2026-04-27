@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listCohorts } from "@/lib/api";
 
+import { CreateCohortDialog } from "@/components/CreateCohortDialog";
+
 export default function AdminCohortsPage() {
   const query = useQuery({
     queryKey: ["admin", "cohorts"],
@@ -15,11 +17,14 @@ export default function AdminCohortsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cohorts</h1>
-        <p className="text-muted-foreground mt-1">
-          All cohorts in your institution.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Cohorts</h1>
+          <p className="text-muted-foreground mt-1">
+            All cohorts in your institution.
+          </p>
+        </div>
+        <CreateCohortDialog />
       </div>
 
       {cohorts.length === 0 ? (
