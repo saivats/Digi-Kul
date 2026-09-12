@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'app_text_styles.dart';
 
 class AppTheme {
   AppTheme._();
@@ -9,15 +9,39 @@ class AppTheme {
   static ThemeData get light => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorSchemeSeed: AppColors.primary,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          surface: AppColors.card,
+          error: AppColors.error,
+          brightness: Brightness.light,
+        ),
         scaffoldBackgroundColor: AppColors.surface,
-        fontFamily: GoogleFonts.inter().fontFamily,
-        appBarTheme: const AppBarTheme(
+        fontFamily: AppTextStyles.bodyFamily,
+        textTheme: TextTheme(
+          displayLarge: AppTextStyles.displayLarge(color: AppColors.textPrimary),
+          displayMedium: AppTextStyles.displayMedium(color: AppColors.textPrimary),
+          headlineLarge: AppTextStyles.headlineLarge(color: AppColors.textPrimary),
+          headlineMedium: AppTextStyles.headlineMedium(color: AppColors.textPrimary),
+          headlineSmall: AppTextStyles.headlineSmall(color: AppColors.textPrimary),
+          titleLarge: AppTextStyles.titleLarge(color: AppColors.textPrimary),
+          titleMedium: AppTextStyles.titleMedium(color: AppColors.textPrimary),
+          bodyLarge: AppTextStyles.bodyLarge(color: AppColors.textPrimary),
+          bodyMedium: AppTextStyles.bodyMedium(color: AppColors.textPrimary),
+          bodySmall: AppTextStyles.bodySmall(color: AppColors.textSecondary),
+          labelLarge: AppTextStyles.labelLarge(color: AppColors.textPrimary),
+          labelMedium: AppTextStyles.labelMedium(color: AppColors.textSecondary),
+          labelSmall: AppTextStyles.labelSmall(color: AppColors.textSecondary),
+        ),
+        appBarTheme: AppBarTheme(
           elevation: 0,
           centerTitle: false,
           backgroundColor: Colors.white,
           foregroundColor: AppColors.textPrimary,
           surfaceTintColor: Colors.transparent,
+          titleTextStyle: AppTextStyles.titleLarge(color: AppColors.textPrimary),
+          shape: const Border(bottom: BorderSide(color: AppColors.divider)),
         ),
         cardTheme: CardThemeData(
           elevation: 0,
@@ -35,10 +59,7 @@ class AppTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            textStyle: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            textStyle: AppTextStyles.button(),
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
@@ -74,17 +95,29 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.error),
           ),
-          hintStyle: GoogleFonts.inter(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
+          hintStyle: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textSecondary,
-          elevation: 8,
+          selectedLabelStyle: AppTextStyles.labelSmall(),
+          unselectedLabelStyle: AppTextStyles.labelSmall(),
+          elevation: 0,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: AppColors.primarySoft,
+          elevation: 0,
+          height: 68,
+          labelTextStyle: WidgetStatePropertyAll(AppTextStyles.labelSmall()),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.primarySoft,
+          labelStyle: AppTextStyles.labelMedium(color: AppColors.primary),
+          side: BorderSide.none,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
@@ -101,9 +134,16 @@ class AppTheme {
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorSchemeSeed: AppColors.primaryLight,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primaryLight,
+          secondary: AppColors.accent,
+          surface: AppColors.darkCard,
+          error: AppColors.error,
+          brightness: Brightness.dark,
+        ),
         scaffoldBackgroundColor: AppColors.darkSurface,
-        fontFamily: GoogleFonts.inter().fontFamily,
+        fontFamily: AppTextStyles.bodyFamily,
         appBarTheme: const AppBarTheme(
           elevation: 0,
           centerTitle: false,
@@ -116,7 +156,7 @@ class AppTheme {
           color: AppColors.darkCard,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            side: const BorderSide(color: AppColors.darkBorder),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(

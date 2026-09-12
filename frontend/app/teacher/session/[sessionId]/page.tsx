@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Peer from "simple-peer";
 import { toast } from "sonner";
 import { Circle, Hand, Mic, MicOff, PhoneOff, Square } from "lucide-react";
@@ -27,6 +27,7 @@ import {
 export default function TeacherSessionPage() {
   const params = useParams();
   const router = useRouter();
+  const qc = useQueryClient();
   const sessionId = params.sessionId as string;
 
   // Read auth once — getUser() returns a new object per call, and using it
@@ -114,6 +115,9 @@ export default function TeacherSessionPage() {
       onWebrtcAnswer: (from, sdp) => peersRef.current.get(from)?.signal(sdp as Peer.SignalData),
       onWebrtcIceCandidate: (from, cand) => peersRef.current.get(from)?.signal(cand as Peer.SignalData),
       onSessionEnded: () => {
+        // The server also marks the lecture ended; drop the cached list so
+        // the lectures page doesn't keep showing it as live.
+        qc.invalidateQueries({ queryKey: ["teacher", "lectures"] });
         toast.success("Session ended");
         router.push("/dashboard/teacher/lectures");
       },

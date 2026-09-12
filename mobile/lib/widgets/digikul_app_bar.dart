@@ -32,18 +32,19 @@ class DigikulAppBar extends StatelessWidget implements PreferredSizeWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: const Icon(
-                    Icons.school_rounded,
-                    size: 20,
-                    color: Colors.white,
+                    Icons.menu_book_rounded,
+                    size: 18,
+                    color: AppColors.accent,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'Digi-Kul',
-                  style: AppTextStyles.titleLarge(color: AppColors.primary),
+                  style: AppTextStyles.titleLarge(color: AppColors.textPrimary)
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
             )

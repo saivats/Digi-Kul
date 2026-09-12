@@ -53,7 +53,8 @@ export function CreateInstitutionDialog() {
       setError("Name and Domain are required");
       return;
     }
-    mutation.mutate(formData);
+    // Optional fields must be omitted, not sent as "" (EmailStr rejects "").
+    mutation.mutate({ ...formData, contact_email: formData.contact_email.trim() || undefined });
   };
 
   return (

@@ -70,7 +70,7 @@ export function EditInstitutionDialog({ institution }: EditInstitutionDialogProp
       setError("Name and Domain are required");
       return;
     }
-    updateMutation.mutate(formData);
+    updateMutation.mutate({ ...formData, contact_email: formData.contact_email.trim() || undefined });
   };
 
   const handleDelete = () => {
@@ -83,8 +83,8 @@ export function EditInstitutionDialog({ institution }: EditInstitutionDialogProp
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="sm">
-            <Edit className="h-4 w-4" />
+          <Button variant="outline" size="sm" aria-label={`Edit ${institution.name}`}>
+            <Edit data-icon="inline-start" /> Edit
           </Button>
         }
       />

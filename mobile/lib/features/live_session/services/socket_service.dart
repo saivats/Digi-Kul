@@ -94,6 +94,10 @@ class SocketService {
           // Also sent on the handshake so the server can pre-seed identity;
           // the explicit `authenticate` event below is what the contract needs.
           .setAuth({'token': _authToken})
+          // io.io() caches the Manager per origin; without forceNew a second
+          // session in the same app run would reuse the old (disposed)
+          // manager and its stale auth payload.
+          .enableForceNew()
           .enableAutoConnect()
           .enableReconnection()
           .setReconnectionDelay(1000)

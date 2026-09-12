@@ -3,85 +3,49 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/date_utils.dart';
 import '../../../models/lecture/lecture_dto.dart';
 
-class LiveLectureBanner extends StatefulWidget {
-  const LiveLectureBanner({super.key, required this.lecture});
+/// "LIVE NOW" card. Static (no animation controller) on purpose — this
+/// runs on low-end Android; the only motion in the system is the live dot
+/// on the web, and here even that is a plain circle.
+class LiveLectureBanner extends StatelessWidget {
+  const LiveLectureBanner({
+    super.key,
+    required this.lecture,
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
+  });
 
   final LectureDto lecture;
-
-  @override
-  State<LiveLectureBanner> createState() => _LiveLectureBannerState();
-}
-
-class _LiveLectureBannerState extends State<LiveLectureBanner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
+  final EdgeInsetsGeometry margin;
 
   @override
   Widget build(BuildContext context) {
+    final startedAgo = AppDateUtils.timeAgo(lecture.scheduledTime);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: margin,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.success.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: AppColors.live,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => context.push('/session/${widget.lecture.id}'),
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.push(
+            '/session/${lecture.sessionId ?? lecture.id}',
+            extra: lecture.title,
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) => Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white
-                          .withValues(alpha: _pulseAnimation.value),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white
-                              .withValues(alpha: _pulseAnimation.value * 0.5),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -91,36 +55,45 @@ class _LiveLectureBannerState extends State<LiveLectureBanner>
                     children: [
                       Text(
                         'LIVE NOW',
-                        style: AppTextStyles.labelSmall(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.lecture.title,
-                        style: AppTextStyles.titleMedium(color: Colors.white),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.eyebrow(color: Colors.white)
+                            .copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        widget.lecture.teacherName,
-                        style: AppTextStyles.bodySmall(color: Colors.white70),
+                        lecture.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.titleLarge(color: Colors.white)
+                            .copyWith(fontSize: 15),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (lecture.teacherName.isNotEmpty) lecture.teacherName,
+                          'started $startedAgo',
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall(
+                          color: const Color(0xFFFFE4E6),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     'Join',
-                    style: AppTextStyles.button(color: AppColors.success),
+                    style: AppTextStyles.button(color: AppColors.live)
+                        .copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

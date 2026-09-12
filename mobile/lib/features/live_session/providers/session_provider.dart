@@ -12,11 +12,9 @@ import '../services/webrtc_service.dart';
 
 final sessionProvider = StateNotifierProvider.family
     .autoDispose<SessionNotifier, SessionState, SessionParams>(
-  (ref, params) {
-    final notifier = SessionNotifier(params: params);
-    ref.onDispose(() => notifier.dispose());
-    return notifier;
-  },
+  // StateNotifierProvider already calls notifier.dispose() on dispose; an
+  // extra ref.onDispose would dispose it twice (StateNotifier asserts).
+  (ref, params) => SessionNotifier(params: params),
 );
 
 class SessionNotifier extends StateNotifier<SessionState> {
@@ -29,7 +27,14 @@ class SessionNotifier extends StateNotifier<SessionState> {
   final SessionParams _params;
   final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
 
-  late final SocketService _socketService;
+  // Lazily built so dispose() (which may run while runProbe is still
+  // awaiting) never hits a LateInitializationError.
+  late final SocketService _socketService = SocketService(
+    sessionId: _params.sessionId,
+    authToken: _params.authToken,
+    studentId: _params.studentId,
+    studentName: _params.studentName,
+  );
   WebRtcService? _webRtcService;
   BandwidthMonitor? _bandwidthMonitor;
   String _teacherUserId = 'teacher';
@@ -42,14 +47,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
     );
 
     final bandwidth = await _bandwidthMonitor!.runProbe();
+    if (!mounted) return; // screen left before the probe finished
     state = state.copyWith(estimatedBandwidthKbps: bandwidth);
-
-    _socketService = SocketService(
-      sessionId: _params.sessionId,
-      authToken: _params.authToken,
-      studentId: _params.studentId,
-      studentName: _params.studentName,
-    );
 
     _subscriptions.addAll([
       _socketService.onConnectionStatus.listen((status) {
@@ -121,6 +120,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
     await _socketService.connect();
 
+    if (!mounted) return;
     _bandwidthMonitor!.startPeriodicMonitoring();
   }
 
@@ -165,6 +165,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
   }
 
   void _onModeRecommendation(SessionMode mode) {
+    if (!mounted) return;
     if (mode != state.currentMode) {
       _logger.i('Bandwidth recommends mode: ${mode.name}');
       state = state.copyWith(

@@ -17,26 +17,23 @@ class OfflineBanner extends ConsumerWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.15),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.warning.withValues(alpha: 0.3),
-          ),
-        ),
+      decoration: const BoxDecoration(
+        color: AppColors.offlineSoft,
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.wifi_off_rounded,
             size: 18,
-            color: AppColors.warning,
+            color: AppColors.offline,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'You are offline. Showing cached data.',
-              style: AppTextStyles.labelMedium(color: AppColors.warning),
+              'Offline — showing saved data. Changes sync when you\'re back.',
+              style: AppTextStyles.labelMedium(color: AppColors.offline)
+                  .copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],

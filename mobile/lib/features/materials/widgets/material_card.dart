@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:open_file/open_file.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -20,17 +22,16 @@ class MaterialCard extends ConsumerWidget {
     final isDownloading = downloadProgress.containsKey(material.id);
     final progress = downloadProgress[material.id] ?? 0.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.card,
+    return Material(
+      color: isDark ? AppColors.darkCard : AppColors.card,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        onTap: () => context.go('/materials/${material.id}'),
+        child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.divider),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -99,7 +100,7 @@ class MaterialCard extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => openMaterialFile(context, material),
                   icon: const Icon(Icons.open_in_new_rounded, size: 16),
                   label: const Text('Open'),
                   style: OutlinedButton.styleFrom(
@@ -114,11 +115,7 @@ class MaterialCard extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    ref
-                        .read(downloadProgressProvider.notifier)
-                        .startDownload(material);
-                  },
+                  onPressed: () => downloadMaterialWithFeedback(context, ref, material),
                   icon: const Icon(Icons.download_rounded, size: 16),
                   label: const Text('Download'),
                   style: OutlinedButton.styleFrom(
@@ -131,6 +128,54 @@ class MaterialCard extends ConsumerWidget {
               ),
           ],
         ),
+      ),
+    ),
+      ),
+    );
+  }
+}
+
+
+/// Opens a downloaded file with the platform viewer and explains failures.
+Future<void> openMaterialFile(BuildContext context, MaterialDto material) async {
+  final path = material.localFilePath;
+  if (path == null || path.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Download the file first.')),
+    );
+    return;
+  }
+  final result = await OpenFile.open(path);
+  if (!context.mounted) return;
+  if (result.type != ResultType.done) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.type == ResultType.noAppToOpen
+            ? 'No app on this phone can open ${material.fileType.toUpperCase()} files.'
+            : 'Could not open file: ${result.message}'),
+      ),
+    );
+  }
+}
+
+/// Starts a download and reports success/failure in a snackbar.
+Future<void> downloadMaterialWithFeedback(
+  BuildContext context,
+  WidgetRef ref,
+  MaterialDto material,
+) async {
+  try {
+    await ref.read(downloadProgressProvider.notifier).startDownload(material);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved ${material.title} for offline use.')),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Download failed: $e'),
+        backgroundColor: AppColors.error,
       ),
     );
   }

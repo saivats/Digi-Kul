@@ -18,9 +18,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url: string = error.config?.url ?? "";
+    // A 401 from the login/refresh endpoints is a bad credential, not an
+    // expired session — let the form show the error instead of reloading.
+    const isAuthCall = url.includes("/api/auth/login") || url.includes("/api/auth/refresh");
+    if (status === 401 && !isAuthCall) {
       clearAuth();
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
       }
     }

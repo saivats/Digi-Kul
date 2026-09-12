@@ -32,7 +32,7 @@ import redis.asyncio as aioredis
 import socketio
 
 from app.config import get_settings
-from app.services import attendance_service, recording_service
+from app.services import attendance_service, lecture_service, recording_service
 from app.utils.security import decode_access_token
 
 logger = logging.getLogger("digi-kul.socket")
@@ -435,12 +435,28 @@ async def create_session(sid, data):
         await _error(sid, "create_session", "Session belongs to another teacher")
         return
 
+    # The room id is the lecture id. Resolve the lecture so the session knows
+    # its cohort (recordings/attendance need it) and so only the lecture's
+    # own teacher can open its room.
+    lecture_id = data.get("lecture_id") or session_id
+    lecture: dict | None = None
+    try:
+        lecture = await asyncio.to_thread(
+            lecture_service.get_lecture, lecture_id, user.get("institution_id") or ""
+        )
+    except Exception:
+        logger.warning("Lecture lookup failed for %s", lecture_id, exc_info=True)
+    if lecture and lecture.get("teacher_id") not in (None, "", user["user_id"]):
+        await _error(sid, "create_session", "This lecture belongs to another teacher")
+        return
+
     await session_store.create_session(session_id, {
         "teacher_id": user["user_id"],
         "teacher_name": user.get("user_name", ""),
-        "lecture_id": data.get("lecture_id") or session_id,
-        "cohort_id": data.get("cohort_id") or (existing or {}).get("cohort_id", ""),
-        "institution_id": user.get("institution_id", ""),
+        "lecture_id": lecture_id,
+        "lecture_title": (lecture or {}).get("title", ""),
+        "cohort_id": data.get("cohort_id") or (lecture or {}).get("cohort_id") or (existing or {}).get("cohort_id", ""),
+        "institution_id": user.get("institution_id") or (lecture or {}).get("institution_id", ""),
         "started_at": data.get("started_at") or (existing or {}).get("started_at", ""),
         "recording_id": (existing or {}).get("recording_id", ""),
     })
@@ -541,6 +557,14 @@ async def end_session(sid, data):
 
     await sio.emit("session_ended", {"session_id": session_id}, room=session_id)
     await session_store.remove_session(session_id)
+    # Keep the REST lecture in step so dashboards stop showing it as live.
+    lecture_id = session.get("lecture_id") or session_id
+    try:
+        await asyncio.to_thread(
+            lecture_service.set_lecture_status, lecture_id, session.get("institution_id") or "", "ended"
+        )
+    except Exception:
+        logger.warning("Could not mark lecture %s ended", lecture_id, exc_info=True)
     logger.info("Session ended: %s", session_id)
 
 
@@ -679,15 +703,19 @@ async def start_recording(sid, data):
     if session.get("recording_id"):
         await _error(sid, "start_recording", "Recording already in progress")
         return
+    if not session.get("cohort_id") or not session.get("institution_id"):
+        await _error(sid, "start_recording", "This session is not linked to a lecture, so it cannot be recorded")
+        return
 
     try:
-        recording = recording_service.create_recording(
+        recording = await asyncio.to_thread(
+            recording_service.create_recording,
             institution_id=session.get("institution_id", ""),
             cohort_id=session.get("cohort_id", ""),
             lecture_id=session.get("lecture_id", ""),
             teacher_id=user["user_id"],
             session_id=session_id,
-            title=data.get("title") or f"Recording - {session_id}",
+            title=data.get("title") or session.get("lecture_title") or f"Recording - {session_id}",
         )
     except Exception as exc:
         logger.exception("create_recording failed for session %s", session_id)
@@ -719,7 +747,7 @@ async def stop_recording(sid, data):
 
     try:
         participants = [p["user_id"] for p in await session_store.get_participants(session_id)]
-        finalized = recording_service.finalize_recording(recording_id, participants=participants)
+        finalized = await asyncio.to_thread(recording_service.finalize_recording, recording_id, participants=participants)
     except Exception as exc:
         logger.exception("finalize_recording failed for %s", recording_id)
         await _error(sid, "stop_recording", f"Could not finalize recording: {exc}")

@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../core/constants/api_constants.dart';
 import '../core/network/api_client.dart';
 import '../models/common/api_response.dart';
 import '../models/material/cached_material.dart';
@@ -45,8 +46,11 @@ class MaterialRepository {
       await saveDir.create(recursive: true);
     }
 
+    // Cached DTOs (MaterialDto.fromCached) carry no download_url, so fall
+    // back to the backend's file endpoint instead of downloading baseUrl.
+    final url = material.downloadUrl;
     await _api.downloadMaterial(
-      material.downloadUrl ?? '',
+      (url == null || url.isEmpty) ? ApiConstants.materialFile(material.id) : url,
       savePath,
       onReceiveProgress: (received, total) {
         if (total > 0 && onProgress != null) {

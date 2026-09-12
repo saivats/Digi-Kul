@@ -9,14 +9,14 @@ import '../features/auth/screens/splash_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/live_session/screens/live_session_screen.dart';
 import '../features/materials/screens/materials_screen.dart';
+import '../features/materials/screens/material_detail_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/quiz/screens/quiz_attempt_screen.dart';
 import '../features/quiz/screens/quiz_list_screen.dart';
 import '../features/quiz/screens/quiz_result_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final notifier = ref.watch(authProvider.notifier);
-
   return GoRouter(
     initialLocation: '/splash',
     refreshListenable: _AuthListenable(ref),
@@ -71,8 +71,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: ':materialId',
                 name: 'materialViewer',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Material Viewer'),
+                builder: (context, state) => MaterialDetailScreen(
+                  materialId: state.pathParameters['materialId']!,
+                ),
               ),
             ],
           ),
@@ -91,8 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             name: 'profile',
-            builder: (context, state) =>
-                const _PlaceholderScreen(title: 'Profile'),
+            builder: (context, state) => const ProfileScreen(),
           ),
         ],
       ),
@@ -118,6 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'liveSession',
         builder: (context, state) => LiveSessionScreen(
           sessionId: state.pathParameters['sessionId']!,
+          title: state.extra is String ? state.extra as String : null,
         ),
       ),
     ],
@@ -190,20 +191,6 @@ class _ShellScaffold extends StatelessWidget {
       case 4:
         context.go('/profile');
     }
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text(title)),
-    );
   }
 }
 

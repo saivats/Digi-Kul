@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import socketio
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from postgrest.exceptions import APIError as PostgrestAPIError
 
 from app.config import get_settings
 from app.routers import (
@@ -66,6 +68,28 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Database errors (FK/unique violations, bad uuids) used to bubble up as
+# opaque 500s. Map the common Postgres codes to clean 4xx JSON so clients can
+# show a real message. Everything else stays a 500 (and is logged).
+_PG_STATUS = {"23505": 409, "23503": 400, "23502": 400, "22P02": 400, "23514": 400}
+
+
+@fastapi_app.exception_handler(PostgrestAPIError)
+async def _postgrest_error(_request: Request, exc: PostgrestAPIError):
+    payload = exc.args[0] if exc.args and isinstance(exc.args[0], dict) else {}
+    code = str(payload.get("code") or "")
+    status_code = _PG_STATUS.get(code, 500)
+    message = payload.get("message") or "Database error"
+    details = payload.get("details")
+    if code == "23505":
+        message = "Already exists" + (f": {details}" if details else "")
+    elif code == "23503":
+        message = "Related record not found" + (f": {details}" if details else "")
+    if status_code == 500:
+        logger.error("Unhandled database error: %s", payload)
+    return JSONResponse(status_code=status_code, content={"success": False, "data": None, "error": message, "detail": message})
+
 
 fastapi_app.include_router(auth.router)
 fastapi_app.include_router(institution.router)

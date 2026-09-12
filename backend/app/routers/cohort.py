@@ -54,7 +54,10 @@ def create_cohort(
         semester=body.semester,
         start_date=body.start_date,
         end_date=body.end_date,
-        created_by=current_user["user_id"],
+        # cohorts.created_by references institution_admins(id); a teacher's
+        # id would violate the FK (was a 500). Teachers are linked through
+        # teacher_cohorts below instead.
+        created_by=current_user["user_id"] if current_user["user_type"] == "institution_admin" else None,
     )
     if not data:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create cohort")
