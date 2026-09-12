@@ -35,3 +35,4 @@ mobile/.env
 
 # Secrets
 backend/.env
+backend/.venv

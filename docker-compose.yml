@@ -1,11 +1,30 @@
 services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      # Overrides whatever is in backend/.env so every replica shares the
+      # compose-internal Redis. Scale with: docker compose up --scale backend=N
+      REDIS_URL: redis://redis:6379/0
+    # --workers 2: the live-session layer is Redis-backed, so multiple
+    # uvicorn workers (or replicas) are safe.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips="*"
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]

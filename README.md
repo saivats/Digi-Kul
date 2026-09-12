@@ -87,9 +87,10 @@ Digi-Kul is an open-source, audio-first educational platform designed from the g
 ```bash
 git clone https://github.com/saivats/Digi-Kul.git
 cd Digi-Kul
-cp .env.example .env          # fill in Supabase + SMTP credentials
+cp backend/.env.example backend/.env   # fill in Supabase + SMTP credentials
 cp frontend/.env.example frontend/.env.local
-docker-compose up --build
+docker compose up --build
+# more backend capacity: docker compose up --scale backend=3  (Redis makes this safe)
 ```
 
 | Service | URL |
@@ -106,8 +107,24 @@ cd backend
 python -m venv venv
 venv\Scripts\activate          # Linux/Mac: source venv/bin/activate
 pip install -r requirements.txt
+redis-server &                 # live sessions need Redis; REDIS_URL defaults to redis://localhost:6379/0
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+### Backend tests (live-session layer)
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+redis-server --port 6379 &     # tests use DB 9 of this instance
+python -m pytest -v
+```
+
+The suite boots the real app under `uvicorn --workers 2` and drives it with
+two Socket.IO clients: teacher creates a session, a student joins, refreshes
+(reconnects while the old socket is still open), and a WebRTC offer/answer
+round-trips — plus ownership checks, relay scoping, rate limiting and
+recording finalisation.
 
 ### Manual Frontend Setup
 
@@ -128,32 +145,91 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000 \
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+### Backend (`backend/.env`) — see `backend/.env.example`
 
 ```env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
+SUPABASE_KEY=your-service-or-anon-key
 SECRET_KEY=your-strong-random-secret
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_HOURS=8
-REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_HOURS=8
+REDIS_URL=redis://localhost:6379/0      # docker-compose overrides to redis://redis:6379/0
+CORS_ORIGINS=http://localhost:3000,https://digikul.example.com   # shared by REST + Socket.IO
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_SENDER_EMAIL=noreply@digikul.in
-SMTP_SENDER_NAME=Digi-Kul
-FRONTEND_URL=http://localhost:3000
-CORS_ORIGINS=http://localhost:3000
 ```
 
-### Frontend (`frontend/.env.local`)
+### Frontend (`frontend/.env.local`) — see `frontend/.env.example`
 
 ```env
+# PRODUCTION: both must be the PUBLIC nginx-fronted origin users type into
+# their browser, e.g. https://digikul.example.com — never localhost:8000.
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
-NEXT_PUBLIC_APP_NAME=Digi-Kul
+
+# TURN relay for WebRTC audio (see below)
+NEXT_PUBLIC_TURN_URL=turn:turn.example.com:3478
+NEXT_PUBLIC_TURN_USERNAME=digikul
+NEXT_PUBLIC_TURN_CREDENTIAL=change-me
 ```
+
+## Production infrastructure notes
+
+### Redis (required)
+
+The live-session store and Socket.IO's cross-process broadcast live in
+Redis. `docker-compose.yml` ships a `redis` service; if you run the backend
+elsewhere (Kubernetes, multiple VMs) point every replica's `REDIS_URL` at one
+shared Redis (a managed instance is fine — it holds only ephemeral session
+state, persistence is off). The backend refuses to start if Redis is
+unreachable.
+
+### TURN server (strongly recommended)
+
+STUN only discovers a peer's public address; it does not relay traffic. A
+student on mobile data (carrier-grade NAT) or a locked-down campus network
+will complete the offer/answer handshake and then hear nothing. A TURN
+relay fixes that. The frontend reads `NEXT_PUBLIC_TURN_*` at build time and
+falls back to Google STUN when they are unset (the session header shows
+"STUN only" so you can tell).
+
+Self-hosting with [coturn](https://github.com/coturn/coturn) on a small VM
+with a public IP:
+
+```bash
+sudo apt install coturn
+# /etc/turnserver.conf
+listening-port=3478
+tls-listening-port=5349
+realm=turn.example.com
+server-name=turn.example.com
+external-ip=<PUBLIC_IP>            # /<PRIVATE_IP> if behind cloud NAT
+lt-cred-mech
+user=digikul:change-me             # static creds; or use-auth-secret for TURN REST
+cert=/etc/letsencrypt/live/turn.example.com/fullchain.pem
+pkey=/etc/letsencrypt/live/turn.example.com/privkey.pem
+min-port=49152
+max-port=65535
+no-cli
+```
+
+Open UDP+TCP 3478, TCP 5349 and UDP 49152–65535 in the firewall, then set
+`NEXT_PUBLIC_TURN_URL=turn:turn.example.com:3478,turns:turn.example.com:5349`
+and rebuild the frontend. Managed alternatives (Twilio Network Traversal,
+Metered.ca, Cloudflare Calls TURN) work the same way — paste their
+url/username/credential into the three variables. Test it at
+https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/ —
+you should see `relay` candidates.
+
+### nginx
+
+`nginx.conf` proxies `/socket.io/` with WebSocket upgrade headers and
+`proxy_read_timeout`/`proxy_send_timeout` of 3600s so an idle-but-alive
+connection is not cut after nginx's default 60s. Terminate TLS at nginx (or a
+load balancer in front of it); the app itself only speaks HTTP.
 
 ### Mobile (`--dart-define`)
 

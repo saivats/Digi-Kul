@@ -36,6 +36,67 @@ def create_recording(
     return result.data[0] if result.data else {}
 
 
+def finalize_recording(
+    recording_id: str,
+    *,
+    participants: list[str] | None = None,
+    recording_path: str | None = None,
+    file_size: int | None = None,
+) -> dict | None:
+    """Mark a recording as finished: stamp stopped_at, compute duration from
+    started_at, record who was present, and set stats.status = "completed".
+
+    The session_recordings table has no dedicated status column, so status
+    lives inside the `stats` JSONB. Returns the updated row, or None if the
+    recording does not exist (or was already finalized).
+    """
+    db = get_supabase()
+    existing = (
+        db.table("session_recordings")
+        .select("id, started_at, stopped_at, stats")
+        .eq("id", recording_id)
+        .execute()
+    )
+    if not existing.data:
+        return None
+    row = existing.data[0]
+    if row.get("stopped_at"):
+        return row  # already finalized — idempotent
+
+    now = datetime.now(timezone.utc)
+    duration: int | None = None
+    started_raw = row.get("started_at")
+    if started_raw:
+        try:
+            started = datetime.fromisoformat(str(started_raw).replace("Z", "+00:00"))
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            duration = max(0, int((now - started).total_seconds()))
+        except ValueError:
+            duration = None
+
+    stats = dict(row.get("stats") or {})
+    stats["status"] = "completed"
+    if participants is not None:
+        stats["participant_count"] = len(participants)
+
+    payload: dict = {
+        "stopped_at": now.isoformat(),
+        "duration": duration,
+        "stats": stats,
+        "updated_at": now.isoformat(),
+    }
+    if participants is not None:
+        payload["participants"] = participants
+    if recording_path is not None:
+        payload["recording_path"] = recording_path
+    if file_size is not None:
+        payload["file_size"] = file_size
+
+    result = db.table("session_recordings").update(payload).eq("id", recording_id).execute()
+    return result.data[0] if result.data else None
+
+
 def get_recording(recording_id: str, institution_id: str) -> dict | None:
     db = get_supabase()
     result = (

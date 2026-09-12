@@ -1,11 +1,9 @@
 import axios from "axios";
 import { getToken, clearAuth } from "./auth";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { API_URL } from "./env";
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -145,12 +143,25 @@ export async function listInstitutions() {
   return data;
 }
 
-export async function createInstitution(body: any) {
+export interface InstitutionPayload {
+  name?: string;
+  domain?: string;
+  subdomain?: string;
+  description?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address?: string;
+  website?: string;
+  primary_color?: string;
+  is_active?: boolean;
+}
+
+export async function createInstitution(body: InstitutionPayload) {
   const { data } = await api.post("/api/institutions", body);
   return data;
 }
 
-export async function updateInstitution(id: string, body: any) {
+export async function updateInstitution(id: string, body: InstitutionPayload) {
   const { data } = await api.patch(`/api/institutions/${id}`, body);
   return data;
 }
