@@ -47,6 +47,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
     _socketService = SocketService(
       sessionId: _params.sessionId,
       authToken: _params.authToken,
+      studentId: _params.studentId,
+      studentName: _params.studentName,
     );
 
     _subscriptions.addAll([
@@ -57,7 +59,10 @@ class SessionNotifier extends StateNotifier<SessionState> {
         if (participant.role == 'teacher') {
           _teacherUserId = participant.id;
         }
-        final updated = [...state.participants, participant];
+        final updated = [
+          ...state.participants.where((p) => p.id != participant.id),
+          participant,
+        ];
         state = state.copyWith(participants: updated);
       }),
       _socketService.onParticipantsSnapshot.listen((participants) {
@@ -89,10 +94,23 @@ class SessionNotifier extends StateNotifier<SessionState> {
       _socketService.onSessionEnded.listen((_) {
         state = state.copyWith(
           connectionStatus: SessionConnectionStatus.disconnected,
+          sessionEnded: true,
         );
       }),
-      _socketService.onModeChanged.listen((mode) {
-        state = state.copyWith(currentMode: mode);
+      _socketService.onRecordingChanged.listen((recording) {
+        state = state.copyWith(isRecording: recording);
+      }),
+      _socketService.onMuted.listen((_) {
+        state = state.copyWith(isMuted: true, mutedByTeacher: true);
+      }),
+      _socketService.onHandRaised.listen((p) {
+        final updated = state.participants
+            .map((x) => x.id == p.id ? x.copyWith(isSpeaking: true) : x)
+            .toList();
+        state = state.copyWith(participants: updated);
+      }),
+      _socketService.onSessionError.listen((message) {
+        state = state.copyWith(errorMessage: message);
       }),
     ]);
 
@@ -199,6 +217,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
   void toggleMute() {
     state = state.copyWith(isMuted: !state.isMuted);
+  }
+
+  void raiseHand() {
+    _socketService.raiseHand();
+    state = state.copyWith(handRaised: true);
+  }
+
+  void clearError() {
+    state = state.copyWith(errorMessage: null);
   }
 
   void leaveSession() {

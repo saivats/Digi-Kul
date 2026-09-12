@@ -1,23 +1,16 @@
 "use client";
 
+import { WifiOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 export default function OfflinePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="text-center space-y-4 max-w-md">
-        <div className="text-6xl">📡</div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          You&apos;re Offline
-        </h1>
-        <p className="text-muted-foreground">
-          It looks like you&apos;ve lost your internet connection. Digi-Kul will
-          automatically reconnect when your network is back.
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Try Again
-        </button>
+      <div className="flex max-w-md flex-col items-center gap-4 text-center">
+        <span className="inline-flex size-14 items-center justify-center rounded-full bg-offline-soft text-offline"><WifiOff className="size-7" /></span>
+        <h1 className="text-2xl font-bold">You&apos;re offline</h1>
+        <p className="text-muted-foreground">Digi-Kul will reconnect when your network is back. Materials you downloaded in the app are still available there.</p>
+        <Button onClick={() => window.location.reload()}>Try again</Button>
       </div>
     </div>
   );

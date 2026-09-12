@@ -7,6 +7,7 @@ from app.config import Settings, get_settings
 from app.models.auth import (
     ForceLogoutRequest,
     LoginRequest,
+    RefreshRequest,
     RegisterStudentRequest,
     RegisterTeacherRequest,
     SessionValidation,
@@ -14,6 +15,8 @@ from app.models.auth import (
 )
 from app.utils.security import (
     create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
     get_current_user,
     hash_password,
     require_role,
@@ -74,19 +77,19 @@ def login(body: LoginRequest, settings: Settings = Depends(get_settings)):
     elif body.user_type == "institution_admin":
         db.table("institution_admins").update({"last_login": now_iso}).eq("id", user["id"]).execute()
 
-    token = create_access_token(
-        {
-            "sub": user["id"],
-            "user_type": body.user_type,
-            "user_name": user.get("name", ""),
-            "user_email": user.get("email", ""),
-            "institution_id": user.get("institution_id", ""),
-        },
-        settings,
-    )
+    claims = {
+        "sub": user["id"],
+        "user_type": body.user_type,
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "institution_id": user.get("institution_id", ""),
+    }
+    token = create_access_token(claims, settings)
+    refresh = create_refresh_token({"sub": user["id"], "user_type": body.user_type}, settings)
 
     return TokenResponse(
         access_token=token,
+        refresh_token=refresh,
         user_id=user["id"],
         user_type=body.user_type,
         user_name=user.get("name", ""),
@@ -150,6 +153,49 @@ def register_teacher(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create teacher")
 
     return {"success": True, "message": "Teacher registered successfully", "teacher_id": result.data[0]["id"]}
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(body: RefreshRequest, settings: Settings = Depends(get_settings)):
+    """Exchange a refresh token for a new access token (+ rotated refresh token).
+
+    The user row is re-read so a deactivated account cannot keep refreshing.
+    """
+    payload = decode_refresh_token(body.refresh_token, settings)
+    user_id = payload.get("sub")
+    user_type = payload.get("user_type")
+    table = {
+        "student": "students",
+        "teacher": "teachers",
+        "institution_admin": "institution_admins",
+        "super_admin": "super_admins",
+    }.get(user_type or "")
+    if not user_id or not table:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    db = get_supabase()
+    result = db.table(table).select("*").eq("id", user_id).eq("is_active", True).execute()
+    user = result.data[0] if result.data else None
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not found or disabled")
+
+    claims = {
+        "sub": user["id"],
+        "user_type": user_type,
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "institution_id": user.get("institution_id", ""),
+    }
+    return TokenResponse(
+        access_token=create_access_token(claims, settings),
+        refresh_token=create_refresh_token({"sub": user["id"], "user_type": user_type}, settings),
+        user_id=user["id"],
+        user_type=user_type,
+        user_name=user.get("name", ""),
+        user_email=user.get("email", ""),
+        institution_id=user.get("institution_id"),
+        cohort_id=user.get("cohort_id"),
+    )
 
 
 @router.post("/logout")

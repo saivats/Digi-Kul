@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-to-a-random-64-char-string"
     jwt_algorithm: str = "HS256"
     jwt_expire_hours: int = 8
+    refresh_token_expire_days: int = 30
 
     supabase_url: str = "https://placeholder.supabase.co"
     supabase_key: str = "placeholder-key"

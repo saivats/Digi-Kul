@@ -41,6 +41,26 @@ class ApiClient {
     return _dio.get(ApiConstants.institutions);
   }
 
+  Future<Response> getProfile() {
+    return _dio.get(ApiConstants.studentProfile);
+  }
+
+  Future<Response> getDashboard() {
+    return _dio.get(ApiConstants.studentDashboard);
+  }
+
+  Future<Response> getLiveLectures() {
+    return _dio.get(ApiConstants.liveLectures);
+  }
+
+  Future<Response> getRecordings() {
+    return _dio.get(ApiConstants.studentRecordings);
+  }
+
+  Future<Response> getQuizHistory() {
+    return _dio.get(ApiConstants.quizHistory);
+  }
+
   Future<Response> getCohorts() {
     return _dio.get(ApiConstants.studentCohorts);
   }
@@ -109,10 +129,16 @@ class ApiClient {
     return _dio.get(ApiConstants.attendance);
   }
 
-  Future<Response> registerFcmToken(String token) {
-    return _dio.post(ApiConstants.fcmToken, data: {'token': token});
+  Future<Response> registerFcmToken(String token, {String? platform}) {
+    return _dio.post(
+      ApiConstants.fcmToken,
+      data: {'token': token, if (platform != null) 'platform': platform},
+    );
   }
 
+  /// [url] is the `download_url` the backend returns — a path relative to
+  /// the API origin (e.g. /api/materials/{id}/file). Dio resolves it against
+  /// baseUrl and the auth interceptor attaches the bearer token.
   Future<Response> downloadMaterial(
     String url,
     String savePath, {

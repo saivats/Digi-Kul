@@ -25,6 +25,9 @@ mixin _$SessionState {
   ActivePoll? get activePoll => throw _privateConstructorUsedError;
   bool get isMuted => throw _privateConstructorUsedError;
   bool get isRecording => throw _privateConstructorUsedError;
+  bool get sessionEnded => throw _privateConstructorUsedError;
+  bool get mutedByTeacher => throw _privateConstructorUsedError;
+  bool get handRaised => throw _privateConstructorUsedError;
   double get audioLevel => throw _privateConstructorUsedError;
   String? get errorMessage => throw _privateConstructorUsedError;
   int get estimatedBandwidthKbps => throw _privateConstructorUsedError;
@@ -51,6 +54,9 @@ abstract class $SessionStateCopyWith<$Res> {
       ActivePoll? activePoll,
       bool isMuted,
       bool isRecording,
+      bool sessionEnded,
+      bool mutedByTeacher,
+      bool handRaised,
       double audioLevel,
       String? errorMessage,
       int estimatedBandwidthKbps});
@@ -81,6 +87,9 @@ class _$SessionStateCopyWithImpl<$Res, $Val extends SessionState>
     Object? activePoll = freezed,
     Object? isMuted = null,
     Object? isRecording = null,
+    Object? sessionEnded = null,
+    Object? mutedByTeacher = null,
+    Object? handRaised = null,
     Object? audioLevel = null,
     Object? errorMessage = freezed,
     Object? estimatedBandwidthKbps = null,
@@ -117,6 +126,18 @@ class _$SessionStateCopyWithImpl<$Res, $Val extends SessionState>
       isRecording: null == isRecording
           ? _value.isRecording
           : isRecording // ignore: cast_nullable_to_non_nullable
+              as bool,
+      sessionEnded: null == sessionEnded
+          ? _value.sessionEnded
+          : sessionEnded // ignore: cast_nullable_to_non_nullable
+              as bool,
+      mutedByTeacher: null == mutedByTeacher
+          ? _value.mutedByTeacher
+          : mutedByTeacher // ignore: cast_nullable_to_non_nullable
+              as bool,
+      handRaised: null == handRaised
+          ? _value.handRaised
+          : handRaised // ignore: cast_nullable_to_non_nullable
               as bool,
       audioLevel: null == audioLevel
           ? _value.audioLevel
@@ -165,6 +186,9 @@ abstract class _$$SessionStateImplCopyWith<$Res>
       ActivePoll? activePoll,
       bool isMuted,
       bool isRecording,
+      bool sessionEnded,
+      bool mutedByTeacher,
+      bool handRaised,
       double audioLevel,
       String? errorMessage,
       int estimatedBandwidthKbps});
@@ -194,6 +218,9 @@ class __$$SessionStateImplCopyWithImpl<$Res>
     Object? activePoll = freezed,
     Object? isMuted = null,
     Object? isRecording = null,
+    Object? sessionEnded = null,
+    Object? mutedByTeacher = null,
+    Object? handRaised = null,
     Object? audioLevel = null,
     Object? errorMessage = freezed,
     Object? estimatedBandwidthKbps = null,
@@ -231,6 +258,18 @@ class __$$SessionStateImplCopyWithImpl<$Res>
           ? _value.isRecording
           : isRecording // ignore: cast_nullable_to_non_nullable
               as bool,
+      sessionEnded: null == sessionEnded
+          ? _value.sessionEnded
+          : sessionEnded // ignore: cast_nullable_to_non_nullable
+              as bool,
+      mutedByTeacher: null == mutedByTeacher
+          ? _value.mutedByTeacher
+          : mutedByTeacher // ignore: cast_nullable_to_non_nullable
+              as bool,
+      handRaised: null == handRaised
+          ? _value.handRaised
+          : handRaised // ignore: cast_nullable_to_non_nullable
+              as bool,
       audioLevel: null == audioLevel
           ? _value.audioLevel
           : audioLevel // ignore: cast_nullable_to_non_nullable
@@ -259,6 +298,9 @@ class _$SessionStateImpl implements _SessionState {
       this.activePoll,
       this.isMuted = false,
       this.isRecording = false,
+      this.sessionEnded = false,
+      this.mutedByTeacher = false,
+      this.handRaised = false,
       this.audioLevel = 0.0,
       this.errorMessage,
       this.estimatedBandwidthKbps = 0})
@@ -301,6 +343,15 @@ class _$SessionStateImpl implements _SessionState {
   final bool isRecording;
   @override
   @JsonKey()
+  final bool sessionEnded;
+  @override
+  @JsonKey()
+  final bool mutedByTeacher;
+  @override
+  @JsonKey()
+  final bool handRaised;
+  @override
+  @JsonKey()
   final double audioLevel;
   @override
   final String? errorMessage;
@@ -310,7 +361,7 @@ class _$SessionStateImpl implements _SessionState {
 
   @override
   String toString() {
-    return 'SessionState(sessionId: $sessionId, connectionStatus: $connectionStatus, currentMode: $currentMode, participants: $participants, chatMessages: $chatMessages, activePoll: $activePoll, isMuted: $isMuted, isRecording: $isRecording, audioLevel: $audioLevel, errorMessage: $errorMessage, estimatedBandwidthKbps: $estimatedBandwidthKbps)';
+    return 'SessionState(sessionId: $sessionId, connectionStatus: $connectionStatus, currentMode: $currentMode, participants: $participants, chatMessages: $chatMessages, activePoll: $activePoll, isMuted: $isMuted, isRecording: $isRecording, sessionEnded: $sessionEnded, mutedByTeacher: $mutedByTeacher, handRaised: $handRaised, audioLevel: $audioLevel, errorMessage: $errorMessage, estimatedBandwidthKbps: $estimatedBandwidthKbps)';
   }
 
   @override
@@ -333,6 +384,12 @@ class _$SessionStateImpl implements _SessionState {
             (identical(other.isMuted, isMuted) || other.isMuted == isMuted) &&
             (identical(other.isRecording, isRecording) ||
                 other.isRecording == isRecording) &&
+            (identical(other.sessionEnded, sessionEnded) ||
+                other.sessionEnded == sessionEnded) &&
+            (identical(other.mutedByTeacher, mutedByTeacher) ||
+                other.mutedByTeacher == mutedByTeacher) &&
+            (identical(other.handRaised, handRaised) ||
+                other.handRaised == handRaised) &&
             (identical(other.audioLevel, audioLevel) ||
                 other.audioLevel == audioLevel) &&
             (identical(other.errorMessage, errorMessage) ||
@@ -352,6 +409,9 @@ class _$SessionStateImpl implements _SessionState {
       activePoll,
       isMuted,
       isRecording,
+      sessionEnded,
+      mutedByTeacher,
+      handRaised,
       audioLevel,
       errorMessage,
       estimatedBandwidthKbps);
@@ -375,6 +435,9 @@ abstract class _SessionState implements SessionState {
       final ActivePoll? activePoll,
       final bool isMuted,
       final bool isRecording,
+      final bool sessionEnded,
+      final bool mutedByTeacher,
+      final bool handRaised,
       final double audioLevel,
       final String? errorMessage,
       final int estimatedBandwidthKbps}) = _$SessionStateImpl;
@@ -395,6 +458,12 @@ abstract class _SessionState implements SessionState {
   bool get isMuted;
   @override
   bool get isRecording;
+  @override
+  bool get sessionEnded;
+  @override
+  bool get mutedByTeacher;
+  @override
+  bool get handRaised;
   @override
   double get audioLevel;
   @override

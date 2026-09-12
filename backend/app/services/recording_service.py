@@ -157,3 +157,20 @@ def increment_download_count(recording_id: str) -> None:
     if rec.data:
         current = rec.data[0].get("download_count", 0) or 0
         db.table("session_recordings").update({"download_count": current + 1}).eq("id", recording_id).execute()
+
+
+def list_recordings_for_cohorts(cohort_ids: list[str], institution_id: str) -> list[dict]:
+    if not cohort_ids:
+        return []
+    db = get_supabase()
+    return (
+        db.table("session_recordings")
+        .select("*")
+        .in_("cohort_id", cohort_ids)
+        .eq("institution_id", institution_id)
+        .eq("is_active", True)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+        or []
+    )

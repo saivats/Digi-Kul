@@ -2,6 +2,7 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.config import get_settings
 from app.services import material_service
@@ -63,21 +64,40 @@ async def upload_material(
         lecture_id=lecture_id,
         cohort_id=cohort_id,
     )
-    return {"success": True, "data": data, "error": None}
+    return {"success": True, "data": material_service.shape_for_client(data), "error": None}
 
 
 @router.get("/lecture/{lecture_id}")
 def list_materials_for_lecture(lecture_id: str, current_user: dict = Depends(get_current_user)):
     institution_id = current_user["institution_id"]
     data = material_service.list_materials_for_lecture(lecture_id, institution_id)
-    return {"success": True, "data": data, "error": None}
+    return {"success": True, "data": [material_service.shape_for_client(m) for m in data], "error": None}
 
 
 @router.get("/cohort/{cohort_id}")
 def list_materials_for_cohort(cohort_id: str, current_user: dict = Depends(get_current_user)):
     institution_id = current_user["institution_id"]
     data = material_service.list_materials_for_cohort(cohort_id, institution_id)
-    return {"success": True, "data": data, "error": None}
+    return {"success": True, "data": [material_service.shape_for_client(m) for m in data], "error": None}
+
+
+@router.get("/{material_id}/file")
+def download_material_file(material_id: str, current_user: dict = Depends(get_current_user)):
+    """Stream the uploaded file. Previously nothing served uploads at all —
+    clients had a file_path on the server's disk and no way to fetch it."""
+    institution_id = current_user["institution_id"]
+    material = material_service.get_material(material_id, institution_id)
+    if not material:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
+    path = material.get("file_path") or ""
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File missing on server")
+    material_service.increment_download_count(material_id)
+    return FileResponse(
+        path,
+        media_type=material.get("file_type") or "application/octet-stream",
+        filename=material.get("file_name") or os.path.basename(path),
+    )
 
 
 @router.get("/{material_id}")
@@ -86,7 +106,7 @@ def get_material(material_id: str, current_user: dict = Depends(get_current_user
     data = material_service.get_material(material_id, institution_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
-    return {"success": True, "data": data, "error": None}
+    return {"success": True, "data": material_service.shape_for_client(data), "error": None}
 
 
 @router.post("/{material_id}/download")

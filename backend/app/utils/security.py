@@ -34,6 +34,28 @@ def create_access_token(
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_refresh_token(
+    data: dict[str, Any],
+    settings: Settings | None = None,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Long-lived token that can only be exchanged at /api/auth/refresh."""
+    settings = settings or get_settings()
+    to_encode = data.copy()
+    to_encode["type"] = "refresh"
+    to_encode["exp"] = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(days=settings.refresh_token_expire_days)
+    )
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_refresh_token(token: str, settings: Settings | None = None) -> dict[str, Any]:
+    payload = decode_access_token(token, settings)
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not a refresh token")
+    return payload
+
+
 def decode_access_token(token: str, settings: Settings | None = None) -> dict[str, Any]:
     settings = settings or get_settings()
     try:
@@ -53,6 +75,8 @@ def get_current_user(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     payload = decode_access_token(credentials.credentials, settings)
+    if payload.get("type") == "refresh":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token cannot be used as access token")
     user_id: str | None = payload.get("sub")
     if user_id is None:
         raise HTTPException(

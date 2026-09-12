@@ -1,160 +1,124 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { getStudentProfile } from "@/lib/api";
-import api from "@/lib/api";
+import { Download, FileText, Radio } from "lucide-react";
+import { toast } from "sonner";
+import { getStudentDashboard, listStudentMaterials, downloadMaterial } from "@/lib/api";
+import { PageHeader } from "@/components/app/PageHeader";
+import { StatCard } from "@/components/app/StatCard";
+import { StatusBadge } from "@/components/app/StatusBadge";
+import { QueryState, errorMessage } from "@/components/app/QueryState";
+import { DateChip, fmtTime } from "@/components/app/DateChip";
+import { Button } from "@/components/ui/button";
+
+interface Lecture { id: string; title: string; scheduled_time: string; duration_minutes?: number; teacher_name?: string; status: string }
+interface Material { id: string; title: string; file_name: string; file_type: string; file_size_bytes: number; uploaded_by?: string }
+interface Attempt { id: string; quiz_sets?: { title?: string }; score?: number; total_questions?: number; correct_answers?: number; is_completed?: boolean }
 
 export default function StudentDashboard() {
-  const profileQuery = useQuery({
-    queryKey: ["student", "profile"],
-    queryFn: getStudentProfile,
-  });
+  const dash = useQuery({ queryKey: ["student", "dashboard"], queryFn: getStudentDashboard, refetchInterval: 30_000 });
+  const materialsQuery = useQuery({ queryKey: ["student", "materials"], queryFn: listStudentMaterials });
 
-  const cohortsQuery = useQuery({
-    queryKey: ["student", "cohorts"],
-    queryFn: async () => {
-      const { data } = await api.get("/api/students/cohorts");
-      return data;
-    },
-  });
+  const d = dash.data?.data;
+  const live: Lecture[] = d?.live_lectures ?? [];
+  const upcoming: Lecture[] = d?.upcoming_lectures ?? [];
+  const attempts: Attempt[] = d?.recent_quiz_attempts ?? [];
+  const materials: Material[] = materialsQuery.data?.data ?? [];
+  const attendancePct = d?.attendance?.percentage;
 
-  const quizHistoryQuery = useQuery({
-    queryKey: ["student", "quiz-history"],
-    queryFn: async () => {
-      const { data } = await api.get("/api/students/quiz-history");
-      return data;
-    },
-  });
-
-  const profile = profileQuery.data?.data;
-  const cohorts = cohortsQuery.data?.data ?? [];
-  const quizHistory = quizHistoryQuery.data?.data ?? [];
-  const avgScore =
-    quizHistory.length > 0
-      ? Math.round(
-          quizHistory.reduce(
-            (sum: number, q: { score_percentage: number }) =>
-              sum + (q.score_percentage ?? 0),
-            0
-          ) / quizHistory.length
-        )
-      : 0;
+  async function onDownload(m: Material) {
+    try { await downloadMaterial(m.id, m.file_name); } catch (e) { toast.error(errorMessage(e)); }
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Welcome, {profile?.name ?? "Student"}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Your learning dashboard.
-        </p>
+    <div className="flex flex-col gap-7">
+      <PageHeader
+        eyebrow={new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+        title={`Hi, ${d?.profile?.name?.split(" ")[0] ?? "there"}`}
+        description={live.length ? "A class is live right now — join in." : upcoming.length ? `Next class: ${upcoming[0].title} at ${fmtTime(upcoming[0].scheduled_time)}.` : "No classes scheduled yet."}
+      />
+
+      {live.map((lec) => (
+        <div key={lec.id} className="flex flex-wrap items-center gap-4 rounded-xl bg-live p-5 text-white">
+          <span className="inline-flex size-11 items-center justify-center rounded-full bg-white/15"><Radio className="size-5" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-bold tracking-[0.08em]">LIVE NOW</div>
+            <div className="truncate font-heading text-lg font-semibold">{lec.title}</div>
+            <div className="text-sm text-white/80">{lec.teacher_name || "Your teacher"} · started {fmtTime(lec.scheduled_time)}</div>
+          </div>
+          <Button size="lg" className="bg-white text-live hover:bg-white/90" nativeButton={false} render={<Link href={`/student/session/${lec.id}`} />}>
+            Join class
+          </Button>
+        </div>
+      ))}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="My cohorts" value={d?.counts?.cohorts ?? 0} loading={dash.isLoading} />
+        <StatCard label="Attendance" value={attendancePct != null ? `${attendancePct}%` : "—"} tone="ink" hint={d?.attendance ? `${d.attendance.present_classes} of ${d.attendance.total_classes} classes` : undefined} loading={dash.isLoading} />
+        <StatCard label="Quizzes taken" value={d?.counts?.quizzes_taken ?? 0} loading={dash.isLoading} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border/50">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">My Cohorts</p>
-            <p className="text-3xl font-bold mt-1">{cohorts.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Quizzes Taken</p>
-            <p className="text-3xl font-bold mt-1">{quizHistory.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Avg Quiz Score</p>
-            <p className="text-3xl font-bold mt-1 text-primary">{avgScore}%</p>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="panel overflow-hidden">
+          <div className="panel-head"><h2 className="text-base font-semibold">Upcoming classes</h2></div>
+          <QueryState isLoading={dash.isLoading} isError={dash.isError} error={dash.error} refetch={dash.refetch} isEmpty={upcoming.length === 0} emptyTitle="Nothing scheduled" emptyHint="Your teacher hasn't scheduled the next class yet." rows={2}>
+            <ul className="divide-y divide-border">
+              {upcoming.map((lec) => (
+                <li key={lec.id} className="flex items-center gap-3 px-5 py-3.5">
+                  <DateChip iso={lec.scheduled_time} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold">{lec.title}</div>
+                    <div className="text-[13px] text-muted-foreground">{fmtTime(lec.scheduled_time)} · {lec.duration_minutes ?? 60} min{lec.teacher_name ? ` · ${lec.teacher_name}` : ""}</div>
+                  </div>
+                  <StatusBadge status="scheduled" />
+                </li>
+              ))}
+            </ul>
+          </QueryState>
+        </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg">My Cohorts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {cohorts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Not enrolled in any cohort yet.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {cohorts.map(
-                  (c: {
-                    id: string;
-                    name: string;
-                    is_active: boolean;
-                  }) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between rounded-lg border border-border/50 p-3"
-                    >
-                      <p className="font-medium">{c.name}</p>
-                      <Badge variant={c.is_active ? "default" : "secondary"}>
-                        {c.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  )
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <section className="panel overflow-hidden">
+          <div className="panel-head"><h2 className="text-base font-semibold">Materials</h2></div>
+          <QueryState isLoading={materialsQuery.isLoading} isError={materialsQuery.isError} error={materialsQuery.error} refetch={materialsQuery.refetch} isEmpty={materials.length === 0} emptyTitle="No materials yet" rows={2}>
+            <ul className="divide-y divide-border">
+              {materials.slice(0, 6).map((m) => (
+                <li key={m.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-ink-soft text-ink"><FileText className="size-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{m.title}</div>
+                    <div className="text-xs text-muted-foreground">{m.file_type.toUpperCase()}{m.uploaded_by ? ` · ${m.uploaded_by}` : ""}</div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => onDownload(m)}><Download data-icon="inline-start" /> Download</Button>
+                </li>
+              ))}
+            </ul>
+          </QueryState>
+        </section>
 
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Quiz Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {quizHistory.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No quiz attempts yet.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {quizHistory.slice(0, 5).map(
-                  (q: {
-                    id: string;
-                    quiz_set_title: string;
-                    score: number;
-                    total_questions: number;
-                    score_percentage: number;
-                  }) => (
-                    <div
-                      key={q.id}
-                      className="flex items-center justify-between rounded-lg border border-border/50 p-3"
-                    >
-                      <div>
-                        <p className="font-medium">{q.quiz_set_title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {q.score}/{q.total_questions} correct
-                        </p>
-                      </div>
-                      <span
-                        className={`text-sm font-bold ${
-                          q.score_percentage >= 70
-                            ? "text-green-500"
-                            : q.score_percentage >= 40
-                              ? "text-yellow-500"
-                              : "text-red-500"
-                        }`}
-                      >
-                        {q.score_percentage}%
-                      </span>
+        <section className="panel overflow-hidden lg:col-span-2">
+          <div className="panel-head">
+            <h2 className="text-base font-semibold">Recent quiz results</h2>
+            <Link href="/dashboard/student/quizzes" className="text-sm font-semibold text-ink hover:underline">All results</Link>
+          </div>
+          <QueryState isLoading={dash.isLoading} isError={dash.isError} error={dash.error} refetch={dash.refetch} isEmpty={attempts.length === 0} emptyTitle="No quiz attempts yet" emptyHint="Quizzes are taken in the Digi-Kul mobile app." rows={2}>
+            <ul className="divide-y divide-border">
+              {attempts.map((a) => {
+                const total = a.total_questions ?? 0;
+                const pct = total ? Math.round(((a.correct_answers ?? 0) / total) * 100) : null;
+                return (
+                  <li key={a.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold">{a.quiz_sets?.title ?? "Quiz"}</div>
+                      <div className="text-[13px] text-muted-foreground">{a.is_completed ? `${a.correct_answers ?? 0}/${total} correct` : "In progress"}</div>
                     </div>
-                  )
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    {pct != null && <span className={`font-heading text-lg font-bold ${pct >= 70 ? "text-online" : pct >= 40 ? "text-saffron-ink" : "text-live"}`}>{pct}%</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </QueryState>
+        </section>
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createInstitution } from "@/lib/api";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { errorMessage } from "@/components/app/QueryState";
 
 export function CreateInstitutionDialog() {
   const [open, setOpen] = useState(false);
@@ -39,12 +41,9 @@ export function CreateInstitutionDialog() {
         contact_email: "",
       });
       setError(null);
+      toast.success("Created");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (err: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      setError(err?.response?.data?.detail || "Failed to create institution");
-    },
+    onError: (err: unknown) => setError(errorMessage(err)),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,7 +61,7 @@ export function CreateInstitutionDialog() {
       <DialogTrigger
         render={
           <Button>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus data-icon="inline-start" />
             Create Institution
           </Button>
         }
@@ -105,7 +104,7 @@ export function CreateInstitutionDialog() {
               onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
             />
           </div>
-          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-live-soft px-3 py-2 text-sm font-medium text-live">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel

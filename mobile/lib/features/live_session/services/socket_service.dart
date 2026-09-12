@@ -4,23 +4,49 @@ import 'package:logger/logger.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/storage/secure_storage.dart';
 import '../../../models/session/session_state.dart';
 
 typedef EventCallback = void Function(Map<String, dynamic> data);
 
+/// Socket.IO client for a live session.
+///
+/// Follows the backend contract in backend/app/socket_manager.py — the same
+/// handshake the web client uses:
+///
+///   connect
+///     -> emit `authenticate` {token}
+///     <- `authenticated`            (or `auth_error`)
+///     -> emit `join_session` {token, session_id}
+///     <- `session_joined` {participants: [...], whiteboard_strokes, is_recording}
+///   ongoing:
+///     <- participant_joined / participant_left
+///     <- chat_message, hand_raised, poll_created, poll_response
+///     <- recording_started / recording_stopped, muted, session_ended
+///     <- webrtc_offer {from_user_id, sdp} / webrtc_ice_candidate {from_user_id, candidate}
+///     <- session_error {action, error}, rate_limited {event}
+///
+/// The JWT travels INSIDE event payloads (`token`), not as an HTTP header —
+/// the server reads `data["token"]`. Every reconnect re-runs the whole
+/// handshake automatically.
 class SocketService {
   SocketService({
     required String sessionId,
     required String authToken,
+    required String studentId,
+    required String studentName,
   })  : _sessionId = sessionId,
-        _authToken = authToken;
+        _authToken = authToken,
+        _studentId = studentId,
+        _studentName = studentName;
 
   final String _sessionId;
   final String _authToken;
+  final String _studentId;
+  final String _studentName;
   final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
 
   io.Socket? _socket;
+  bool _everConnected = false;
 
   final _participantJoined = StreamController<Participant>.broadcast();
   final _participantsSnapshot = StreamController<List<Participant>>.broadcast();
@@ -32,8 +58,10 @@ class SocketService {
   final _pollStarted = StreamController<ActivePoll>.broadcast();
   final _pollEnded = StreamController<String>.broadcast();
   final _sessionEnded = StreamController<void>.broadcast();
-  final _modeChanged = StreamController<SessionMode>.broadcast();
-  final _audioLevel = StreamController<Map<String, double>>.broadcast();
+  final _recordingChanged = StreamController<bool>.broadcast();
+  final _muted = StreamController<String>.broadcast();
+  final _handRaised = StreamController<Participant>.broadcast();
+  final _sessionError = StreamController<String>.broadcast();
   final _connectionStatus =
       StreamController<SessionConnectionStatus>.broadcast();
 
@@ -48,167 +76,237 @@ class SocketService {
   Stream<ActivePoll> get onPollStarted => _pollStarted.stream;
   Stream<String> get onPollEnded => _pollEnded.stream;
   Stream<void> get onSessionEnded => _sessionEnded.stream;
-  Stream<SessionMode> get onModeChanged => _modeChanged.stream;
-  Stream<Map<String, double>> get onAudioLevel => _audioLevel.stream;
+  Stream<bool> get onRecordingChanged => _recordingChanged.stream;
+  Stream<String> get onMuted => _muted.stream;
+  Stream<Participant> get onHandRaised => _handRaised.stream;
+  Stream<String> get onSessionError => _sessionError.stream;
   Stream<SessionConnectionStatus> get onConnectionStatus =>
       _connectionStatus.stream;
 
+  bool get isConnected => _socket?.connected ?? false;
+
   Future<void> connect() async {
-    final sessionCookie = await SecureStorageService.getSessionCookie();
     _socket = io.io(
       ApiConstants.socketUrl,
       io.OptionBuilder()
-          .setTransports(['websocket'])
-          .setExtraHeaders({
-            if (_authToken.isNotEmpty) 'Authorization': 'Bearer $_authToken',
-            if (sessionCookie != null && sessionCookie.isNotEmpty)
-              'Cookie': sessionCookie,
-          })
+          .setPath(ApiConstants.socketPath)
+          .setTransports(['websocket', 'polling'])
+          // Also sent on the handshake so the server can pre-seed identity;
+          // the explicit `authenticate` event below is what the contract needs.
+          .setAuth({'token': _authToken})
           .enableAutoConnect()
           .enableReconnection()
           .setReconnectionDelay(1000)
-          .setReconnectionAttempts(10)
+          .setReconnectionDelayMax(10000)
+          .setReconnectionAttempts(1 << 30) // effectively unlimited
           .build(),
     );
 
-    _socket!.onConnect((_) {
-      _logger.i('Socket connected');
+    final socket = _socket!;
+
+    // ---- handshake -----------------------------------------------------
+    socket.onConnect((_) {
+      _logger.i(_everConnected ? 'Socket reconnected' : 'Socket connected');
+      _everConnected = true;
+      _connectionStatus.add(SessionConnectionStatus.connecting);
+      socket.emit('authenticate', {'token': _authToken});
+    });
+
+    socket.on('authenticated', (_) {
+      socket.emit('join_session', {
+        'token': _authToken,
+        'session_id': _sessionId,
+      });
+    });
+
+    socket.on('auth_error', (data) {
+      _logger.e('Socket auth error: $data');
+      _sessionError.add('Authentication failed — please sign in again.');
+      _connectionStatus.add(SessionConnectionStatus.error);
+      socket.disconnect();
+    });
+
+    socket.on('session_joined', (data) {
+      if (data is! Map) return;
+      final list = (data['participants'] as List? ?? const [])
+          .whereType<Map>()
+          .map(_participantFromSocket)
+          .toList();
+      _participantsSnapshot.add(list);
+      _recordingChanged.add(data['is_recording'] == true);
       _connectionStatus.add(SessionConnectionStatus.connected);
-      _socket!.emit('join_session', {'session_id': _sessionId});
     });
 
-    _socket!.onDisconnect((_) {
-      _logger.w('Socket disconnected');
-      _connectionStatus.add(SessionConnectionStatus.disconnected);
+    socket.on('session_error', (data) {
+      final map = data is Map ? data : const {};
+      final action = map['action']?.toString() ?? '';
+      final message = map['error']?.toString() ?? 'Session error';
+      _logger.w('session_error [$action]: $message');
+      if (action == 'join_session') {
+        _sessionError.add(message == 'Session not found'
+            ? 'This lecture is not live yet.'
+            : message);
+        _connectionStatus.add(SessionConnectionStatus.error);
+        socket.disconnect();
+      } else {
+        _sessionError.add(message);
+      }
     });
 
-    _socket!.onReconnecting((_) {
+    socket.on('rate_limited', (data) {
+      _sessionError.add('You are sending messages too fast.');
+    });
+
+    // ---- transport -----------------------------------------------------
+    socket.onDisconnect((reason) {
+      _logger.w('Socket disconnected: $reason');
+      if (reason == 'io client disconnect') return;
+      _connectionStatus.add(SessionConnectionStatus.reconnecting);
+      // Server-initiated disconnect (e.g. replaced by a newer login) does
+      // not auto-reconnect — force it so the UI never sticks.
+      if (reason == 'io server disconnect') socket.connect();
+    });
+    socket.onReconnectAttempt((_) {
       _connectionStatus.add(SessionConnectionStatus.reconnecting);
     });
-
-    _socket!.onReconnect((_) {
-      _connectionStatus.add(SessionConnectionStatus.connected);
-      _socket!.emit('join_session', {'session_id': _sessionId});
+    socket.onConnectError((error) {
+      _logger.e('Socket connect error: $error');
+      if (!_everConnected) {
+        _connectionStatus.add(SessionConnectionStatus.reconnecting);
+      }
     });
-
-    _socket!.onError((error) {
+    socket.onError((error) {
       _logger.e('Socket error: $error');
-      _connectionStatus.add(SessionConnectionStatus.error);
     });
 
-    _socket!.on('user_joined', (data) {
+    // ---- room events ---------------------------------------------------
+    socket.on('participant_joined', (data) {
+      if (data is Map) _participantJoined.add(_participantFromSocket(data));
+    });
+
+    socket.on('participant_left', (data) {
+      if (data is Map) _participantLeft.add(data['user_id'] as String? ?? '');
+    });
+
+    socket.on('chat_message', (data) {
+      if (data is Map) _chatMessage.add(_chatMessageFromSocket(data));
+    });
+
+    socket.on('hand_raised', (data) {
+      if (data is Map) _handRaised.add(_participantFromSocket(data));
+    });
+
+    socket.on('poll_created', (data) {
       if (data is Map) {
-        _participantJoined.add(_participantFromSocket(data));
+        final map = Map<String, dynamic>.from(data);
+        final options = (map['options'] as List? ?? const [])
+            .map((e) => e is Map ? (e['text'] ?? e['label'] ?? '').toString() : e.toString())
+            .toList();
+        _pollStarted.add(ActivePoll(
+          id: (map['poll_id'] ?? map['id'] ?? '').toString(),
+          question: (map['question'] ?? '').toString(),
+          options: options,
+        ));
       }
     });
 
-    _socket!.on('session_participants', (data) {
-      if (data is List) {
-        _participantsSnapshot.add(
-          data.whereType<Map>().map(_participantFromSocket).toList(),
-        );
-      }
+    socket.on('poll_ended', (data) {
+      if (data is Map) _pollEnded.add(data['poll_id']?.toString() ?? '');
     });
 
-    _socket!.on('user_left', (data) {
-      if (data is Map) {
-        _participantLeft.add(data['user_id'] as String? ?? '');
-      }
+    socket.on('recording_started', (_) => _recordingChanged.add(true));
+    socket.on('recording_stopped', (_) => _recordingChanged.add(false));
+
+    socket.on('muted', (data) {
+      final by = data is Map ? (data['muted_by']?.toString() ?? '') : '';
+      _muted.add(by);
     });
 
-    _socket!.on('chat_message', (data) {
-      if (data is Map) {
-        _chatMessage.add(_chatMessageFromSocket(data));
-      }
-    });
-
-    _socket!.on('poll_started', (data) {
-      if (data is Map<String, dynamic>) {
-        _pollStarted.add(ActivePoll.fromJson(data));
-      }
-    });
-
-    _socket!.on('poll_ended', (data) {
-      if (data is Map<String, dynamic>) {
-        _pollEnded.add(data['poll_id'] as String? ?? '');
-      }
-    });
-
-    _socket!.on('session_ended', (_) {
+    socket.on('session_ended', (_) {
       _sessionEnded.add(null);
+      _connectionStatus.add(SessionConnectionStatus.disconnected);
+      socket.disconnect();
     });
 
-    _socket!.on('mode_changed', (data) {
-      if (data is Map<String, dynamic>) {
-        final modeStr = data['mode'] as String? ?? 'audio';
-        final mode = SessionMode.values.firstWhere(
-          (m) => m.name == modeStr,
-          orElse: () => SessionMode.audio,
-        );
-        _modeChanged.add(mode);
-      }
-    });
-
-    _socket!.on('audio_levels', (data) {
-      if (data is Map<String, dynamic>) {
-        _audioLevel.add(data.map((k, v) => MapEntry(k, (v as num).toDouble())));
-      }
-    });
-
-    _socket!.on('webrtc_offer', (data) {
+    // ---- WebRTC signalling (relayed by the server, from_user_id is the
+    // authenticated sender — the teacher) -------------------------------
+    socket.on('webrtc_offer', (data) {
       if (data is Map) _webRtcOffer.add(Map<String, dynamic>.from(data));
     });
-
-    _socket!.on('webrtc_answer', (data) {
+    socket.on('webrtc_answer', (data) {
       if (data is Map) _webRtcAnswer.add(Map<String, dynamic>.from(data));
     });
-
-    _socket!.on('ice_candidate', (data) {
+    socket.on('webrtc_ice_candidate', (data) {
       if (data is Map) _iceCandidate.add(Map<String, dynamic>.from(data));
     });
   }
 
+  Map<String, dynamic> _base() => {
+        'token': _authToken,
+        'session_id': _sessionId,
+      };
+
   void sendChatMessage(String content) {
     _socket?.emit('chat_message', {
-      'session_id': _sessionId,
+      ..._base(),
+      'user_id': _studentId,
+      'user_name': _studentName,
       'message': content,
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  void raiseHand() {
+    _socket?.emit('hand_raised', {
+      ..._base(),
+      'user_id': _studentId,
+      'user_name': _studentName,
     });
   }
 
   void votePoll(String pollId, String option) {
-    _socket?.emit('vote_poll', {
-      'session_id': _sessionId,
+    _socket?.emit('poll_response', {
+      ..._base(),
       'poll_id': pollId,
       'option': option,
+      'user_id': _studentId,
+      'user_name': _studentName,
+    });
+  }
+
+  /// [sdp] is `{type: 'answer', sdp: '...'}` — the shape simple-peer's
+  /// `signal()` expects on the teacher's side.
+  void sendAnswer(String targetId, Map<String, dynamic> sdp) {
+    _socket?.emit('webrtc_answer', {
+      ..._base(),
+      'from_user_id': _studentId,
+      'target_user_id': targetId,
+      'sdp': sdp,
     });
   }
 
   void sendOffer(String targetId, Map<String, dynamic> sdp) {
     _socket?.emit('webrtc_offer', {
-      'session_id': _sessionId,
+      ..._base(),
+      'from_user_id': _studentId,
       'target_user_id': targetId,
-      'offer': sdp,
+      'sdp': sdp,
     });
   }
 
-  void sendAnswer(String targetId, Map<String, dynamic> sdp) {
-    _socket?.emit('webrtc_answer', {
-      'session_id': _sessionId,
-      'target_user_id': targetId,
-      'answer': sdp,
-    });
-  }
-
+  /// [candidate] is `{candidate, sdpMid, sdpMLineIndex}`; wrapped the way
+  /// simple-peer emits/consumes it: `{type: 'candidate', candidate: {...}}`.
   void sendIceCandidate(String targetId, Map<String, dynamic> candidate) {
-    _socket?.emit('ice_candidate', {
-      'session_id': _sessionId,
+    _socket?.emit('webrtc_ice_candidate', {
+      ..._base(),
+      'from_user_id': _studentId,
       'target_user_id': targetId,
-      'candidate': candidate,
+      'candidate': {'type': 'candidate', 'candidate': candidate},
     });
   }
 
   void leaveSession() {
-    _socket?.emit('leave_session', {'session_id': _sessionId});
+    _socket?.emit('leave_session', _base());
   }
 
   void dispose() {
@@ -225,8 +323,10 @@ class SocketService {
     _pollStarted.close();
     _pollEnded.close();
     _sessionEnded.close();
-    _modeChanged.close();
-    _audioLevel.close();
+    _recordingChanged.close();
+    _muted.close();
+    _handRaised.close();
+    _sessionError.close();
     _connectionStatus.close();
   }
 

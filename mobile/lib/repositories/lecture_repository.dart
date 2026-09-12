@@ -49,14 +49,20 @@ class LectureRepository {
       ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
   }
 
+  /// Network-first: "is there a class on right now?" must not be answered
+  /// from a stale cache. Falls back to the cache when offline.
   Future<LectureDto?> getLiveLecture() async {
-    final cached = await _isar.cachedLectures
-        .filter()
-        .statusEqualTo('live')
-        .findFirst();
-
-    _refreshInBackground();
-    return cached != null ? LectureDto.fromCached(cached) : null;
+    try {
+      final all = await _fetchAndCache().timeout(const Duration(seconds: 8));
+      return all.where((l) => l.isLive).firstOrNull;
+    } catch (e) {
+      _logger.w('Live lecture check fell back to cache: $e');
+      final cached = await _isar.cachedLectures
+          .filter()
+          .statusEqualTo('live')
+          .findFirst();
+      return cached != null ? LectureDto.fromCached(cached) : null;
+    }
   }
 
   Future<List<LectureDto>> refresh() => _fetchAndCache();

@@ -29,45 +29,51 @@ class QuizRepository {
   final ApiClient _apiClient;
   final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
 
+  /// Every backend response is `{success, data, error}` — `data` is the
+  /// list/object. (The old code looked for `quizzes` / `questions` /
+  /// `attempt` / `result` keys the backend never sent.)
+  List<dynamic> _listData(Response response) {
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      if (data['success'] == false) {
+        throw StateError(data['error']?.toString() ?? 'Request failed');
+      }
+      final list = data['data'];
+      if (list is List) return list;
+    }
+    return const [];
+  }
+
+  Map<String, dynamic> _objectData(Response response) {
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      if (data['success'] == false) {
+        throw StateError(data['error']?.toString() ?? 'Request failed');
+      }
+      final obj = data['data'];
+      if (obj is Map) return Map<String, dynamic>.from(obj);
+    }
+    throw StateError('Unexpected response shape');
+  }
+
   Future<List<QuizSetDto>> getQuizSets() async {
     try {
       final response = await _apiClient.getQuizSets();
-      final data = response.data;
-
-      if (data is Map<String, dynamic> && data['quizzes'] is List) {
-        final quizzes = (data['quizzes'] as List)
-            .map((e) => QuizSetDto.fromJson(_normalizeQuizSet(e)))
-            .toList();
-
-        return _mergeWithPendingAttempts(quizzes);
-      }
-
-      if (data is Map<String, dynamic> && data['quiz_sets'] is List) {
-        final quizzes = (data['quiz_sets'] as List)
-            .map((e) => QuizSetDto.fromJson(_normalizeQuizSet(e)))
-            .toList();
-
-        return _mergeWithPendingAttempts(quizzes);
-      }
-
-      return [];
-    } catch (_) {
-      return [];
+      final quizzes = _listData(response)
+          .map((e) => QuizSetDto.fromJson(_normalizeQuizSet(e)))
+          .toList();
+      return _mergeWithPendingAttempts(quizzes);
+    } catch (e) {
+      _logger.w('getQuizSets failed: $e');
+      rethrow;
     }
   }
 
   Future<List<QuizQuestionDto>> getQuestions(String quizSetId) async {
     final response = await _apiClient.getQuizQuestions(quizSetId);
-    final data = response.data;
-
-    if (data is Map<String, dynamic> && data['questions'] is List) {
-      return (data['questions'] as List)
-          .map(
-              (e) => QuizQuestionDto.fromJson(_normalizeQuestion(e, quizSetId)))
-          .toList();
-    }
-
-    return [];
+    return _listData(response)
+        .map((e) => QuizQuestionDto.fromJson(_normalizeQuestion(e, quizSetId)))
+        .toList();
   }
 
   Future<List<QuizQuestionDto>> getQuestionsForAttempt({
@@ -75,24 +81,17 @@ class QuizRepository {
     required String quizSetId,
   }) async {
     final response = await _apiClient.getQuizQuestionsForAttempt(attemptId);
-    final data = response.data;
-
-    if (data is Map<String, dynamic> && data['questions'] is List) {
-      return (data['questions'] as List)
-          .map(
-              (e) => QuizQuestionDto.fromJson(_normalizeQuestion(e, quizSetId)))
-          .toList();
-    }
-
-    return [];
+    return _listData(response)
+        .map((e) => QuizQuestionDto.fromJson(_normalizeQuestion(e, quizSetId)))
+        .toList();
   }
 
   Future<QuizAttemptDto> startAttempt(String quizSetId) async {
     final response = await _apiClient.startQuizAttempt(quizSetId);
     final data = response.data as Map<String, dynamic>;
-    final attempt = data['attempt'] as Map<String, dynamic>?;
+    final attempt = _objectData(response);
     final attemptId =
-        data['attempt_id'] as String? ?? attempt?['id'] as String?;
+        data['attempt_id'] as String? ?? attempt['id'] as String?;
 
     if (attemptId == null || attemptId.isEmpty) {
       throw StateError('Quiz attempt response did not include an attempt id.');
@@ -100,14 +99,14 @@ class QuizRepository {
 
     return QuizAttemptDto(
       id: attemptId,
-      quizSetId: attempt?['quiz_set_id'] as String? ?? quizSetId,
-      studentId: attempt?['student_id'] as String? ??
+      quizSetId: attempt['quiz_set_id'] as String? ?? quizSetId,
+      studentId: attempt['student_id'] as String? ??
           PreferencesService.studentId ??
           '',
-      startedAt: DateTime.tryParse(attempt?['started_at'] as String? ?? '') ??
+      startedAt: DateTime.tryParse(attempt['started_at'] as String? ?? '') ??
           DateTime.now(),
-      submittedAt: DateTime.tryParse(attempt?['submitted_at'] as String? ?? ''),
-      status: attempt?['status'] as String? ?? 'in_progress',
+      submittedAt: DateTime.tryParse(attempt['finished_at'] as String? ?? ''),
+      status: attempt['is_completed'] == true ? 'completed' : 'in_progress',
     );
   }
 
@@ -122,9 +121,8 @@ class QuizRepository {
         answers: answers,
       );
 
-      final data = response.data as Map<String, dynamic>;
       return QuizResultDto.fromJson(
-          _normalizeResult(data, attemptId, quizSetId));
+          _normalizeResult(_objectData(response), attemptId, quizSetId));
     } catch (e) {
       _logger.w('Online submit failed, queueing for background sync: $e');
       await _queueForSync(
@@ -136,7 +134,7 @@ class QuizRepository {
   Future<QuizResultDto> getResult(String attemptId) async {
     final response = await _apiClient.getQuizResult(attemptId);
     return QuizResultDto.fromJson(
-      _normalizeResult(response.data as Map<String, dynamic>, attemptId, ''),
+      _normalizeResult(_objectData(response), attemptId, ''),
     );
   }
 

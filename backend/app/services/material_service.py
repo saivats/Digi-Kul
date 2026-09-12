@@ -95,3 +95,45 @@ def increment_download_count(material_id: str) -> None:
     if material.data:
         current = material.data[0].get("download_count", 0) or 0
         db.table("materials").update({"download_count": current + 1}).eq("id", material_id).execute()
+
+
+def list_materials_for_cohorts(cohort_ids: list[str], institution_id: str) -> list[dict]:
+    """Materials attached to any of the cohorts OR to lectures in them."""
+    if not cohort_ids:
+        return []
+    db = get_supabase()
+    lecture_ids = [
+        l["id"]
+        for l in (
+            db.table("lectures").select("id").in_("cohort_id", cohort_ids).eq("institution_id", institution_id).execute().data
+            or []
+        )
+    ]
+    query = (
+        db.table("materials")
+        .select("*, teachers(name)")
+        .eq("institution_id", institution_id)
+        .eq("is_active", True)
+    )
+    clauses = [f"cohort_id.in.({','.join(cohort_ids)})"]
+    if lecture_ids:
+        clauses.append(f"lecture_id.in.({','.join(lecture_ids)})")
+    query = query.or_(",".join(clauses))
+    rows = query.order("uploaded_at", desc=True).execute().data or []
+    return [shape_for_client(r) for r in rows]
+
+
+def shape_for_client(row: dict) -> dict:
+    """Add the fields clients render: download_url (relative to the API
+    origin — the auth interceptor adds the bearer token), file_size_bytes,
+    a short file_type (pdf/png/…) and uploaded_by (teacher name)."""
+    teacher = row.pop("teachers", None) or {}
+    out = dict(row)
+    name = row.get("file_name") or ""
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    out["mime_type"] = row.get("file_type")
+    out["file_type"] = ext or (row.get("file_type") or "").split("/")[-1] or "file"
+    out["file_size_bytes"] = row.get("file_size") or 0
+    out["uploaded_by"] = teacher.get("name", "") if isinstance(teacher, dict) else ""
+    out["download_url"] = f"/api/materials/{row['id']}/file"
+    return out

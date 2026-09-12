@@ -120,3 +120,38 @@ def set_lecture_status(lecture_id: str, institution_id: str, status: str) -> dic
         .execute()
     )
     return result.data[0] if result.data else None
+
+
+def list_lectures_for_cohorts(cohort_ids: list[str], institution_id: str) -> list[dict]:
+    """All active lectures across several cohorts (a student's enrolments),
+    enriched with `teacher_name`, `duration_minutes` and `session_id` — the
+    field names the mobile client expects. Includes every status so the
+    client can split live / upcoming / past itself."""
+    if not cohort_ids:
+        return []
+    db = get_supabase()
+    rows = (
+        db.table("lectures")
+        .select("*, teachers(name)")
+        .in_("cohort_id", cohort_ids)
+        .eq("institution_id", institution_id)
+        .eq("is_active", True)
+        .order("scheduled_time", desc=True)
+        .execute()
+        .data
+        or []
+    )
+    return [shape_for_student(r) for r in rows]
+
+
+def shape_for_student(row: dict) -> dict:
+    teacher = row.pop("teachers", None) or {}
+    out = dict(row)
+    out["teacher_name"] = teacher.get("name", "") if isinstance(teacher, dict) else ""
+    out["duration_minutes"] = row.get("duration") or 60
+    # The Socket.IO room id is the lecture id (see socket_manager.create_session).
+    out["session_id"] = row.get("id")
+    out.setdefault("description", "") 
+    if out["description"] is None:
+        out["description"] = ""
+    return out

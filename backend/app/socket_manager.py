@@ -22,6 +22,7 @@ existing web client keeps working:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -31,7 +32,7 @@ import redis.asyncio as aioredis
 import socketio
 
 from app.config import get_settings
-from app.services import recording_service
+from app.services import attendance_service, recording_service
 from app.utils.security import decode_access_token
 
 logger = logging.getLogger("digi-kul.socket")
@@ -314,6 +315,22 @@ async def _require_owner(sid: str, action: str, data: dict) -> tuple[dict, str, 
     return user, session_id, session
 
 
+async def _record_attendance(kind: str, session: dict, session_id: str, user: dict) -> None:
+    lecture_id = session.get("lecture_id") or session_id
+    try:
+        if kind == "join":
+            await asyncio.to_thread(
+                attendance_service.mark_joined,
+                institution_id=user.get("institution_id") or session.get("institution_id") or "",
+                lecture_id=lecture_id,
+                student_id=user["user_id"],
+            )
+        else:
+            await asyncio.to_thread(attendance_service.mark_left, lecture_id=lecture_id, student_id=user["user_id"])
+    except Exception:
+        logger.warning("attendance %s failed for %s in %s", kind, user.get("user_id"), session_id, exc_info=True)
+
+
 def _public_participant(p: dict) -> dict:
     return {k: v for k, v in p.items() if k != "sid"}
 
@@ -338,6 +355,9 @@ async def _cleanup_socket(sid: str, *, notify: bool = True, user_id: str | None 
                     {"user_id": user_id, "user_name": participant.get("user_name", "")},
                     room=session_id,
                 )
+            if participant.get("user_type") == "student":
+                session = await session_store.get_session(session_id) or {}
+                asyncio.create_task(_record_attendance("leave", session, session_id, {"user_id": user_id}))
     await session_store.unmap_socket(sid)
     _buckets.pop(sid, None)
 
@@ -450,6 +470,10 @@ async def join_session(sid, data):
     await session_store.add_participant(session_id, participant)
     await session_store.touch(session_id)
     await sio.enter_room(sid, session_id)
+    if user.get("user_type") == "student":
+        # Attendance = joined the live session. Supabase client is sync, so
+        # keep it off the event loop and never let a DB hiccup break the join.
+        asyncio.create_task(_record_attendance("join", session, session_id, user))
 
     await sio.emit(
         "participant_joined",
@@ -488,6 +512,9 @@ async def leave_session(sid, data):
             {"user_id": user["user_id"], "user_name": user.get("user_name", "")},
             room=session_id,
         )
+        if user.get("user_type") == "student":
+            session = await session_store.get_session(session_id) or {}
+            asyncio.create_task(_record_attendance("leave", session, session_id, user))
     await session_store.forget_socket_session(sid, session_id)
     await sio.leave_room(sid, session_id)
 

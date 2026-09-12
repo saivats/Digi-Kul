@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:logger/logger.dart';
 
+import '../../../core/constants/api_constants.dart';
+
 class WebRtcService {
   WebRtcService({required this.onIceCandidate});
 
@@ -15,14 +17,37 @@ class WebRtcService {
   final _remoteStreamController = StreamController<MediaStream>.broadcast();
   Stream<MediaStream> get onRemoteStream => _remoteStreamController.stream;
 
-  static const _iceServers = <Map<String, dynamic>>[
-    {'urls': 'stun:stun.l.google.com:19302'},
-    {'urls': 'stun:stun1.l.google.com:19302'},
-  ];
+  /// STUN always; TURN when the build was given TURN_URL/USERNAME/CREDENTIAL
+  /// (see ApiConstants). Without a TURN relay, students on mobile data
+  /// behind carrier-grade NAT complete the handshake but get no audio.
+  static List<Map<String, dynamic>> iceServers() {
+    final servers = <Map<String, dynamic>>[
+      {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
+    ];
+    final turnUrls = ApiConstants.turnUrl
+        .split(',')
+        .map((u) => u.trim())
+        .where((u) => u.startsWith('turn:') || u.startsWith('turns:'))
+        .toList();
+    if (turnUrls.isNotEmpty &&
+        ApiConstants.turnUsername.isNotEmpty &&
+        ApiConstants.turnCredential.isNotEmpty) {
+      servers.add({
+        'urls': turnUrls,
+        'username': ApiConstants.turnUsername,
+        'credential': ApiConstants.turnCredential,
+      });
+    }
+    return servers;
+  }
+
+  static bool get hasTurn =>
+      iceServers().any((s) => s.containsKey('username'));
 
   Future<void> initialize() async {
     final config = <String, dynamic>{
-      'iceServers': _iceServers,
+      'iceServers': iceServers(),
       'sdpSemantics': 'unified-plan',
     };
 
@@ -72,12 +97,13 @@ class WebRtcService {
     return mungedOffer;
   }
 
+  /// [data] is the relayed `webrtc_offer` payload: `{from_user_id, sdp}`
+  /// where `sdp` is simple-peer's `{type: 'offer', sdp: '...'}`.
   Future<RTCSessionDescription?> handleOffer(Map<String, dynamic> data) async {
     if (_peerConnection == null) return null;
 
-    final offerData = data['offer'] is Map
-        ? Map<String, dynamic>.from(data['offer'] as Map)
-        : data;
+    final raw = data['sdp'] ?? data['offer'];
+    final offerData = raw is Map ? Map<String, dynamic>.from(raw) : data;
     final offer = RTCSessionDescription(
       offerData['sdp'] as String?,
       offerData['type'] as String?,
@@ -101,9 +127,8 @@ class WebRtcService {
   }
 
   Future<void> handleAnswerData(Map<String, dynamic> data) async {
-    final answerData = data['answer'] is Map
-        ? Map<String, dynamic>.from(data['answer'] as Map)
-        : data;
+    final raw = data['sdp'] ?? data['answer'];
+    final answerData = raw is Map ? Map<String, dynamic>.from(raw) : data;
     await handleAnswer(
       RTCSessionDescription(
         answerData['sdp'] as String?,
@@ -126,10 +151,20 @@ class WebRtcService {
     }
   }
 
+  /// [data] is `{from_user_id, candidate}` where `candidate` is what
+  /// simple-peer emitted: `{type: 'candidate', candidate: {candidate, sdpMid,
+  /// sdpMLineIndex}}` — so unwrap up to two levels.
   Future<void> addIceCandidateData(Map<String, dynamic> data) async {
-    final candidateData = data['candidate'] is Map
-        ? Map<String, dynamic>.from(data['candidate'] as Map)
-        : data;
+    var candidateData = data;
+    for (var i = 0; i < 2; i++) {
+      final inner = candidateData['candidate'];
+      if (inner is Map) {
+        candidateData = Map<String, dynamic>.from(inner);
+      } else {
+        break;
+      }
+    }
+    if (candidateData['candidate'] is! String) return;
     await addIceCandidate(
       RTCIceCandidate(
         candidateData['candidate'] as String?,

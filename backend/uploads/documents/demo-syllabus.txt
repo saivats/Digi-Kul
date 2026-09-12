@@ -1,0 +1,5 @@
+Digi-Kul Demo Cohort 2026 — Syllabus
+
+1. Introduction to CS
+2. Data Structures
+3. Algorithms

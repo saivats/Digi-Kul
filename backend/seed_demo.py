@@ -131,7 +131,58 @@ def seed():
                 }
             ]).execute()
 
+        print("Creating past/upcoming lectures, quiz, material...")
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        if not sb.table('lectures').select('id').eq('cohort_id', cohort_id).eq('status', 'ended').execute().data:
+            sb.table('lectures').insert([
+                {
+                    'cohort_id': cohort_id, 'teacher_id': t_id, 'institution_id': inst_id,
+                    'title': 'Number Systems (recap)', 'description': 'Binary, octal, hex.',
+                    'scheduled_time': (now - timedelta(days=2)).isoformat(), 'duration': 45, 'status': 'ended',
+                },
+                {
+                    'cohort_id': cohort_id, 'teacher_id': t_id, 'institution_id': inst_id,
+                    'title': 'Algorithms: Sorting', 'description': 'Bubble, merge, quick sort.',
+                    'scheduled_time': (now + timedelta(days=1)).isoformat(), 'duration': 60, 'status': 'scheduled',
+                },
+            ]).execute()
+
+        if not sb.table('quiz_sets').select('id').eq('cohort_id', cohort_id).execute().data:
+            qs = sb.table('quiz_sets').insert({
+                'institution_id': inst_id, 'cohort_id': cohort_id, 'teacher_id': t_id,
+                'title': 'CS Basics Quiz', 'description': 'Five quick questions on fundamentals.',
+                'time_limit': 10, 'max_attempts': 3, 'show_correct_answers': True, 'is_active': True,
+            }).execute().data[0]
+            questions = [
+                ("What does CPU stand for?", {"a": "Central Processing Unit", "b": "Computer Personal Unit", "c": "Central Program Utility", "d": "Core Processing Unit"}, "a"),
+                ("Which data structure uses FIFO?", {"a": "Stack", "b": "Queue", "c": "Tree", "d": "Graph"}, "b"),
+                ("Binary of decimal 5 is", {"a": "100", "b": "111", "c": "101", "d": "110"}, "c"),
+                ("Which is NOT a programming language?", {"a": "Python", "b": "Java", "c": "HTML", "d": "Rust"}, "c"),
+                ("Big-O of binary search", {"a": "O(n)", "b": "O(log n)", "c": "O(n log n)", "d": "O(1)"}, "b"),
+            ]
+            sb.table('quizzes').insert([
+                {'quiz_set_id': qs['id'], 'question_text': q, 'question_type': 'multiple_choice',
+                 'options': opts, 'correct_answer': ans, 'points': 1, 'order_index': i}
+                for i, (q, opts, ans) in enumerate(questions)
+            ]).execute()
+
+        if not sb.table('materials').select('id').eq('cohort_id', cohort_id).execute().data:
+            from app.config import get_settings
+            settings = get_settings()
+            os.makedirs(os.path.join(settings.upload_folder, 'documents'), exist_ok=True)
+            path = os.path.join(settings.upload_folder, 'documents', 'demo-syllabus.txt')
+            with open(path, 'w') as f:
+                f.write("Digi-Kul Demo Cohort 2026 — Syllabus\n\n1. Introduction to CS\n2. Data Structures\n3. Algorithms\n")
+            sb.table('materials').insert({
+                'institution_id': inst_id, 'cohort_id': cohort_id, 'teacher_id': t_id,
+                'title': 'Course Syllabus', 'description': 'Term plan and reading list.',
+                'file_path': path, 'file_name': 'demo-syllabus.txt', 'file_type': 'text/plain',
+                'file_size': os.path.getsize(path), 'is_active': True,
+            }).execute()
+
         print("\nAll demo data created successfully!")
+        print("Logins (password: password123): super@digikul.com (super_admin), admin@digikul.in (institution_admin), teacher@digikul.in (teacher), student@digikul.in (student)")
     except Exception as e:
         print(f"Error seeding database: {e}")
 

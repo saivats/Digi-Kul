@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateInstitution, deleteInstitution } from "@/lib/api";
+import { updateInstitution, deleteInstitution, type InstitutionPayload } from "@/lib/api";
+import { errorMessage } from "@/components/app/QueryState";
 import { Edit, Trash2 } from "lucide-react";
 
 interface EditInstitutionDialogProps {
@@ -39,14 +40,14 @@ export function EditInstitutionDialog({ institution }: EditInstitutionDialogProp
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => updateInstitution(institution.id, data),
+    mutationFn: (data: InstitutionPayload) => updateInstitution(institution.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "institutions"] });
       setOpen(false);
       setError(null);
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.detail || "Failed to update institution");
+    onError: (err: unknown) => {
+      setError(errorMessage(err));
     },
   });
 
@@ -57,8 +58,8 @@ export function EditInstitutionDialog({ institution }: EditInstitutionDialogProp
       setOpen(false);
       setError(null);
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.detail || "Failed to delete institution");
+    onError: (err: unknown) => {
+      setError(errorMessage(err));
     },
   });
 
@@ -125,7 +126,7 @@ export function EditInstitutionDialog({ institution }: EditInstitutionDialogProp
               onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
             />
           </div>
-          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-live-soft px-3 py-2 text-sm font-medium text-live">{error}</p>}
           <DialogFooter className="flex justify-between items-center sm:justify-between">
             <Button
               type="button"

@@ -1,34 +1,56 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import Peer from "simple-peer";
 import { toast } from "sonner";
+import { Hand, Headphones, LogOut, Volume2, VolumeX } from "lucide-react";
 import { getToken, getUser } from "@/lib/auth";
+import { getLecture } from "@/lib/api";
 import { getRtcConfig } from "@/lib/webrtc";
 import { useLiveSession } from "@/lib/useLiveSession";
+import {
+  ChatPanel,
+  ConnectionDot,
+  ControlButton,
+  ParticipantList,
+  ParticipantTile,
+  Pill,
+  SessionShell,
+  StageMessage,
+  TileGrid,
+  useElapsed,
+} from "@/components/session/SessionUI";
 
-/**
- * Student side of a live session. The teacher initiates the WebRTC offer;
- * we answer it and play the teacher's audio. Chat + hand-raise go over the
- * signalling socket.
- */
+type AudioState = "waiting" | "connecting" | "playing" | "blocked" | "failed";
+
 export default function StudentSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.sessionId as string;
 
-  const user = useMemo(() => getUser(), []);
-  const token = useMemo(() => getToken(), []);
+  // localStorage-backed auth only exists in the browser; render nothing on
+  // the server so SSR markup never disagrees with the client (hydration).
+  const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const user = useMemo(() => (isClient ? getUser() : null), [isClient]);
+  const token = useMemo(() => (isClient ? getToken() : null), [isClient]);
+
+  const lectureQuery = useQuery({
+    queryKey: ["lecture", sessionId],
+    queryFn: () => getLecture(sessionId),
+    enabled: !!token && !!sessionId,
+    retry: 1,
+  });
+  const lectureTitle: string = lectureQuery.data?.data?.title ?? "Live session";
 
   const peerRef = useRef<Peer.Instance | null>(null);
   const teacherIdRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [audioState, setAudioState] = useState<"waiting" | "connecting" | "playing" | "blocked" | "failed">("waiting");
-  const [chatInput, setChatInput] = useState("");
+  const [audioState, setAudioState] = useState<AudioState>("waiting");
   const [handUp, setHandUp] = useState(false);
   const [mutedByTeacher, setMutedByTeacher] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const signalRef = useRef<ReturnType<typeof useLiveSession>["signal"] | null>(null);
 
@@ -38,42 +60,42 @@ export default function StudentSessionPage() {
     if (audioRef.current) audioRef.current.srcObject = null;
   }, []);
 
-  const acceptOffer = useCallback((fromUserId: string, sdp: Peer.SignalData) => {
-    // A fresh offer means the teacher (re)started their side — replace any
-    // existing peer rather than trying to renegotiate.
-    destroyPeer();
-    teacherIdRef.current = fromUserId;
-    setAudioState("connecting");
-    const peer = new Peer({ initiator: false, trickle: true, config: getRtcConfig() });
-    peer.on("signal", (data) => {
-      if ("type" in data && data.type === "answer") {
-        signalRef.current?.("webrtc_answer", fromUserId, { sdp: data });
-      } else if ("candidate" in data) {
-        signalRef.current?.("webrtc_ice_candidate", fromUserId, { candidate: data });
-      }
-    });
-    peer.on("stream", (stream) => {
-      const el = audioRef.current;
-      if (!el) return;
-      el.srcObject = stream;
-      el.play()
-        .then(() => setAudioState("playing"))
-        .catch(() => setAudioState("blocked")); // autoplay policy — needs a tap
-    });
-    peer.on("connect", () => setAudioState((s) => (s === "connecting" ? "playing" : s)));
-    peer.on("error", (err) => {
-      console.error("Peer error:", err);
-      setAudioState("failed");
-    });
-    peer.on("close", () => {
-      if (peerRef.current === peer) {
-        peerRef.current = null;
-        setAudioState("waiting");
-      }
-    });
-    peer.signal(sdp);
-    peerRef.current = peer;
-  }, [destroyPeer]);
+  const acceptOffer = useCallback(
+    (fromUserId: string, sdp: Peer.SignalData) => {
+      destroyPeer();
+      teacherIdRef.current = fromUserId;
+      setAudioState("connecting");
+      const peer = new Peer({ initiator: false, trickle: true, config: getRtcConfig() });
+      peer.on("signal", (data) => {
+        if ("type" in data && data.type === "answer") {
+          signalRef.current?.("webrtc_answer", fromUserId, { sdp: data });
+        } else if ("candidate" in data) {
+          signalRef.current?.("webrtc_ice_candidate", fromUserId, { candidate: data });
+        }
+      });
+      peer.on("stream", (stream) => {
+        const el = audioRef.current;
+        if (!el) return;
+        el.srcObject = stream;
+        el.play()
+          .then(() => setAudioState("playing"))
+          .catch(() => setAudioState("blocked"));
+      });
+      peer.on("error", (err) => {
+        console.error("Peer error:", err);
+        setAudioState("failed");
+      });
+      peer.on("close", () => {
+        if (peerRef.current === peer) {
+          peerRef.current = null;
+          setAudioState("waiting");
+        }
+      });
+      peer.signal(sdp);
+      peerRef.current = peer;
+    },
+    [destroyPeer]
+  );
 
   const session = useLiveSession({
     sessionId,
@@ -108,146 +130,127 @@ export default function StudentSessionPage() {
   }, [session.signal]);
 
   useEffect(() => {
+    if (!isClient) return;
     if (!token || !user) {
       router.replace("/login");
       return;
     }
-    if (user.user_type === "teacher") {
-      router.replace(`/teacher/session/${sessionId}`);
-    }
+    if (user.user_type === "teacher") router.replace(`/teacher/session/${sessionId}`);
     return () => destroyPeer();
-  }, [token, user, sessionId, router, destroyPeer]);
+  }, [isClient, token, user, sessionId, router, destroyPeer]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [session.chat]);
-
-  const submitChat = (e: React.FormEvent) => {
-    e.preventDefault();
-    session.sendChat(chatInput);
-    setChatInput("");
-  };
+  const connected = session.state === "connected";
+  const elapsed = useElapsed(connected);
+  const teacher = session.participants.find((p) => p.user_type === "teacher");
+  const others = session.participants.filter((p) => p.user_type !== "teacher" && p.user_id !== user?.user_id);
 
   const toggleHand = () => {
     if (handUp) {
       setHandUp(false);
       return;
     }
-    if (session.raiseHand()) setHandUp(true);
+    if (session.raiseHand()) {
+      setHandUp(true);
+      toast.success("Hand raised");
+    }
   };
 
-  const unblockAudio = () => {
+  const unblockAudio = () =>
     audioRef.current?.play().then(() => setAudioState("playing")).catch(() => setAudioState("blocked"));
+
+  const leave = () => router.push("/dashboard/student");
+
+  const audioLabel: Record<AudioState, string> = {
+    playing: "Listening",
+    connecting: "Connecting audio…",
+    waiting: teacher ? "Waiting for audio…" : "Waiting for the teacher…",
+    failed: "Audio failed — reload to retry",
+    blocked: "Tap to enable audio",
   };
 
-  const connected = session.state === "connected";
-  const teacher = session.participants.find((p) => p.user_type === "teacher");
+  if (!isClient) return null;
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <audio ref={audioRef} autoPlay playsInline />
-      <div className="flex flex-col flex-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className={`h-3 w-3 rounded-full ${connected ? "bg-green-500" : session.state === "reconnecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`} />
-            <div>
-              <h1 className="text-lg font-semibold">Live Session</h1>
-              <p className="text-xs text-muted-foreground">
+    <SessionShell
+      header={
+        <>
+          <audio ref={audioRef} autoPlay playsInline />
+          <div className="flex min-w-0 items-center gap-3">
+            <ConnectionDot state={session.state} />
+            <div className="min-w-0">
+              <h1 className="truncate text-[15px] font-semibold sm:text-base">{lectureTitle}</h1>
+              <div className="truncate text-xs text-muted-foreground">
                 {session.statusText}
+                {connected && ` · ${elapsed}`}
+                {teacher && ` · ${teacher.user_name}`}
                 {session.reconnectCount > 0 && ` · reconnected ×${session.reconnectCount}`}
-                {teacher && ` · Host: ${teacher.user_name}`}
-              </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             {session.isRecording && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600/10 px-3 py-1 text-xs font-semibold text-red-500">
-                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> Recording
-              </span>
+              <Pill tone="live">
+                <span className="live-dot" /> REC
+              </Pill>
             )}
-            <button onClick={toggleHand} disabled={!connected} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${handUp ? "bg-yellow-500/20 text-yellow-500" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
-              ✋ {handUp ? "Hand raised" : "Raise hand"}
-            </button>
-            <button onClick={() => router.push("/dashboard/student")} className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700">
-              Leave
-            </button>
+            {mutedByTeacher && <Pill tone="warn">Muted by teacher</Pill>}
           </div>
-        </header>
-
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex flex-1 flex-col items-center justify-center p-8">
-            {session.state === "error" ? (
-              <div className="text-center space-y-3">
-                <p className="text-lg font-semibold">Could not join</p>
-                <p className="text-sm text-muted-foreground">{session.statusText}</p>
-                <button onClick={() => router.push("/dashboard/student")} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Back to dashboard</button>
-              </div>
-            ) : session.state === "ended" ? (
-              <div className="text-center space-y-2">
-                <p className="text-lg font-semibold">Session ended</p>
-                <p className="text-sm text-muted-foreground">Returning to your dashboard…</p>
-              </div>
-            ) : (
-              <>
-                <div className="relative flex h-48 w-48 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 ring-2 ring-indigo-500/30">
-                  <span className="text-6xl">{audioState === "playing" ? "🔊" : "🎧"}</span>
-                </div>
-                <p className="mt-6 text-sm text-muted-foreground">
-                  {audioState === "playing" && "Listening to the teacher"}
-                  {audioState === "connecting" && "Connecting audio…"}
-                  {audioState === "waiting" && (teacher ? "Waiting for the teacher's audio…" : "Waiting for the teacher to join…")}
-                  {audioState === "failed" && "Audio connection failed — try reloading"}
-                  {audioState === "blocked" && "Tap to enable audio"}
-                </p>
-                {audioState === "blocked" && (
-                  <button onClick={unblockAudio} className="mt-3 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">🔊 Enable audio</button>
-                )}
-                {mutedByTeacher && <p className="mt-2 text-xs text-yellow-500">You were muted by the teacher</p>}
-              </>
+        </>
+      }
+      stage={
+        session.state === "error" ? (
+          <StageMessage
+            title="Couldn't join"
+            body={session.statusText}
+            action={<Link href="/dashboard/student" className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Back to dashboard</Link>}
+          />
+        ) : session.state === "ended" ? (
+          <StageMessage title="Class has ended" body="Taking you back to your dashboard…" />
+        ) : (
+          <>
+            <TileGrid count={1 + others.length}>
+              <ParticipantTile
+                name={teacher?.user_name ?? "Teacher"}
+                role="teacher"
+                highlight
+                status={audioLabel[audioState]}
+                statusTone={audioState === "playing" ? "ok" : audioState === "failed" ? "live" : "muted"}
+                icon={audioState === "playing" ? <Volume2 className="size-3.5" /> : audioState === "failed" ? <VolumeX className="size-3.5" /> : <Headphones className="size-3.5" />}
+              />
+              {others.map((p) => (
+                <ParticipantTile key={p.user_id} name={p.user_name} status={session.raisedHands.has(p.user_id) ? "Hand raised" : "In room"} statusTone={session.raisedHands.has(p.user_id) ? "warn" : "muted"} icon={session.raisedHands.has(p.user_id) ? <Hand className="size-3.5" /> : undefined} />
+              ))}
+            </TileGrid>
+            {audioState === "blocked" && (
+              <button type="button" onClick={unblockAudio} className="rounded-lg bg-ink px-5 py-2.5 text-sm font-semibold text-white">
+                Enable audio
+              </button>
             )}
-          </main>
-
-          <aside className="flex w-80 flex-col border-l border-border">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="text-sm font-semibold">Participants ({session.participants.length})</h2>
-            </div>
-            <ul className="flex-shrink-0 max-h-56 overflow-y-auto divide-y divide-border/50">
-              {session.participants.map((p) => (
-                <li key={p.user_id} className="flex items-center gap-2 px-4 py-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                    {(p.user_name || "?").charAt(0).toUpperCase()}
-                  </span>
-                  <span className="text-sm truncate">{p.user_id === user?.user_id ? `${p.user_name} (you)` : p.user_name}</span>
-                  {session.raisedHands.has(p.user_id) && <span>✋</span>}
-                  {p.user_type === "teacher" && <span className="ml-auto text-[10px] font-medium uppercase tracking-wider text-indigo-400">Host</span>}
-                </li>
-              ))}
-            </ul>
-
-            <div className="border-t border-border px-4 py-3">
-              <h2 className="text-sm font-semibold">Chat</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
-              {session.chat.map((msg, i) => (
-                <div key={i} className="text-sm">
-                  <span className="font-medium text-primary">{msg.mine ? "You" : msg.user_name}</span>
-                  <span className="ml-1.5 text-muted-foreground">{msg.message}</span>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="border-t border-border p-3">
-              <form onSubmit={submitChat} className="flex gap-2">
-                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type a message…" disabled={!connected} className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50" />
-                <button type="submit" disabled={!connected || !chatInput.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
-                  Send
-                </button>
-              </form>
-            </div>
-          </aside>
-        </div>
-      </div>
-    </div>
+          </>
+        )
+      }
+      controls={
+        <>
+          <ControlButton onClick={toggleHand} disabled={!connected} active={handUp} title={handUp ? "Lower hand" : "Raise hand"}>
+            <Hand />
+            {handUp ? "Hand raised" : "Raise hand"}
+          </ControlButton>
+          {audioState === "blocked" && (
+            <ControlButton onClick={unblockAudio} tone="primary" title="Enable audio">
+              <Volume2 /> Enable audio
+            </ControlButton>
+          )}
+          <ControlButton onClick={leave} tone="danger" title="Leave">
+            <LogOut /> Leave
+          </ControlButton>
+        </>
+      }
+      sidebar={
+        <>
+          <ParticipantList participants={session.participants} raisedHands={session.raisedHands} selfId={user?.user_id} />
+          <ChatPanel messages={session.chat} onSend={session.sendChat} disabled={!connected} />
+        </>
+      }
+    />
   );
 }

@@ -32,7 +32,7 @@ class BandwidthMonitor {
       ));
 
       final stopwatch = Stopwatch()..start();
-      final response = await dio.get('/health');
+      final response = await dio.get(ApiConstants.health);
       stopwatch.stop();
 
       final responseBytes = response.data.toString().length;

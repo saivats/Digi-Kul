@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:logger/logger.dart';
 
 import '../core/errors/app_exception.dart';
 import '../core/network/api_client.dart';
 import '../core/storage/preferences.dart';
 import '../core/storage/secure_storage.dart';
+import '../core/services/push_service.dart';
 
 class AuthRepository {
   AuthRepository(this._api);
@@ -58,6 +61,8 @@ class AuthRepository {
       );
 
       _logger.i('Login successful for $email');
+      // Best effort — needs Firebase configured; never blocks login.
+      unawaited(PushService.registerTokenIfAvailable(_api));
       return true;
     } on AuthException {
       rethrow;

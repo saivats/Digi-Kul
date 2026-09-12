@@ -33,7 +33,11 @@ class RegisterTeacherRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
+    # `success` is included so every client (web, Flutter) can use the same
+    # {success, ...} envelope check it uses for all other endpoints.
+    success: bool = True
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     user_id: str
     user_type: str
@@ -53,3 +57,7 @@ class SessionValidation(BaseModel):
 
 class ForceLogoutRequest(BaseModel):
     user_id: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str

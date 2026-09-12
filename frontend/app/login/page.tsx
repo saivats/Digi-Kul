@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LogoMark } from "@/components/app/Logo";
+import { errorMessage } from "@/components/app/QueryState";
 
 import { login } from "@/lib/api";
 import { saveAuth, getDashboardPath } from "@/lib/auth";
@@ -32,6 +34,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState("student");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loginMutation = useMutation({
     mutationFn: () => login(email, password, userType),
@@ -48,63 +51,68 @@ export default function LoginPage() {
       router.push(getDashboardPath(data.user_type));
     },
     onError: (error: unknown) => {
-      const ax = error as {
-        message?: string;
-        response?: { data?: { detail?: unknown } };
-      };
-      const detail = ax.response?.data?.detail;
-      let message: string;
-      if (typeof detail === "string") {
-        message = detail;
-      } else if (Array.isArray(detail)) {
-        message = detail
-          .map((item) =>
-            typeof item === "object" && item && "msg" in item
-              ? String((item as { msg: string }).msg)
-              : JSON.stringify(item)
-          )
-          .join("; ");
-      } else if (ax.message === "Network Error") {
-        message =
-          "Cannot reach the API (network/CORS). Check NEXT_PUBLIC_API_URL, backend port, and CORS for your browser URL.";
-      } else {
-        message = "Login failed. Please check your credentials.";
-      }
-      toast.error(message);
+      const ax = error as { response?: { status?: number } };
+      const msg =
+        ax.response?.status === 404
+          ? "No account with that email for this role."
+          : ax.response?.status === 401
+            ? "Incorrect password."
+            : errorMessage(error);
+      setFormError(msg);
     },
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
     loginMutation.mutate();
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-chart-1/10 blur-3xl" />
-      </div>
-
-      <Card className="relative w-full max-w-md border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-            <span className="text-2xl font-bold text-primary">D</span>
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">
-            Digi-Kul
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Digital Gurukul — Sign in to your account
+    <div className="grid min-h-screen bg-background lg:grid-cols-[1.1fr_1fr]">
+      {/* Brand panel */}
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-12 text-white lg:flex">
+        <div className="flex items-center gap-3">
+          <LogoMark className="size-10 rounded-xl bg-white/10" />
+          <span className="font-heading text-xl font-bold">Digi-Kul</span>
+        </div>
+        <div className="flex flex-col gap-5">
+          <div className="eyebrow text-white/60">Digital Gurukul</div>
+          <h1 className="max-w-md text-4xl font-bold leading-[1.15] text-white">
+            Live classes that work on the connection you actually have.
+          </h1>
+          <p className="max-w-md text-[15px] leading-relaxed text-white/75">
+            Audio-first live sessions, offline-ready materials and quizzes — for every corner of India.
           </p>
-        </CardHeader>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {["Audio-first live sessions", "Offline sync", "Quizzes & attendance"].map((f) => (
+              <span key={f} className="rounded-full border border-white/20 px-3 py-1 text-xs font-medium text-white/80">
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="text-xs text-white/50">© 2026 Digi-Kul</div>
+        <div className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-saffron/20 blur-3xl" aria-hidden />
+      </aside>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="role-select">Role</Label>
+      {/* Form */}
+      <main className="flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <LogoMark className="size-10 rounded-xl" />
+            <span className="font-heading text-xl font-bold">Digi-Kul</span>
+          </div>
+          <div className="mb-8 flex flex-col gap-1.5">
+            <h2 className="text-2xl font-bold">Sign in</h2>
+            <p className="text-sm text-muted-foreground">Use the account your institution gave you.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="role-select">I am a</Label>
               <Select value={userType} onValueChange={(val) => setUserType(val ?? "student")}>
-                <SelectTrigger id="role-select">
+                <SelectTrigger id="role-select" className="w-full">
                   <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -117,7 +125,7 @@ export default function LoginPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="email-input">Email</Label>
               <Input
                 id="email-input"
@@ -127,10 +135,11 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                autoFocus
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="password-input">Password</Label>
               <Input
                 id="password-input"
@@ -144,41 +153,28 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full font-semibold"
-              disabled={loginMutation.isPending}
-            >
+            {formError && (
+              <p role="alert" className="rounded-lg bg-live-soft px-3 py-2 text-sm font-medium text-live">
+                {formError}
+              </p>
+            )}
+
+            <Button type="submit" size="lg" className="w-full" disabled={loginMutation.isPending || !email || password.length < 6}>
               {loginMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    />
-                  </svg>
-                  Signing in…
-                </span>
+                <>
+                  <Loader2 className="animate-spin" data-icon="inline-start" /> Signing in…
+                </>
               ) : (
-                "Sign In"
+                "Sign in"
               )}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Students: install the Digi-Kul app for offline access and live audio on mobile data.
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

@@ -43,6 +43,11 @@ export async function login(
   return data;
 }
 
+export async function logout() {
+  const { data } = await api.post("/api/auth/logout");
+  return data;
+}
+
 export async function validateSession() {
   const { data } = await api.get("/api/auth/validate-session");
   return data;
@@ -178,5 +183,100 @@ export async function getPlatformStats() {
 
 export async function getInstitutionStats(institutionId: string) {
   const { data } = await api.get(`/api/institutions/${institutionId}/stats`);
+  return data;
+}
+
+
+// ---- student (web) --------------------------------------------------------
+export async function getStudentDashboard() {
+  const { data } = await api.get("/api/students/dashboard");
+  return data;
+}
+
+export async function listStudentCohorts() {
+  const { data } = await api.get("/api/students/cohorts");
+  return data;
+}
+
+export async function listStudentQuizHistory() {
+  const { data } = await api.get("/api/students/quiz-history");
+  return data;
+}
+
+export async function listStudentLectures() {
+  const { data } = await api.get("/api/students/lectures");
+  return data;
+}
+
+export async function listStudentMaterials() {
+  const { data } = await api.get("/api/students/materials");
+  return data;
+}
+
+export async function joinCohortByCode(enrollment_code: string) {
+  const { data } = await api.post("/api/cohorts/join", { enrollment_code });
+  return data;
+}
+
+/** Download an uploaded material through the authenticated API. */
+export async function downloadMaterial(materialId: string, fileName: string) {
+  const res = await api.get(`/api/materials/${materialId}/file`, { responseType: "blob" });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ---- admin ---------------------------------------------------------------
+export async function toggleStudentActive(studentId: string) {
+  const { data } = await api.post(`/api/students/${studentId}/toggle-active`);
+  return data;
+}
+
+export async function toggleTeacherActive(teacherId: string) {
+  const { data } = await api.post(`/api/teachers/${teacherId}/toggle-active`);
+  return data;
+}
+
+export async function registerTeacher(body: {
+  name: string;
+  email: string;
+  password: string;
+  institution_id: string;
+  subject: string;
+}) {
+  const { data } = await api.post("/api/auth/register/teacher", body);
+  return data;
+}
+
+export async function listCohortMaterials(cohortId: string) {
+  const { data } = await api.get(`/api/materials/cohort/${cohortId}`);
+  return data;
+}
+
+export async function uploadMaterial(form: FormData, params: { cohort_id?: string; lecture_id?: string; title?: string; description?: string }) {
+  const { data } = await api.post("/api/materials", form, {
+    params,
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deleteMaterial(materialId: string) {
+  const { data } = await api.delete(`/api/materials/${materialId}`);
+  return data;
+}
+
+export async function deleteLecture(lectureId: string) {
+  const { data } = await api.delete(`/api/lectures/${lectureId}`);
+  return data;
+}
+
+export async function getLecture(lectureId: string) {
+  const { data } = await api.get(`/api/lectures/${lectureId}`);
   return data;
 }
